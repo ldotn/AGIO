@@ -1,0 +1,31 @@
+cmake_minimum_required(VERSION 3.6.2)
+project(test_project)
+
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
+
+find_package(PythonLibs 3.5)
+include_directories(${PYTHON_INCLUDE_DIRS})
+include_directories(${CMAKE_SOURCE_DIR}/matplotlib-cpp)
+include_directories(${CMAKE_SOURCE_DIR}/bullet3/src)
+
+file(GLOB project_sources src/*.cpp)
+
+add_executable(test_project ${project_sources} )
+
+option(BULLET2_MULTITHREADING "" ON)
+option(BUILD_CPU_DEMOS "" OFF)
+option(BUILD_BULLET2_DEMOS "" OFF)
+add_subdirectory(bullet3)
+
+target_link_libraries(test_project ${PYTHON_LIBRARIES})
+target_link_libraries(test_project BulletDynamics BulletCollision LinearMath)
+
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT test_project)
+
+if (WIN32)
+	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS} /std:c++latest /MT")
+else ()
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1z")
+endif ()
