@@ -4,13 +4,14 @@ import numpy as np
 import matplotlib.cm as cm
 import math
 import copy
+from scipy.ndimage.filters import gaussian_filter
 
 population = []
 
 plt.ion()
 board_bounds = np.array([59,59],dtype=int)
 board = np.zeros((board_bounds[0]+1,board_bounds[1]+1),dtype=int)
-cell_values = [4,-0.5,-8]
+cell_values = [30,-0.5,-15]
 cell_types = [i for i in range(len(cell_values))]
 org_positions = np.zeros(board.shape)
 org_density = np.zeros(board.shape)
@@ -70,10 +71,15 @@ class Organism:
         self.is_predator = np.random.uniform() < 0.3
         if self.is_predator:
             self.life = 300 
+        self.number_of_childs = 0
 
         if init_dna:
             # Using a binary decision tree
             # That way you always get an answer
+            # Though you do have redundant checks
+            # When going down a 'true' branch, you should never ask again for a parameter
+            # Because you already know the correct value
+            # This is only correct for mutually exclusive conditions
             def build_random_tree(level):
                 if level == 0 or np.random.uniform() > 0.55:
                     return Leaf(np.random.choice(5)) # 5 actions
@@ -117,16 +123,19 @@ class Organism:
 
         org_positions[self.pos[0],self.pos[1]] = 0
         if action is not None:
-            if action == 0:
+            # Don't allow two organisms to be on the exact position
+            if action == 0 and org_types[tuple(np.clip(self.pos + np.array([1,0]),0,board_bounds))] == 0:
                 self.pos[0] += 1
-            elif action == 1:
+            elif action == 1 and org_types[tuple(np.clip(self.pos + np.array([-1,0]),0,board_bounds))] == 0:
                 self.pos[0] -= 1
-            elif action == 2:
+            elif action == 2 and org_types[tuple(np.clip(self.pos + np.array([0,1]),0,board_bounds))] == 0:
                 self.pos[1] += 1
-            elif action == 3:
+            elif action == 3 and org_types[tuple(np.clip(self.pos + np.array([0,-1]),0,board_bounds))] == 0: 
                 self.pos[1] -= 1
             elif action == 4: # Random move
-                self.pos[1 if np.random.uniform() < 0.5 else 0] += 1 if np.random.uniform() < 0.5 else 1
+                offset = np.random.choice([-1,0,1],2)
+                if org_types[tuple(np.clip(self.pos + offset,0,board_bounds))] == 0:
+                    self.pos += offset
             #elif action == 5:
                 #None#idle
 
@@ -146,7 +155,7 @@ class Organism:
                     self.life += cell_values[cell_type]
 
                 for idx,org in enumerate(population):
-                    if org.pos[0] == self.pos[0] and org.pos[1] == self.pos[1] and not org.is_predator:
+                    if np.linalg.norm(self.pos - org.pos,ord=np.inf) <= 1 and not org.is_predator:
                         self.life += 25
                         population[idx].life -= 50
             else:
@@ -175,13 +184,17 @@ class Organism:
             return False
 
         # Condition 2 : Want partners that are not too young or too old
-        peak_age = 150 # Arbitrary, the 'best' value depends on the scene and actions
-        if np.abs(partner.age - peak_age) > np.abs(np.random.normal(peak_age,4.0)):
-            return False
+        #peak_age = 45 # Arbitrary, the 'best' value depends on the scene and actions
+        #if np.abs(partner.age - peak_age) > np.abs(np.random.normal(peak_age,4.0)):
+            #return False
 
         # Condition 3 : Want partners that had a high average life
         #if (partner.accumulated_life / partner.age) > np.random.exponential(0.05):
             #return False
+
+        # Condition 4 : Don't want to have too many childrens
+        if 1.0 / (0.25*self.number_of_childs + 1) < np.random.uniform():
+            return False
 
         # All conditions passed, so the partner is accepted
         # That a partner is accepted doesn't directly means that there will be mating
@@ -234,6 +247,7 @@ for sim_iter in range(100000):
             num_predator += 1
         else:
             num_prey += 1
+    org_density = gaussian_filter(org_density, sigma=2)
 
     # Step
     for org in population:
@@ -254,21 +268,19 @@ for sim_iter in range(100000):
                     candidate_parents.add((p0,p1))
         print(len(candidate_parents))
         print('---------')
-        # Produce candidate childs
-        candidate_childs = []
-        for pA,pB in candidate_parents:
-            # If they passed the acceptance tests, both tuples are in the list
-            # So the two childs will be generated
-            candidate_childs.append(pA.cross(pB)) 
-        
+        candidate_parents = [parents for parents in candidate_parents]
+
         # Replace the dead individuals
-        while len(population) < base_pop_size and len(candidate_childs) > 0:
+        while len(population) < base_pop_size and len(candidate_parents) > 0:
             if np.random.uniform() < 0.25:
                 population.append(Organism()) # Introduce diversity by creating a fully new organism
             else:
-                cidx = np.random.choice(len(candidate_childs))
-                population.append(candidate_childs[cidx])
-                del candidate_childs[cidx]
+                cidx = np.random.choice(len(candidate_parents))
+                pA,pB = candidate_parents[cidx]
+                population.append(pA.cross(pB))
+                pA.number_of_childs += 1
+                pB.number_of_childs += 1
+                del candidate_parents[cidx]
 
     # Visualize organisms
     plt.clf()
