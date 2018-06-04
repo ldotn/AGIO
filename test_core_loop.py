@@ -16,6 +16,7 @@ cell_types = [i for i in range(len(cell_values))]
 org_positions = np.zeros(board.shape)
 org_density = np.zeros(board.shape)
 org_types = np.zeros(board.shape)
+food_count = np.zeros(board.shape)
 
 def build_init_board():
     for x,y in np.ndindex(board.shape):
@@ -35,6 +36,7 @@ def build_init_board():
         v = a0*w0 + a1*w1 + a2*w2 + a3*w3
 
         if v > 0.5:
+            food_count[x,y] = 4 # Can eat 4 times the same food
             board[x,y] = 0
         elif v > -0.5 and v <= 0.5:
             board[x,y] = 1
@@ -68,9 +70,7 @@ class Organism:
         self.life = 100
         self.age = 0
         self.accumulated_life = 0
-        self.is_predator = np.random.uniform() < 0.3
-        if self.is_predator:
-            self.life = 300 
+        self.is_predator = np.random.uniform() < 0.25
         self.number_of_childs = 0
 
         if init_dna:
@@ -160,7 +160,7 @@ class Organism:
                         population[idx].life -= 50
             else:
                 if cell_type == 0:
-                    self.life += cell_values[0] / (org_density[self.pos[0],self.pos[1]] + 1)
+                    self.life += cell_values[0]# / (org_density[self.pos[0],self.pos[1]] + 1)
                 else:
                     self.life += cell_values[cell_type]
 
@@ -174,6 +174,9 @@ class Organism:
         if self.life <= 0:
             self.life = 0
     
+    def local_fitness(self):
+        return 0.1*self.life + self.accumulated_life / self.age + 1.0 / (0.5*self.number_of_childs + 1)
+
     def accept_partner(self,partner):
         # Predators can't mate with prey
         if self.is_predator != partner.is_predator:
@@ -193,7 +196,7 @@ class Organism:
             #return False
 
         # Condition 4 : Don't want to have too many childrens
-        if 1.0 / (0.25*self.number_of_childs + 1) < np.random.uniform():
+        if 1.0 / (0.5*self.number_of_childs + 1) < np.random.uniform():
             return False
 
         # All conditions passed, so the partner is accepted
@@ -228,78 +231,115 @@ class Organism:
         return child
 
 # Initial population
-base_pop_size = 100
+base_pop_size = 75
 population = [Organism() for _ in range(base_pop_size)]
 
 # Build world
 build_init_board()
 
 # Do simulation
-for sim_iter in range(100000):
-    np.random.shuffle(population)
-    org_density = np.zeros(board.shape)
-    org_types = np.zeros(board.shape)
-    num_prey,num_predator = 0,0
-    for org in population:
-        org_density[org.pos[0],org.pos[1]] += 1
-        org_types[org.pos[0],org.pos[1]] = 1 if org.is_predator else 2
-        if org.is_predator:
-            num_predator += 1
-        else:
-            num_prey += 1
-    org_density = gaussian_filter(org_density, sigma=2)
+num_predator_list = []
+num_prey_list = []
+try:
+    for sim_iter in range(100000):
+        # Every 200 iterations, reset the enviroment
+        if sim_iter % 200 == 0:
+            food_count = np.zeros(board.shape)
+            build_init_board()
 
-    # Step
-    for org in population:
-        org.step()
+        np.random.shuffle(population)
+        #org_density = np.zeros(board.shape)
+        org_types = np.zeros(board.shape)
+        num_prey,num_predator = 0,0
+        for org in population:
+            #org_density[org.pos[0],org.pos[1]] += 1
+            org_types[org.pos[0],org.pos[1]] = 1 if org.is_predator else 2
+            if org.is_predator:
+                num_predator += 1
+            else:
+                num_prey += 1
+        #org_density = gaussian_filter(org_density, sigma=2)
+        num_prey_list.append(num_prey)
+        num_predator_list.append(num_predator)
 
-    # Filter dead organisms
-    population = [org for org in population if org.life > 0]
-    print(str(len(population)) + ' | Prey : ' + str(num_prey) + ' , Predator : ' + str(num_predator))
+        # Step
+        for org in population:
+            org.step()
+        
+        # Filter dead organisms
+        population = [org for org in population if org.life > 0]
+        print(str(len(population)) + ' | Prey : ' + str(num_prey) + ' , Predator : ' + str(num_predator))
 
-    # First version : Keep population size constant
-    if len(population) < base_pop_size:
+        # Remove part of the food from food cells where organisms are
+        for org in population:
+            if not org.is_predator and board[tuple(org.pos)] == 0: # food cell
+                food_count[tuple(org.pos)] -= 1
+                if food_count[tuple(org.pos)] <= 0:
+                    board[tuple(org.pos)] = 1 # cell is now empty
+
+        # First version : Keep population size constant
+        #if len(population) < base_pop_size:
+        # Second version : Use a normal distribution and try to keep distance
         candidate_parents = set()
 
         # Find suitable matches
         for p0 in population:
+            partners = []
+            partners_w = []
+            w_total = 0
             for p1 in population:
-                if p0 is not p1 and np.linalg.norm(p0.pos - p1.pos,ord=np.inf) <= 2.0 and p0.accept_partner(p1) and p1.accept_partner(p0):
-                    candidate_parents.add((p0,p1))
-        print(len(candidate_parents))
-        print('---------')
+                if p0 is not p1 and np.linalg.norm(p0.pos - p1.pos,ord=np.inf) <= 2.0:
+                    partners.append(p1)
+                    w = p1.local_fitness()
+                    partners_w.append(w)
+                    w_total += w
+                #if p0 is not p1 and np.linalg.norm(p0.pos - p1.pos,ord=np.inf) <= 2.0 and p0.accept_partner(p1) and p1.accept_partner(p0):
+                    #candidate_parents.add((p0,p1))
+            # Select random partner based on local fitness
+            if len(partners) > 0:
+                partner = np.random.choice(partners,p=[w/w_total for w in partners_w])
+                candidate_parents.add((p0,partner))
+
         candidate_parents = [parents for parents in candidate_parents]
+        np.random.shuffle(candidate_parents)
 
         # Replace the dead individuals
-        while len(population) < base_pop_size and len(candidate_parents) > 0:
-            if np.random.uniform() < 0.25:
-                population.append(Organism()) # Introduce diversity by creating a fully new organism
-            else:
-                cidx = np.random.choice(len(candidate_parents))
-                pA,pB = candidate_parents[cidx]
-                population.append(pA.cross(pB))
-                pA.number_of_childs += 1
-                pB.number_of_childs += 1
-                del candidate_parents[cidx]
+        for pA,pB in candidate_parents:
+            if len(population) < base_pop_size + np.random.normal(0.0,20.0):
+                if np.random.uniform() < 0.25:
+                    population.append(Organism()) # Introduce diversity by creating a fully new organism
+                else:
+                    population.append(pA.cross(pB))
+                    pA.number_of_childs += 1
+                    pB.number_of_childs += 1
 
-    # Visualize organisms
-    plt.clf()
-    plt.figure(1)
-    plt.imshow([[cell_values[c] for c in l] for l in board],cmap = plt.get_cmap('gist_gray'))
-    plt.imshow(org_types,alpha=0.5)
+        # Visualize organisms
+        plt.clf()
+        plt.figure(1)
+        plt.imshow([[cell_values[c] for c in l] for l in board],cmap = plt.get_cmap('gist_gray'))
+        plt.imshow(org_types,alpha=0.5)
 
-    '''plt.figure(2)
-    org_ages = np.zeros(board.shape)
-    for org in population:
-        org_ages[org.pos[0],org.pos[1]] = org.age
-    plt.imshow([[cell_values[c] for c in l] for l in board],cmap = plt.get_cmap('gist_gray'))
-    plt.imshow(org_ages,alpha=0.5)
+        '''plt.figure(2)
+        org_ages = np.zeros(board.shape)
+        for org in population:
+            org_ages[org.pos[0],org.pos[1]] = org.age
+        plt.imshow([[cell_values[c] for c in l] for l in board],cmap = plt.get_cmap('gist_gray'))
+        plt.imshow(org_ages,alpha=0.5)
 
-    plt.figure(3)
-    plt.imshow([[cell_values[c] for c in l] for l in board],cmap = plt.get_cmap('gist_gray'))
-    plt.imshow(org_density,alpha=0.5)'''
+        plt.figure(3)
+        plt.imshow([[cell_values[c] for c in l] for l in board],cmap = plt.get_cmap('gist_gray'))
+        plt.imshow(org_density,alpha=0.5)'''
 
-    plt.pause(0.01)
+        plt.pause(0.01)
+except KeyboardInterrupt:
+    try:
+        plt.clf()
+        plt.ioff()
+        plt.plot(num_predator_list,label='Predators')
+        plt.plot(num_prey_list,label='Prey')
+        plt.show()
+    except KeyboardInterrupt:
+        plt.show()
 
 
 
