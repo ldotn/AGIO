@@ -288,7 +288,7 @@ try:
             partners_w = []
             w_total = 0
             for p1 in population:
-                if p0 is not p1 and np.linalg.norm(p0.pos - p1.pos,ord=np.inf) <= 2.0:
+                if p0 is not p1 and p0.is_predator == p1.is_predator and np.linalg.norm(p0.pos - p1.pos,ord=np.inf) <= 2.0:
                     partners.append(p1)
                     w = p1.local_fitness()
                     partners_w.append(w)
