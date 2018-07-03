@@ -9,9 +9,15 @@ find_package(PythonLibs 3.5)
 include_directories(${PYTHON_INCLUDE_DIRS})
 include_directories(${CMAKE_SOURCE_DIR}/matplotlib-cpp)
 include_directories(${CMAKE_SOURCE_DIR}/bullet3/src)
+include_directories(${CMAKE_SOURCE_DIR}/FPlusPlus/FPlusPlus)
+include_directories(${CMAKE_SOURCE_DIR}/NEAT/include)
 
-file(GLOB project_sources src/*.cpp)
-
+set(project_sources 
+	src/test.cpp
+	src/neat_test.cpp
+)
+file(GLOB neat_sources *.cpp)
+set(project_sources ${project_sources} ${neat_sources})
 add_executable(test_project ${project_sources} )
 
 option(BULLET2_MULTITHREADING "" ON)

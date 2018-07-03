@@ -5,7 +5,7 @@
 
 namespace plt = matplotlibcpp;
 using namespace std;
-
+#if 0
 int main()
 {
 	plt::ion();
@@ -105,3 +105,4 @@ int main()
 
 	return 0;
 }
+#endif
