@@ -62,15 +62,17 @@ class Leaf:
     def __str__(self):
         return str(self.action)
 
+base_starting_life = 100
+
 class Organism:
     def __init__(self,init_dna = True):
         self.pos = np.zeros(2,dtype=int)
         self.pos[0] = int(np.random.choice(board_bounds[0]))
         self.pos[1] = int(np.random.choice(board_bounds[1]))
-        self.life = 100
+        self.life = base_starting_life
         self.age = 0
         self.accumulated_life = 0
-        self.is_predator = np.random.uniform() < 0.25
+        self.is_predator = np.random.uniform() < 0.5
         self.number_of_childs = 0
 
         if init_dna:
@@ -82,7 +84,7 @@ class Organism:
             # This is only correct for mutually exclusive conditions
             def build_random_tree(level):
                 if level == 0 or np.random.uniform() > 0.55:
-                    return Leaf(np.random.choice(5)) # 5 actions
+                    return Leaf(np.random.choice(6)) # 6 actions
                 else:
                     branches_map = {}
                     param = np.random.choice(9*2) # 9x2 inputs
@@ -123,7 +125,7 @@ class Organism:
 
         org_positions[self.pos[0],self.pos[1]] = 0
         if action is not None:
-            # Don't allow two organisms to be on the exact position
+            # Don't allow two organisms to be on the same exact position
             if action == 0 and org_types[tuple(np.clip(self.pos + np.array([1,0]),0,board_bounds))] == 0:
                 self.pos[0] += 1
             elif action == 1 and org_types[tuple(np.clip(self.pos + np.array([-1,0]),0,board_bounds))] == 0:
@@ -136,8 +138,8 @@ class Organism:
                 offset = np.random.choice([-1,0,1],2)
                 if org_types[tuple(np.clip(self.pos + offset,0,board_bounds))] == 0:
                     self.pos += offset
-            #elif action == 5:
-                #None#idle
+            elif action == 5:
+                None#idle
 
             #self.pos = np.clip(self.pos,0,board_bounds)
             # DRASTIC option : kill everyone that steps out of the board
@@ -175,7 +177,7 @@ class Organism:
             self.life = 0
     
     def local_fitness(self):
-        return 0.1*self.life + self.accumulated_life / self.age + 1.0 / (0.5*self.number_of_childs + 1)
+        return (0.1*self.life + self.accumulated_life) / (0.5*self.number_of_childs + 1)
 
     def accept_partner(self,partner):
         # Predators can't mate with prey
@@ -213,6 +215,10 @@ class Organism:
         cy = 0.5*(self.pos[1]+partner.pos[1])
         child.pos[0] = np.floor(cx + np.random.uniform(-2.2))
         child.pos[1] = np.floor(cy + np.random.uniform(-2,2))
+        while child.pos[0] != self.pos[0] and child.pos[0] != partner.pos[0] and child.pos[1] != self.pos[1] and child.pos[1] != partner.pos[1]:
+            child.pos[0] = np.floor(cx + np.random.uniform(-2.2))
+            child.pos[1] = np.floor(cy + np.random.uniform(-2,2))
+
         child.pos = np.clip(child.pos,0,board_bounds)
         child.dna = copy.deepcopy(self.dna)
         def tree_walk(child_dna,partner_dna):
@@ -228,7 +234,29 @@ class Organism:
 
         tree_walk(child.dna,partner.dna)
 
+        # Starting life of the child is the average of the lifes of the parents + a %
+        # Capped to the base start life
+        child.life = 0.5*(self.life + partner.life)
+        child.life += 0.1*child.life
+        child.life = min(child.life,base_starting_life)
+        if np.random.uniform() < 0.25:
+            child.mutate()
         return child
+
+    def mutate(self):
+        def tree_walk(tree):
+            if type(tree) == Node:
+                if np.random.uniform() < 0.05:
+                    tree.param = np.random.choice(9*2) # 9x2 inputs
+                if np.random.uniform() < 0.05:
+                    tree.value = np.random.choice(cell_types)
+                tree_walk(tree.branch_if_true)
+                tree_walk(tree.branch_if_false)
+            else:
+                if np.random.uniform() < 0.05:
+                    tree.action = np.random.choice(6)
+            
+        tree_walk(self.dna)
 
 # Initial population
 base_pop_size = 75
@@ -240,10 +268,12 @@ build_init_board()
 # Do simulation
 num_predator_list = []
 num_prey_list = []
+seed_predators = [org for org in population if org.is_predator][:5]
+seed_preys = [org for org in population if not org.is_predator][:5]
 try:
     for sim_iter in range(100000):
-        # Every 200 iterations, reset the enviroment
-        if sim_iter % 200 == 0:
+        # Every 75 iterations, reset the enviroment
+        if sim_iter % 75 == 0:
             food_count = np.zeros(board.shape)
             build_init_board()
 
@@ -266,6 +296,31 @@ try:
         for org in population:
             org.step()
         
+        # Update seed organisms
+        '''
+        for org in population:
+            if org.is_predator:
+                for idx,(v,_) in enumerate(best_predators):
+                    if org.accumulated_life > v:
+                        best_predators[idx] = (org.accumulated_life,org)
+            else:
+                for idx,(v,_) in enumerate(best_preys):
+                    if org.accumulated_life > v:
+                        best_preys[idx] = (org.accumulated_life,org)
+        '''
+        predators = [org for org in population if org.is_predator]
+        if len(predators) > 5:
+            w_predator = [org.accumulated_life for org in predators]
+            w_predator /= sum(w_predator)
+            new_seeds = np.random.choice(predators,size=5,replace=False,p=w_predator)
+            seed_predators = [old if old.accumulated_life > new.accumulated_life else new for old,new in zip(seed_predators,new_seeds)]
+        preys = [org for org in population if not org.is_predator]
+        if len(preys) > 5:
+            w_prey = [org.accumulated_life for org in preys]
+            w_prey /= sum(w_prey)
+            new_seeds = np.random.choice(preys,size=5,replace=False,p=w_prey)
+            seed_preys = [old if old.accumulated_life > new.accumulated_life else new for old,new in zip(seed_preys,new_seeds)]
+
         # Filter dead organisms
         population = [org for org in population if org.life > 0]
         print(str(len(population)) + ' | Prey : ' + str(num_prey) + ' , Predator : ' + str(num_predator))
@@ -305,13 +360,16 @@ try:
 
         # Replace the dead individuals
         for pA,pB in candidate_parents:
-            if len(population) < base_pop_size + np.random.normal(0.0,20.0):
-                if np.random.uniform() < 0.25:
+            if len(population) < base_pop_size + np.random.normal(0.0,5.0)**2:
+                population.append(pA.cross(pB))
+                pA.number_of_childs += 1
+                pB.number_of_childs += 1
+                '''if np.random.uniform() < 0:#0.25:
                     population.append(Organism()) # Introduce diversity by creating a fully new organism
                 else:
                     population.append(pA.cross(pB))
                     pA.number_of_childs += 1
-                    pB.number_of_childs += 1
+                    pB.number_of_childs += 1'''
 
         # Visualize organisms
         plt.clf()
@@ -331,18 +389,39 @@ try:
         plt.imshow(org_density,alpha=0.5)'''
 
         plt.pause(0.01)
+
+        # If all the organisms died, need to re-create everything
+        # Instead of starting randomly again, start from the seed organisms
+        # Do include some new that are fully random
+        if len(population) == 0:
+            for _ in range(base_pop_size):
+                org = Organism(init_dna=False)
+                if np.random.uniform() < 0.75:
+                    if np.random.uniform() < 0.5:
+                        org.dna = copy.deepcopy(np.random.choice(seed_predators).dna)
+                    else:
+                        org.dna = copy.deepcopy(np.random.choice(seed_preys).dna)
+                    org.mutate()
+                else:
+                    org = Organism()
+                population.append(org)
 except KeyboardInterrupt:
     try:
         plt.clf()
         plt.ioff()
+        plt.figure(1)
         plt.plot(num_predator_list,label='Predators')
         plt.plot(num_prey_list,label='Prey')
+
+        plt.figure(2)
+        plt.plot([x + y for x,y in zip(num_predator_list,num_prey_list)],label='Prey')
         plt.show()
     except KeyboardInterrupt:
         plt.show()
 
 
 
-        
+#cuando colapsa el ecosistema, vas a arrancar de nuevo
+#pero en vez de arrancar desde cero, podes irte guardando los mejores y arrancar con eso + random        
 
         
