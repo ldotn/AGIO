@@ -23,6 +23,7 @@ bld/
 [Bb]in/
 [Oo]bj/
 [Ll]og/
+[Bb]uild/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
@@ -290,6 +291,7 @@ paket-files/
 # JetBrains Rider
 .idea/
 *.sln.iml
+cmake-build-debug/
 
 # CodeRush
 .cr/
@@ -328,3 +330,6 @@ ASALocalRun/
 
 # MFractors (Xamarin productivity tool) working folder 
 .mfractor/
+
+# macOS internal files
+.DS_Store
