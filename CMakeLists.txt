@@ -12,12 +12,15 @@ include_directories(${CMAKE_SOURCE_DIR}/bullet3/src)
 include_directories(${CMAKE_SOURCE_DIR}/FPlusPlus/FPlusPlus)
 include_directories(${CMAKE_SOURCE_DIR}/NEAT/include)
 
+file(GLOB neat_sources NEAT/src/*.cpp)
+list(FILTER neat_sources EXCLUDE REGEX ".*neatmain.cpp$")
+list(FILTER neat_sources EXCLUDE REGEX ".*experiments.cpp$")
 set(project_sources 
 	src/test.cpp
 	src/neat_test.cpp
+	${neat_sources}
 )
-file(GLOB neat_sources *.cpp)
-set(project_sources ${project_sources} ${neat_sources})
+
 add_executable(test_project ${project_sources} )
 
 option(BULLET2_MULTITHREADING "" ON)
