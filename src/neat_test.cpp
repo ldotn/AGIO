@@ -21,10 +21,12 @@ const int WorldSizeX = 20;
 const int WorldSizeY = 20;
 
 // Need to separate them for the plot
-vector<int> food_x(10);
-vector<int> food_y(10);
-vector<int> harm_x(10);
-vector<int> harm_y(10);
+const int FoodCount = 60;
+const int HarmCount = 60;
+vector<int> food_x(FoodCount);
+vector<int> food_y(FoodCount);
+vector<int> harm_x(HarmCount);
+vector<int> harm_y(HarmCount);
 
 enum CellType { EmptyCell = 0, FoodCell, HarmCell,  };
 CellType World[WorldSizeX][WorldSizeY] = {};
@@ -32,7 +34,7 @@ mt19937 rng(42);
 
 struct Individual
 {
-	float Life = 100;
+	float Life = 500;
 	float AccumulatedLife = 0;
 	int PosX = WorldSizeX / 2;
 	int PosY = WorldSizeY / 2;
@@ -48,6 +50,10 @@ struct Individual
 			return;
 		}
 
+		// Things to try on the next commits
+		//	* Use One-Hot encoding
+		//	* Use as inputs the angle to the nearest food and nearest harm, and the distances to both
+
 		// Read the 4 cells around the organism
 		double sensors[4];
 		sensors[0] = World[PosX    ][PosY + 1];
@@ -58,20 +64,15 @@ struct Individual
 		// Load them into the network and compute output
 		Brain->load_sensors(sensors);
 
-		// This was taken directly from the NEAT source
-		//		"use depth to ensure relaxation"
 		bool success = Brain->activate();
-		/*for (int relax = 0; relax <= Brain->max_depth(); relax++)
-			success = Brain->activate();*/
 
-		// Select the action to do using the activations as probabilites
+		// Select the action to do using the activations as probabilities
 		double activations[4];
 		for (auto[idx, v] : enumerate(Brain->outputs))
 			activations[idx] = max(0.0,v->activation);
 
 		discrete_distribution<int> action_dist(begin(activations), end(activations));
 		int action = action_dist(rng);
-		//Brain->flush();
 
 		// Execute action
 		if (action == 0)
@@ -87,15 +88,15 @@ struct Individual
 		switch (World[PosX][PosY])
 		{
 		case FoodCell:
-			Life += 10;
+			Life += 7;
 			break;
 		case HarmCell:
-			Life -= 20;
+			Life -= 50;
 			break;
 		}
 
 		// Loose some fixed amount of life each turn
-		Life -= 15;
+		Life -= 8;
 
 		// Finally accumulate life
 		AccumulatedLife += Life;
@@ -126,15 +127,29 @@ float EvaluteNEATOrganism(NEAT::Organism * Org)
 	Individual tmp_org;
 	tmp_org.Brain = Org->net;
 
-	const int max_iters = 2000;
-	for (int i = 0; i < max_iters; i++)
+	const int NumberOfRuns = 20;
+	float runs[NumberOfRuns];
+	
+	// Do multiple runs, and return the median
+	// This way outliers are eliminated
+	for (int j = 0; j < NumberOfRuns; j++)
 	{
-		if (tmp_org.Life <= 0) break;
+		BuildWorld();
 
-		tmp_org.Step();
+		const int max_iters = 1000;
+		for (int i = 0; i < max_iters; i++)
+		{
+			if (tmp_org.Life <= 0) break;
+
+			tmp_org.Step();
+		}
+
+		runs[j] = tmp_org.AccumulatedLife;
 	}
+	
+	sort(begin(runs), end(runs));
 
-	return tmp_org.AccumulatedLife;
+	return runs[NumberOfRuns / 2];
 }
 
 int main()
@@ -148,19 +163,11 @@ int main()
 	auto pop = new NEAT::Population(start_genome, NEAT::pop_size);
 
 	// Run evolution
-	for (int i = 0;i < 100;i++)
+	for (int i = 0;i < 500;i++)
 	{
 		// Evaluate organisms
 		for (auto& org : pop->organisms)
-		{
-			for (int j = 0; j < 10; j++)
-			{
-				// Repeat the evaluation a few times
-				BuildWorld();
-
-				org->fitness += EvaluteNEATOrganism(org);
-			}
-		}
+			org->fitness = EvaluteNEATOrganism(org);
 		
 		// Finally turn to the next generation
 		pop->epoch(i + 1);
@@ -173,13 +180,7 @@ int main()
 	Individual best_org;
 	for (auto org : pop->organisms)
 	{
-		for (int j = 0; j < 10; j++)
-		{
-			// Repeat the evaluation a few times
-			BuildWorld();
-
-			org->fitness += EvaluteNEATOrganism(org);
-		}
+		org->fitness = EvaluteNEATOrganism(org);
 
 		if (org->fitness >= best_fitness)
 		{
@@ -192,7 +193,7 @@ int main()
 	{
 		BuildWorld();
 
-		best_org.Life = 100;
+		best_org.Life = 500;
 		best_org.PosX = WorldSizeX / 2;
 		best_org.PosY = WorldSizeY / 2;
 
