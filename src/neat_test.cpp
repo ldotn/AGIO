@@ -51,18 +51,23 @@ struct Individual
 		}
 
 		// Things to try on the next commits
-		//	* Use One-Hot encoding
 		//	* Use as inputs the angle to the nearest food and nearest harm, and the distances to both
 
 		// Read the 4 cells around the organism
-		double sensors[4];
-		sensors[0] = World[PosX    ][PosY + 1];
-		sensors[1] = World[PosX    ][PosY - 1];
-		sensors[2] = World[PosX + 1][PosY    ];
-		sensors[3] = World[PosY - 1][PosY    ];
+		double sensors[4][3];
+		auto make_one_hot = [](CellType Cell, double Out[3])
+		{
+			Out[0] = Out[1] = Out[2] = 0;
+			Out[Cell] = 1;
+		};
+
+		make_one_hot(World[PosX    ][PosY + 1], sensors[0]);
+		make_one_hot(World[PosX    ][PosY - 1], sensors[1]);
+		make_one_hot(World[PosX + 1][PosY    ], sensors[2]);
+		make_one_hot(World[PosX - 1][PosY    ], sensors[3]);
 
 		// Load them into the network and compute output
-		Brain->load_sensors(sensors);
+		Brain->load_sensors(&sensors[0][0]);
 
 		bool success = Brain->activate();
 
@@ -158,8 +163,8 @@ int main()
 	NEAT::load_neat_params("../NEAT/test.ne");
 
 	// Create population
-	// 4 inputs, 4 outputs
-	auto start_genome = new NEAT::Genome(4, 4, 0, 0);
+	// 4 inputs (one hot, vector-3), 4 outputs
+	auto start_genome = new NEAT::Genome(3*4, 4, 0, 0);
 	auto pop = new NEAT::Population(start_genome, NEAT::pop_size);
 
 	// Run evolution
