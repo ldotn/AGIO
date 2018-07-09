@@ -234,6 +234,60 @@ float EvaluteNEATOrganism(NEAT::Organism * Org)
 	return runs[NumberOfRuns / 2];
 }
 
+// Writes a .dot file of the provided network
+// For visualization purposes
+void DumpNetworkToDot(string Filename,NEAT::Network* Net)
+{
+	ofstream file(Filename);
+
+	file << "digraph network" << endl;
+	file << "{" << endl;
+
+	// Write nodes
+	//	Sensors are a box, neurons a circle, and output neurons a triangle
+	for (auto node : Net->genotype->nodes)
+	{
+		file << node->node_id;
+		if (node->type == NEAT::SENSOR)
+			file << " [shape=box]";
+		else
+		{
+			// Search if the node is on the outputs
+			for (auto out : Net->outputs)
+			{
+				if (out->node_id == node->node_id)
+				{
+					file << " [shape=invtriangle]";
+					break;
+				}
+			}
+		}
+		file << ";" << endl;
+	}
+
+	// Write links
+	for (auto gene : Net->genotype->genes)
+	{
+		file << gene->lnk->in_node->node_id
+			 << "->"
+			 << gene->lnk->out_node->node_id
+			 << ";" << endl;
+	}
+
+	// Make all sensors be on the same line, and all outputs be on the same line too
+	file << "{ rank=same; ";
+	for (auto output : Net->outputs)
+		file << output->node_id << " ";
+	file << " }" << endl;
+
+	file << "{ rank=same; ";
+	for (auto output : Net->inputs)
+		file << output->node_id << " ";
+	file << " }" << endl;
+
+	file << "}" << endl;
+}
+
 int main()
 {	
 	// Load NEAT parameters
@@ -245,7 +299,7 @@ int main()
 	auto pop = new NEAT::Population(start_genome, NEAT::pop_size);
 
 	// Run evolution
-	for (int i = 0;i < 500;i++)
+	for (int i = 0;i < 100;i++)
 	{
 		// Evaluate organisms
 		for (auto& org : pop->organisms)
@@ -270,6 +324,8 @@ int main()
 			best_org.Brain = org->net;
 		}
 	}
+
+	DumpNetworkToDot("best.dot",best_org.Brain);
 
 	while (true)
 	{
