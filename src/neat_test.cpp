@@ -32,9 +32,11 @@ enum CellType { EmptyCell = 0, FoodCell, HarmCell,  };
 CellType World[WorldSizeX][WorldSizeY] = {};
 mt19937 rng(42);
 
+const int BaseLife = 500;
+
 struct Individual
 {
-	float Life = 500;
+	float Life = BaseLife;
 	float AccumulatedLife = 0;
 	int PosX = WorldSizeX / 2;
 	int PosY = WorldSizeY / 2;
@@ -50,34 +52,84 @@ struct Individual
 			return;
 		}
 
-		// Things to try on the next commits
-		//	* Use as inputs the angle to the nearest food and nearest harm, and the distances to both
-
-		// Read the 4 cells around the organism
-		double sensors[4][3];
-		auto make_one_hot = [](CellType Cell, double Out[3])
+		// Using as input the angle and the squared distance to both the closest food and the closest harm
+		struct
 		{
-			Out[0] = Out[1] = Out[2] = 0;
-			Out[Cell] = 1;
-		};
+			double dist_food;
+			double dist_harm;
+			double angle_food;
+			double angle_harm;
+		} sensors;
 
-		make_one_hot(World[PosX    ][PosY + 1], sensors[0]);
-		make_one_hot(World[PosX    ][PosY - 1], sensors[1]);
-		make_one_hot(World[PosX + 1][PosY    ], sensors[2]);
-		make_one_hot(World[PosX - 1][PosY    ], sensors[3]);
+		// Load food sensors
+		float min_d = numeric_limits<float>::lowest();
+		for (auto [x, y] : zip(food_x, food_y))
+		{
+			if (x == PosX && y == PosY)
+				continue;
+
+			float d = (x - PosX)*(x - PosX) + (y - PosY)*(y - PosY);
+			if (d < min_d)
+			{
+				min_d = d;
+				sensors.dist_food = d;
+				
+				// Compute "angle", taking as 0 = looking up ([0,1])
+				// The idea is
+				//	angle = normalize(V - Pos) . [0,1]
+				float offset_x = x - PosX;
+				float offset_y = y - PosY;
+				sensors.angle_food = offset_y / sqrtf(offset_x * offset_x + offset_y * offset_y);
+			}
+		}
+
+		// Load harm sensors
+		min_d = numeric_limits<float>::lowest();
+		for (auto [x, y] : zip(harm_x, harm_y))
+		{
+			if (x == PosX && y == PosY)
+				continue;
+
+			float d = (x - PosX)*(x - PosX) + (y - PosY)*(y - PosY);
+			if (d < min_d)
+			{
+				min_d = d;
+				sensors.dist_harm = d;
+
+				// Compute "angle", taking as 0 = looking up ([0,1])
+				// The idea is
+				//	angle = normalize(V - Pos) . [0,1]
+				float offset_x = x - PosX;
+				float offset_y = y - PosY;
+				sensors.angle_harm = offset_y / sqrtf(offset_x * offset_x + offset_y * offset_y);
+			}
+		}
 
 		// Load them into the network and compute output
-		Brain->load_sensors(&sensors[0][0]);
+		Brain->load_sensors((double*)&sensors);
 
 		bool success = Brain->activate();
 
 		// Select the action to do using the activations as probabilities
+		// Need to check that all the activations are not 0
+		double act_sum = 0;
 		double activations[4];
 		for (auto[idx, v] : enumerate(Brain->outputs))
-			activations[idx] = max(0.0,v->activation);
+			act_sum += activations[idx] = clamp(v->activation,-1.0,1.0)*0.5 + 0.5;//max(0.0,v->activation);
 
-		discrete_distribution<int> action_dist(begin(activations), end(activations));
-		int action = action_dist(rng);
+		int action;
+		if (act_sum > 1e-6)
+		{
+			discrete_distribution<int> action_dist(begin(activations), end(activations));
+			action = action_dist(rng);
+		}
+		else
+		{
+			// Can't decide on an action because all activations are 0
+			// Select one action at random
+			uniform_int_distribution<int> action_dist(0, 3);
+			action = action_dist(rng);
+		}
 
 		// Execute action
 		if (action == 0)
@@ -141,6 +193,13 @@ float EvaluteNEATOrganism(NEAT::Organism * Org)
 	{
 		BuildWorld();
 
+		tmp_org.Life = BaseLife;
+		tmp_org.AccumulatedLife = 0;
+		tmp_org.Brain = Org->net;
+		tmp_org.Brain->flush();
+		tmp_org.PosX = WorldSizeX / 2;
+		tmp_org.PosY = WorldSizeY / 2;
+
 		const int max_iters = 1000;
 		for (int i = 0; i < max_iters; i++)
 		{
@@ -163,8 +222,8 @@ int main()
 	NEAT::load_neat_params("../NEAT/test.ne");
 
 	// Create population
-	// 4 inputs (one hot, vector-3), 4 outputs
-	auto start_genome = new NEAT::Genome(3*4, 4, 0, 0);
+	// 4 inputs, 4 outputs
+	auto start_genome = new NEAT::Genome(4, 4, 0, 0);
 	auto pop = new NEAT::Population(start_genome, NEAT::pop_size);
 
 	// Run evolution
@@ -198,16 +257,18 @@ int main()
 	{
 		BuildWorld();
 
-		best_org.Life = 500;
+		best_org.Life = BaseLife;
+		best_org.AccumulatedLife = 0;
 		best_org.PosX = WorldSizeX / 2;
 		best_org.PosY = WorldSizeY / 2;
+		best_org.Brain->flush();
 
 		while (best_org.Life > 0)
 		{
 			//BuildWorld();
 
 			best_org.Step();
-			cout << best_org.Life << endl;
+			cout << best_org.Life << " " << best_org.AccumulatedLife << endl;
 
 			plt::clf();
 
