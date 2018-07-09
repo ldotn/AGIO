@@ -57,7 +57,7 @@ struct Individual
 		}
 
 		// Using as input the angle and the squared distance to both the closest food and the closest harm
-		// Also having as input the current position
+		// Also having as input the current position and the nearby cells
 		struct
 		{
 			double dist_food;
@@ -66,6 +66,7 @@ struct Individual
 			double angle_harm;
 			double pos_x;
 			double pos_y;
+			double nearby_cells[4];
 		} sensors;
 
 		// Load food sensors
@@ -114,6 +115,11 @@ struct Individual
 
 		sensors.pos_x = PosX;
 		sensors.pos_y = PosY;
+
+		sensors.nearby_cells[0] = World[PosX][PosY + 1];
+		sensors.nearby_cells[1] = World[PosX][PosY - 1];
+		sensors.nearby_cells[2] = World[PosX + 1][PosY];
+		sensors.nearby_cells[3] = World[PosY - 1][PosY];
 
 		// Load them into the network and compute output
 		Brain->load_sensors((double*)&sensors);
@@ -183,9 +189,11 @@ void BuildWorld()
 	for (auto& y : harm_y)
 		y = uniform_int_distribution<>(0, WorldSizeY - 1)(rng);
 
-	for (auto[x, y] : zip(food_x, food_y))
+	memset(World, EmptyCell, sizeof(CellType)*WorldSizeX*WorldSizeY);
+
+	for (auto [x, y] : zip(food_x, food_y))
 		World[x][y] = FoodCell;
-	for (auto[x, y] : zip(harm_x, harm_x))
+	for (auto [x, y] : zip(harm_x, harm_x))
 		World[x][y] = HarmCell;
 }
 
@@ -232,8 +240,8 @@ int main()
 	NEAT::load_neat_params("../NEAT/pole2_markov.ne");
 
 	// Create population
-	// 6 inputs, 4 outputs
-	auto start_genome = new NEAT::Genome(6, 4, 0, 0);
+	// 10 inputs, 4 outputs
+	auto start_genome = new NEAT::Genome(10, 4, 0, 0);
 	auto pop = new NEAT::Population(start_genome, NEAT::pop_size);
 
 	// Run evolution
