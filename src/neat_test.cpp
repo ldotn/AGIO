@@ -46,23 +46,30 @@ struct Individual
 		if (Life <= 0) return;
 		// Simple solution to the bounds issue
 		//	Kill everyone that steps out of the board!
+		// Also, because I added the current position to the sensors, they know where they are
+		// so stepping out of the board is something they can prevent.
+		// Because it's something they can prevent, they get a 25% penalty to AccumulatedLife
 		if (PosX < 1 || PosX > WorldSizeX - 2 || PosY < 1 || PosY > WorldSizeY - 2)
 		{
 			Life = 0;
+			AccumulatedLife -= 0.25f*AccumulatedLife;
 			return;
 		}
 
 		// Using as input the angle and the squared distance to both the closest food and the closest harm
+		// Also having as input the current position
 		struct
 		{
 			double dist_food;
 			double dist_harm;
 			double angle_food;
 			double angle_harm;
+			double pos_x;
+			double pos_y;
 		} sensors;
 
 		// Load food sensors
-		float min_d = numeric_limits<float>::lowest();
+		float min_d = numeric_limits<float>::max();
 		for (auto [x, y] : zip(food_x, food_y))
 		{
 			if (x == PosX && y == PosY)
@@ -84,7 +91,7 @@ struct Individual
 		}
 
 		// Load harm sensors
-		min_d = numeric_limits<float>::lowest();
+		min_d = numeric_limits<float>::max();
 		for (auto [x, y] : zip(harm_x, harm_y))
 		{
 			if (x == PosX && y == PosY)
@@ -105,6 +112,9 @@ struct Individual
 			}
 		}
 
+		sensors.pos_x = PosX;
+		sensors.pos_y = PosY;
+
 		// Load them into the network and compute output
 		Brain->load_sensors((double*)&sensors);
 
@@ -114,7 +124,7 @@ struct Individual
 		// Need to check that all the activations are not 0
 		double act_sum = 0;
 		double activations[4];
-		for (auto[idx, v] : enumerate(Brain->outputs))
+		for (auto [idx, v] : enumerate(Brain->outputs))
 			act_sum += activations[idx] = clamp(v->activation,-1.0,1.0)*0.5 + 0.5;//max(0.0,v->activation);
 
 		int action;
@@ -219,11 +229,11 @@ float EvaluteNEATOrganism(NEAT::Organism * Org)
 int main()
 {	
 	// Load NEAT parameters
-	NEAT::load_neat_params("../NEAT/test.ne");
+	NEAT::load_neat_params("../NEAT/pole2_markov.ne");
 
 	// Create population
-	// 4 inputs, 4 outputs
-	auto start_genome = new NEAT::Genome(4, 4, 0, 0);
+	// 6 inputs, 4 outputs
+	auto start_genome = new NEAT::Genome(6, 4, 0, 0);
 	auto pop = new NEAT::Population(start_genome, NEAT::pop_size);
 
 	// Run evolution
