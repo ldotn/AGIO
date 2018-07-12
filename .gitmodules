@@ -4,9 +4,9 @@
 [submodule "bullet3"]
 	path = bullet3
 	url = https://github.com/bulletphysics/bullet3.git
-[submodule "NEAT"]
-	path = NEAT
-	url = https://github.com/FernandoTorres/NEAT.git
 [submodule "FPlusPlus"]
 	path = FPlusPlus
 	url = https://github.com/RyanTorant/FPlusPlus.git
+[submodule "NEAT"]
+	path = NEAT
+	url = https://github.com/RyanTorant/NEAT.git
