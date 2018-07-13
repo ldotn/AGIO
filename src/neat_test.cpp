@@ -1,5 +1,8 @@
 #include <iostream>
+
+#define WITHOUT_NUMPY
 #include <matplotlibcpp.h>
+
 #include <algorithm>
 #include <random>
 #include <zip.h>
@@ -164,7 +167,7 @@ struct Individual
 			Life += 7;
 			break;
 		case HarmCell:
-			Life -= 50;
+			Life -= 250;
 			break;
 		}
 
@@ -202,7 +205,7 @@ float EvaluteNEATOrganism(NEAT::Organism * Org)
 	Individual tmp_org;
 	tmp_org.Brain = Org->net;
 
-	const int NumberOfRuns = 20;
+	const int NumberOfRuns = 100;
 	float runs[NumberOfRuns];
 	
 	// Do multiple runs, and return the median
@@ -231,7 +234,23 @@ float EvaluteNEATOrganism(NEAT::Organism * Org)
 	
 	sort(begin(runs), end(runs));
 
-	return runs[NumberOfRuns / 2];
+	float median = runs[NumberOfRuns / 2];
+
+	// Compute mean with 'exponential' weights based on difference to median
+	float exp_avg = 0;
+	float weight_acc = 0;
+	for (auto value : runs)
+	{
+		float w = (value - median);
+		w = 1.0f / (w*w + 1);
+
+		exp_avg += value * w;
+		weight_acc += w;
+	}
+
+	exp_avg /= weight_acc;
+
+	return exp_avg;//runs[NumberOfRuns / 2];
 }
 
 // Writes a .dot file of the provided network
@@ -299,12 +318,26 @@ int main()
 	auto pop = new NEAT::Population(start_genome, NEAT::pop_size);
 
 	// Run evolution
-	for (int i = 0;i < 100;i++)
+	//	Also write average fitness to file
+	ofstream fit_file("epochs.csv");
+	fit_file << "Generation,Avg Fitness,Min Fitness,Max Fitness" << endl;
+	for (int i = 0;i < 1000;i++)
 	{
 		// Evaluate organisms
+		float avg_f = 0;
+		float min_f = numeric_limits<float>::max();
+		float max_f = numeric_limits<float>::lowest();
 		for (auto& org : pop->organisms)
-			org->fitness = EvaluteNEATOrganism(org);
-		
+		{
+			float f = org->fitness = EvaluteNEATOrganism(org);
+			avg_f += f;
+			min_f = min(min_f, f);
+			max_f = max(max_f, f);
+		}
+
+		// Write to file
+		fit_file << avg_f / (float)pop->organisms.size() << "," << min_f << "," << max_f << endl;
+			
 		// Finally turn to the next generation
 		pop->epoch(i + 1);
 	}
