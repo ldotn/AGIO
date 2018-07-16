@@ -1,5 +1,3 @@
-#include <iostream>
-
 #define WITHOUT_NUMPY
 #include <matplotlibcpp.h>
 
@@ -7,6 +5,9 @@
 #include <random>
 #include <zip.h>
 #include <enumerate.h>
+#include <iostream>
+
+#include "WorkerPool.h"
 
 // NEAT
 #include "neat.h"
@@ -36,6 +37,7 @@ CellType World[WorldSizeX][WorldSizeY] = {};
 mt19937 rng(42);
 
 const int BaseLife = 500;
+const int NumberOfRuns = 50;
 
 struct Individual
 {
@@ -43,10 +45,22 @@ struct Individual
 	float AccumulatedLife = 0;
 	int PosX = WorldSizeX / 2;
 	int PosY = WorldSizeY / 2;
+	NEAT::Network * Brain = nullptr;
+
+	void Reset()
+	{
+		Life = BaseLife;
+		AccumulatedLife = 0;
+		PosX = WorldSizeX / 2;
+		PosY = WorldSizeY / 2;
+
+		if (Brain) Brain->flush();
+	}
 
 	void Step()
 	{
 		if (Life <= 0) return;
+
 		// Simple solution to the bounds issue
 		//	Kill everyone that steps out of the board!
 		// Also, because I added the current position to the sensors, they know where they are
@@ -133,8 +147,8 @@ struct Individual
 		// Need to check that all the activations are not 0
 		double act_sum = 0;
 		double activations[4];
-		for (auto [idx, v] : enumerate(Brain->outputs))
-			act_sum += activations[idx] = clamp(v->activation,-1.0,1.0)*0.5 + 0.5;//max(0.0,v->activation);
+		for (auto[idx, v] : enumerate(Brain->outputs))
+			act_sum += activations[idx] = v->activation; // The activation function is in [0, 1], check line 461 of neat.cpp;
 
 		int action;
 		if (act_sum > 1e-6)
@@ -150,16 +164,22 @@ struct Individual
 			action = action_dist(rng);
 		}
 
+		// Finally do the action
+		ExecuteAction(action);
+	}
+
+	void ExecuteAction(int Action)
+	{
 		// Execute action
-		if (action == 0)
+		if (Action == 0)
 			PosX++;
-		else if (action == 1)
+		else if (Action == 1)
 			PosX--;
-		else if (action == 2)
+		else if (Action == 2)
 			PosY++;
-		else if (action == 3)
+		else if (Action == 3)
 			PosY--;
-		
+
 		// Update life based on current cell
 		switch (World[PosX][PosY])
 		{
@@ -177,8 +197,6 @@ struct Individual
 		// Finally accumulate life
 		AccumulatedLife += Life;
 	}
-
-	NEAT::Network * Brain = nullptr;
 };
 
 void BuildWorld()
@@ -196,7 +214,7 @@ void BuildWorld()
 
 	for (auto [x, y] : zip(food_x, food_y))
 		World[x][y] = FoodCell;
-	for (auto [x, y] : zip(harm_x, harm_x))
+	for (auto [x, y] : zip(harm_x, harm_y))
 		World[x][y] = HarmCell;
 }
 
@@ -205,7 +223,6 @@ float EvaluteNEATOrganism(NEAT::Organism * Org)
 	Individual tmp_org;
 	tmp_org.Brain = Org->net;
 
-	const int NumberOfRuns = 100;
 	float runs[NumberOfRuns];
 	
 	// Do multiple runs, and return the median
@@ -250,7 +267,7 @@ float EvaluteNEATOrganism(NEAT::Organism * Org)
 
 	exp_avg /= weight_acc;
 
-	return exp_avg;//runs[NumberOfRuns / 2];
+	return median;//accumulate(begin(runs), end(runs), 0.0f) / (float)NumberOfRuns;
 }
 
 // Writes a .dot file of the provided network
@@ -307,10 +324,44 @@ void DumpNetworkToDot(string Filename,NEAT::Network* Net)
 	file << "}" << endl;
 }
 
+float BaselineRandom()
+{
+	Individual tmp_org;
+
+	float runs[NumberOfRuns];
+
+	// Do multiple runs, and return the median
+	// This way outliers are eliminated
+	for (int j = 0; j < NumberOfRuns; j++)
+	{
+		BuildWorld();
+
+		tmp_org.Reset();
+
+		const int max_iters = 1000;
+		for (int i = 0; i < max_iters; i++)
+		{
+			if (tmp_org.Life <= 0) break;
+
+			// Choose actions randomly
+			uniform_int_distribution<int> action_dist(0, 3);
+			tmp_org.ExecuteAction(action_dist(rng));
+		}
+
+		runs[j] = tmp_org.AccumulatedLife;
+	}
+
+	sort(begin(runs), end(runs));
+
+	float median = runs[NumberOfRuns / 2];
+
+	return median;//accumulate(begin(runs), end(runs), 0.0f) / (float)NumberOfRuns;
+}
+
 int main()
 {	
 	// Load NEAT parameters
-	NEAT::load_neat_params("../NEAT/pole2_markov.ne");
+	NEAT::load_neat_params("../cfg/neat_test_config.txt");
 
 	// Create population
 	// 10 inputs, 4 outputs
@@ -320,26 +371,23 @@ int main()
 	// Run evolution
 	//	Also write average fitness to file
 	ofstream fit_file("epochs.csv");
-	fit_file << "Generation,Avg Fitness,Min Fitness,Max Fitness" << endl;
-	for (int i = 0;i < 1000;i++)
-	{
-		// Evaluate organisms
-		float avg_f = 0;
-		float min_f = numeric_limits<float>::max();
-		float max_f = numeric_limits<float>::lowest();
-		for (auto& org : pop->organisms)
-		{
-			float f = org->fitness = EvaluteNEATOrganism(org);
-			avg_f += f;
-			min_f = min(min_f, f);
-			max_f = max(max_f, f);
-		}
+	fit_file << "Generation,Avg Fitness,Avg Real Fitness,Max Real Fitness,Baseline Random Avg Real Fitness" << endl;
 
-		// Write to file
-		fit_file << avg_f / (float)pop->organisms.size() << "," << min_f << "," << max_f << endl;
-			
+	for (int i = 0;i < 500;i++)
+	{
+		for (auto& org : pop->organisms)
+			org->fitness = EvaluteNEATOrganism(org);
+
 		// Finally turn to the next generation
 		pop->epoch(i + 1);
+
+		// Write to file
+		fit_file << i << "," 
+				 << pop->mean_fitness << "," 
+				 << pop->mean_real_fitness << ","
+				 << pop->max_real_fitness << ","
+				 << BaselineRandom()
+			<< endl;
 	}
 
 	// Simulate and plot positions for the best organism
@@ -364,11 +412,7 @@ int main()
 	{
 		BuildWorld();
 
-		best_org.Life = BaseLife;
-		best_org.AccumulatedLife = 0;
-		best_org.PosX = WorldSizeX / 2;
-		best_org.PosY = WorldSizeY / 2;
-		best_org.Brain->flush();
+		best_org.Reset();
 
 		while (best_org.Life > 0)
 		{
