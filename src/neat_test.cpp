@@ -37,7 +37,7 @@ CellType World[WorldSizeX][WorldSizeY] = {};
 mt19937 rng(42);
 
 const int BaseLife = 500;
-const int NumberOfRuns = 50;
+const int NumberOfRuns = 100;
 
 struct Individual
 {
@@ -61,29 +61,17 @@ struct Individual
 	{
 		if (Life <= 0) return;
 
-		// Simple solution to the bounds issue
-		//	Kill everyone that steps out of the board!
-		// Also, because I added the current position to the sensors, they know where they are
-		// so stepping out of the board is something they can prevent.
-		// Because it's something they can prevent, they get a 25% penalty to AccumulatedLife
-		if (PosX < 1 || PosX > WorldSizeX - 2 || PosY < 1 || PosY > WorldSizeY - 2)
-		{
-			Life = 0;
-			AccumulatedLife -= 0.25f*AccumulatedLife;
-			return;
-		}
-
 		// Using as input the angle and the squared distance to both the closest food and the closest harm
 		// Also having as input the current position and the nearby cells
 		struct
 		{
-			double dist_food;
-			double dist_harm;
+			/*double dist_food;
+			double dist_harm;*/
 			double angle_food;
 			double angle_harm;
-			double pos_x;
+			/*double pos_x;
 			double pos_y;
-			double nearby_cells[4];
+			double nearby_cells[4];*/
 		} sensors;
 
 		// Load food sensors
@@ -97,7 +85,7 @@ struct Individual
 			if (d < min_d)
 			{
 				min_d = d;
-				sensors.dist_food = d;
+				//sensors.dist_food = d;
 				
 				// Compute "angle", taking as 0 = looking up ([0,1])
 				// The idea is
@@ -119,7 +107,7 @@ struct Individual
 			if (d < min_d)
 			{
 				min_d = d;
-				sensors.dist_harm = d;
+				//sensors.dist_harm = d;
 
 				// Compute "angle", taking as 0 = looking up ([0,1])
 				// The idea is
@@ -130,13 +118,13 @@ struct Individual
 			}
 		}
 
-		sensors.pos_x = PosX;
+		/*sensors.pos_x = PosX;
 		sensors.pos_y = PosY;
 
-		sensors.nearby_cells[0] = World[PosX][PosY + 1];
-		sensors.nearby_cells[1] = World[PosX][PosY - 1];
-		sensors.nearby_cells[2] = World[PosX + 1][PosY];
-		sensors.nearby_cells[3] = World[PosY - 1][PosY];
+		sensors.nearby_cells[0] = World[PosX + 1][PosY    ];
+		sensors.nearby_cells[1] = World[PosX - 1][PosY    ];
+		sensors.nearby_cells[2] = World[PosX    ][PosY + 1];
+		sensors.nearby_cells[3] = World[PosY    ][PosY - 1];*/
 
 		// Load them into the network and compute output
 		Brain->load_sensors((double*)&sensors);
@@ -179,6 +167,18 @@ struct Individual
 			PosY++;
 		else if (Action == 3)
 			PosY--;
+
+		// Simple solution to the bounds issue
+		//	Kill everyone that steps out of the board!
+		// Also, because I added the current position to the sensors, they know where they are
+		// so stepping out of the board is something they can prevent.
+		// Because it's something they can prevent, they get a 25% penalty to AccumulatedLife
+		if (PosX < 1 || PosX > WorldSizeX - 2 || PosY < 1 || PosY > WorldSizeY - 2)
+		{
+			Life = 0;
+			AccumulatedLife -= 0.25f*AccumulatedLife;
+			return;
+		}
 
 		// Update life based on current cell
 		switch (World[PosX][PosY])
@@ -358,25 +358,108 @@ float BaselineRandom()
 	return median;//accumulate(begin(runs), end(runs), 0.0f) / (float)NumberOfRuns;
 }
 
+float BaselineGreedy()
+{
+	Individual tmp_org;
+
+	float runs[NumberOfRuns];
+
+	// Do multiple runs, and return the median
+	// This way outliers are eliminated
+	for (int j = 0; j < NumberOfRuns; j++)
+	{
+		BuildWorld();
+
+		tmp_org.Reset();
+
+		const int max_iters = 1000;
+		for (int i = 0; i < max_iters; i++)
+		{
+			if (tmp_org.Life <= 0) break;
+
+			CellType nearby_cells[4];
+			nearby_cells[0] = World[tmp_org.PosX + 1][tmp_org.PosY    ];
+			nearby_cells[1] = World[tmp_org.PosX - 1][tmp_org.PosY    ];
+			nearby_cells[2] = World[tmp_org.PosX    ][tmp_org.PosY + 1];
+			nearby_cells[3] = World[tmp_org.PosX    ][tmp_org.PosY - 1];
+
+			int action = -1;
+
+			// If there was an action previously selected, and there's a new option, replace randomly
+			// This encourages exploration
+			auto random_replace = [&](int NewAction)
+			{
+				if (action == -1)
+					action = NewAction;
+				else
+				{
+					uniform_int_distribution<int> replace_dist(0, 1);
+					if (replace_dist(rng))
+						action = NewAction;
+				}
+			};
+
+			// First try to move to the food
+			for (int a = 0; a < 4; a++)
+			{
+				if (nearby_cells[a] == FoodCell)
+					random_replace(a);
+			}
+
+			// Then try to move to an empty cell
+			if (action == -1)
+			{
+				for (int a = 0; a < 4; a++)
+				{
+					if (nearby_cells[a] == EmptyCell)
+						random_replace(a);
+				}
+			}
+
+			// If can't do any of the above, move randomly
+			if (action == -1)
+			{
+				uniform_int_distribution<int> action_dist(0, 3);
+				action = action_dist(rng);
+			}
+			
+			tmp_org.ExecuteAction(action);
+		}
+
+		runs[j] = tmp_org.AccumulatedLife;
+	}
+
+	sort(begin(runs), end(runs));
+
+	float median = runs[NumberOfRuns / 2];
+
+	return median;//accumulate(begin(runs), end(runs), 0.0f) / (float)NumberOfRuns;
+}
+
 int main()
 {	
 	// Load NEAT parameters
 	NEAT::load_neat_params("../cfg/neat_test_config.txt");
 
 	// Create population
-	// 10 inputs, 4 outputs
-	auto start_genome = new NEAT::Genome(10, 4, 0, 0);
+	auto start_genome = new NEAT::Genome(2, 4, 0, 0);
 	auto pop = new NEAT::Population(start_genome, NEAT::pop_size);
 
 	// Run evolution
 	//	Also write average fitness to file
 	ofstream fit_file("epochs.csv");
-	fit_file << "Generation,Avg Fitness,Avg Real Fitness,Max Real Fitness,Baseline Random Avg Real Fitness" << endl;
+	fit_file << "Generation,Avg Fitness,Avg Real Fitness,Best Historic Fitness,Baseline Random Avg Real Fitness,Baseline Greedy Avg Real Fitness" << endl;
 
-	for (int i = 0;i < 500;i++)
+	float best_fitness = 0;
+
+	for (int i = 0;i < 400;i++)
 	{
 		for (auto& org : pop->organisms)
+		{
 			org->fitness = EvaluteNEATOrganism(org);
+			if (org->fitness > best_fitness)
+				best_fitness = org->fitness;
+		}
 
 		// Finally turn to the next generation
 		pop->epoch(i + 1);
@@ -385,23 +468,33 @@ int main()
 		fit_file << i << "," 
 				 << pop->mean_fitness << "," 
 				 << pop->mean_real_fitness << ","
-				 << pop->max_real_fitness << ","
-				 << BaselineRandom()
+				 << best_fitness << ","
+				 //<< pop->max_real_fitness << ","
+				 << BaselineRandom() << ","
+				 << BaselineGreedy()
 			<< endl;
 	}
 
 	// Simulate and plot positions for the best organism
 	plt::ion();
 
-	double best_fitness = 0;
+	// After evolution is finished, evaluate the population one last time, but now with an increased number of tries
 	Individual best_org;
+	best_fitness = 0;
+
 	for (auto org : pop->organisms)
 	{
-		org->fitness = EvaluteNEATOrganism(org);
+		float fitness = 0;
 
-		if (org->fitness >= best_fitness)
+		const int repetitions = 20;
+		for(int i = 0;i < repetitions;i++)
+			fitness += EvaluteNEATOrganism(org);
+
+		fitness /= (float)repetitions;
+
+		if (fitness > best_fitness)
 		{
-			best_fitness = org->fitness;
+			best_fitness = fitness;
 			best_org.Brain = org->net;
 		}
 	}
