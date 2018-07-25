@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.6.2)
-project(test_project)
+project(agio)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
@@ -16,12 +16,16 @@ file(GLOB neat_sources NEAT/src/*.cpp)
 list(FILTER neat_sources EXCLUDE REGEX ".*neatmain.cpp$")
 list(FILTER neat_sources EXCLUDE REGEX ".*experiments.cpp$")
 set(project_sources 
-	src/test.cpp
-	src/neat_test.cpp
+	src/Tests/test.cpp
+	src/Tests/neat_test.cpp
+	src/Utils/Utils.cpp
+	src/Evolution/Globals.cpp
+	src/Core/AGIO.cpp
+	src/Evolution/Individual.cpp
 	${neat_sources}
 )
 
-add_executable(test_project ${project_sources} )
+add_executable(agio ${project_sources} )
 
 SET(BULLET2_MULTITHREADING OFF CACHE BOOL "")
 SET(BUILD_CPU_DEMOS OFF CACHE BOOL "")
@@ -30,10 +34,10 @@ SET(USE_GLUT OFF CACHE BOOL "")
 SET(BUILD_UNIT_TESTS OFF CACHE BOOL "")
 add_subdirectory(bullet3)
 
-target_link_libraries(test_project ${PYTHON_LIBRARIES})
-target_link_libraries(test_project BulletDynamics BulletCollision LinearMath)
+target_link_libraries(agio ${PYTHON_LIBRARIES})
+target_link_libraries(agio BulletDynamics BulletCollision LinearMath)
 
-set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT test_project)
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT agio)
 
 if (WIN32)
 	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /std:c++latest /MT -DWITHOUT_NUMPY")
