@@ -29,7 +29,7 @@ Individual::Individual() : RNG(__rdtsc()*__rdtsc()) // TODO : Check portability 
 	for (auto [gidx, group] : enumerate(ComponentRegistry))
 	{
 		// TODO : Profile what's the best way to do this
-		int components_count = uniform_int_distribution<int>(group.MinCardinality, group.MaxCardinality)(rng);
+		int components_count = uniform_int_distribution<int>(group.MinCardinality, group.MaxCardinality)(RNG);
 		
 		vector<int> index_vec(group.Components.size());
 		for (auto [idx, v] : enumerate(index_vec)) v = idx;
@@ -106,4 +106,10 @@ int Individual::DecideAction(void * World)
 	}
 
 	return action;
+}
+
+void Individual::Reset()
+{
+	GlobalFunctions::ResetState(State);
+	if (Brain) Brain->flush();
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <random>
+#include "Globals.h"
 
 // Forward declaration
 namespace NEAT
@@ -33,11 +34,7 @@ namespace agio
 		int DecideAction(void * World);
 
 		// TODO : Documentation
-		void Reset()
-		{
-			GlobalFunctions::ResetState(State);
-			if (Brain) Brain->flush();
-		}
+		void Reset();
 
 		// Standard interface
 		auto GetState() { return State; }

@@ -13,6 +13,9 @@ namespace agio
 	namespace GlobalFunctions
 	{
 		function<float(class Individual *, void * World)> ComputeFitness;
-		function<bool(class Individual *, void * World)> IsAlive;
+		function<bool(class Individual *, void * World)> IsAlive;		
+		std::function<void*()> MakeState;
+		std::function<void(void * State)> ResetState;
+		std::function<void(void*)> DestroyState;
 	}
 }
