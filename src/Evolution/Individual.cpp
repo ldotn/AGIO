@@ -1,11 +1,11 @@
 #include "Individual.h"
 #include "Globals.h"
 #include <random>
-#include <intrin.h>
 #include "enumerate.h"
 #include "zip.h"
 #include <algorithm>
 #include <unordered_set>
+#include <chrono>
 
 // NEAT
 #include "neat.h"
@@ -19,7 +19,7 @@ using namespace agio;
 using namespace std;
 using namespace fpp;
 
-Individual::Individual() : RNG(__rdtsc()*__rdtsc()) // TODO : Check portability of rdtsc
+Individual::Individual() : RNG(chrono::high_resolution_clock::now().time_since_epoch().count())
 {
 	// TODO : Find if there's a way to avoid the memory allocations
 	unordered_set<int> actions_set;
