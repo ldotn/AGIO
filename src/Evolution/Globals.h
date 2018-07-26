@@ -61,30 +61,43 @@ namespace agio
 		std::function<float(void * State, void * World, const class Individual *)> Evaluate;
 	};
 
-	// Global registries
-	extern std::vector<ComponentGroup> ComponentRegistry;
-	extern std::vector<ParameterDefinition> ParameterDefRegistry;
-	extern std::vector<Action> ActionRegistry;
-	extern std::vector<Sensor> SensorRegistry;
-
-	// Global singleton functions
-	namespace GlobalFunctions
+	// TODO : Docs
+	class PublicInterface
 	{
+	public:
+		// Fills the registries
+		virtual void Init() = 0;
+
 		// Returns a numeric value that represent how good is an individual
-		extern std::function<float(class Individual *, void * World)> ComputeFitness;
+		virtual float ComputeFitness(class Individual *, void * World) = 0;
 
 		// Decides if an individual is alive or not
 		// "Alive" can refer to an abstract notion of active, depending on the user intention
 		// The simulation of an individual ends when IsAlive() returns false (or if over a certain number of steps)
-		extern std::function<bool(class Individual *, void * World)> IsAlive;
+		virtual bool IsAlive(class Individual *, void * World) = 0;
 
 		// Creates a new, possibly random, state
-		extern std::function<void*()> MakeState;
+		virtual void * MakeState() = 0;
 
 		// Sets an state back into it's initial form
-		extern std::function<void(void * State)> ResetState;
+		virtual void ResetState(void * State) = 0;
 
 		// Destroys an state
-		extern std::function<void(void*)> DestroyState;
-	}
+		virtual void DestroyState(void * State) = 0;
+
+		// Getters
+		const auto & GetComponentRegistry() { return ComponentRegistry; }
+		const auto & GetParameterDefRegistry() { return ParameterDefRegistry; }
+		const auto & GetActionRegistry() { return ActionRegistry; }
+		const auto & GetSensorRegistry() { return SensorRegistry; }
+	private:
+		std::vector<ComponentGroup> ComponentRegistry;
+		std::vector<ParameterDefinition> ParameterDefRegistry;
+		std::vector<Action> ActionRegistry;
+		std::vector<Sensor> SensorRegistry;
+	};
+
+	// Singleton variable that stores a pointer to the public interface
+	// The user MUST initialize it before using, by implementing the interface and creating a new object of the derived class
+	extern std::unique_ptr<PublicInterface> Interface;
 }

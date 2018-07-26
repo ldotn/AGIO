@@ -26,7 +26,7 @@ Individual::Individual() : RNG(chrono::high_resolution_clock::now().time_since_e
 	unordered_set<int> sensors_set;
 
 	// Construct the components list
-	for (auto [gidx, group] : enumerate(ComponentRegistry))
+	for (auto [gidx, group] : enumerate(Interface->GetComponentRegistry()))
 	{
 		// TODO : Profile what's the best way to do this
 		int components_count = uniform_int_distribution<int>(group.MinCardinality, group.MaxCardinality)(RNG);
@@ -48,7 +48,7 @@ Individual::Individual() : RNG(chrono::high_resolution_clock::now().time_since_e
 	}
 
 	// Construct the parameters list
-	for (auto [pidx, param] : enumerate(ParameterDefRegistry))
+	for (auto [pidx, param] : enumerate(Interface->GetParameterDefRegistry()))
 	{
 		int count = uniform_int_distribution<int>(param.MinCardinality, param.MaxCardinality)(RNG);
 
@@ -73,14 +73,14 @@ Individual::Individual() : RNG(chrono::high_resolution_clock::now().time_since_e
 	Brain = Genome->genesis(Genome->genome_id);
 
 	// Create a new state
-	State = GlobalFunctions::MakeState();
+	State = Interface->MakeState();
 }
 
 int Individual::DecideAction(void * World)
 {
 	// Load sensors
 	for (auto [value, idx] : zip(SensorsValues, Sensors))
-		value = SensorRegistry[idx].Evaluate(State, World, this);
+		value = Interface->GetSensorRegistry()[idx].Evaluate(State, World, this);
 
 	// Send sensors to brain and activate
 	Brain->load_sensors(SensorsValues);
@@ -110,6 +110,6 @@ int Individual::DecideAction(void * World)
 
 void Individual::Reset()
 {
-	GlobalFunctions::ResetState(State);
+	Interface->ResetState(State);
 	if (Brain) Brain->flush();
 }
