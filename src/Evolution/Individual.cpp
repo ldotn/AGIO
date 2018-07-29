@@ -78,6 +78,9 @@ void Individual::Spawn(int ID)
 
 			// Small shift
 			p.Value += normal_distribution<float>(0, Settings::ParameterMutationSpread)(RNG)*abs(param.Max - param.Min);
+			
+			// Clamp values
+			p.Value = clamp(p.Value, param.Min, param.Max);
 
 			Parameters.push_back(p);
 		}	
@@ -162,29 +165,10 @@ void Individual::Reset()
 	LastFitness = -1;
 }
 
-bool Individual::IsMorphologicallyCompatible(const Individual& Other)
-{
-	// Two organisms are compatible if they have the same set of actions and sensors
-	if (Actions.size() != Other.Actions.size())
-		return false;
-
-	if (Sensors.size() != Other.Sensors.size())
-		return false;
-
-	// Check bitfields
-	for (auto [bf0, bf1] : zip(ActionsBitfield, Other.ActionsBitfield))
-		if (bf0 != bf1) return false;
-	for (auto [bf0, bf1] : zip(SensorsBitfield, Other.SensorsBitfield))
-		if (bf0 != bf1) return false;
-
-	// Everything is equal, so they are compatible
-	return true;
-}
-
 // TODO : Check if move semantics can make this faster
 Individual Individual::Mate(const Individual& Other, int ChildID)
 {
-	assert(IsMorphologicallyCompatible(Other));
+	assert(Morphology == Other.Morphology);
 
 	Individual child;
 
@@ -198,8 +182,7 @@ Individual Individual::Mate(const Individual& Other, int ChildID)
 	child.Sensors = Sensors;
 	child.ActivationsBuffer.resize(child.Actions.size());
 	child.SensorsValues.resize(child.Sensors.size());
-	child.ActionsBitfield = ActionsBitfield;
-	child.SensorsBitfield = SensorsBitfield;
+	child.Morphology = Other.Morphology;
 
 	// TODO : Find a way to mix the components.
 	// You can't trivially swap because you need to respect groups cardinalities
@@ -237,4 +220,23 @@ Individual Individual::Mate(const Individual& Other, int ChildID)
 	child.State = Interface->MakeState();
 
 	return child;
+}
+
+bool Individual::MorphologyTag::operator==(const MorphologyTag &rhs) const
+{
+	// Two organisms are compatible if they have the same set of actions and sensors
+	if (NumberOfActions != rhs.NumberOfActions)
+		return false;
+
+	if (NumberOfSensors != rhs.NumberOfSensors)
+		return false;
+
+	// Check bitfields
+	for (auto [bf0, bf1] : zip(ActionsBitfield, rhs.ActionsBitfield))
+		if (bf0 != bf1) return false;
+	for (auto [bf0, bf1] : zip(SensorsBitfield, rhs.SensorsBitfield))
+		if (bf0 != bf1) return false;
+
+	// Everything is equal, so they are compatible
+	return true;
 }

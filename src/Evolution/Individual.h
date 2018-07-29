@@ -31,9 +31,6 @@ namespace agio
 		// Takes as input the ID of the individual inside the population
 		void Spawn(int ID);
 
-		// Checks if this individual and the provided one are compatible (can cross)
-		bool IsMorphologicallyCompatible(const Individual& Other);
-
 		// Does 3 steps
 		//    1) Load the sensors from the world
 		//    2) Input that values to the network and compute actions probabilities
@@ -60,6 +57,9 @@ namespace agio
 		// Fitness of the last evaluation of this individual
 		// Reset sets it to -1
 		float LastFitness;
+
+		// Serializes the individual to a file
+		void DumpToFile(const std::string& FilePath);
 	private:
 		// The state is defined by the user
 		// For this code, it's a black box
@@ -96,7 +96,22 @@ namespace agio
 		// Used to determine compatibility between individuals
 		// Each element in the array it's a 64 bit bitfield
 		// Each bit flags if the action/sensor is in the set or not
-		std::vector<uint64_t> ActionsBitfield;
-		std::vector<uint64_t> SensorsBitfield;
+		// This LOOSES INFORMATION compared to the components list
+		// You CAN'T know the components that make up an individual from the morphology tag
+		//	there may be multiple components that provide the same sensors/actions
+		// TODO : Maybe find a better name for this?
+	public:
+		struct MorphologyTag
+		{
+			int NumberOfActions;
+			int NumberOfSensors;
+
+			std::vector<uint64_t> ActionsBitfield;
+			std::vector<uint64_t> SensorsBitfield;
+
+			bool operator==(const MorphologyTag &rhs) const;
+		};
+	private:
+		MorphologyTag Morphology;
 	};
 }
