@@ -58,7 +58,7 @@ namespace agio
 	// Encapsulates the functionality of a sensor
 	struct Sensor : public RegistryEntry
 	{
-		std::function<float(void * State, void * World, const class Individual *)> Evaluate;
+		std::function<float(void * State, void * World,const class Population*, const class Individual *)> Evaluate;
 	};
 
 	// TODO : Docs
@@ -77,13 +77,16 @@ namespace agio
 		virtual bool IsAlive(class Individual *, void * World) = 0;
 
 		// Creates a new, possibly random, state
-		virtual void * MakeState() = 0;
+		virtual void * MakeState(class Individual *) = 0;
 
 		// Sets an state back into it's initial form
 		virtual void ResetState(void * State) = 0;
 
 		// Destroys an state
 		virtual void DestroyState(void * State) = 0;
+
+		// Computes the distance in the world for two individuals
+		virtual float Distance(class Individual *, class Individual *, void * World) = 0;
 
 		// Getters
 		const auto & GetComponentRegistry() { return ComponentRegistry; }
@@ -99,5 +102,5 @@ namespace agio
 
 	// Singleton variable that stores a pointer to the public interface
 	// The user MUST initialize it before using, by implementing the interface and creating a new object of the derived class
-	extern std::unique_ptr<PublicInterface> Interface;
+	inline extern std::unique_ptr<PublicInterface> Interface = nullptr;
 }

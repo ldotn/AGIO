@@ -2,6 +2,7 @@
 #include <vector>
 #include <random>
 #include "Globals.h"
+#include <atomic>
 
 // Forward declaration
 namespace NEAT
@@ -36,7 +37,7 @@ namespace agio
 		//    2) Input that values to the network and compute actions probabilities
 		//    3) Select the action to do at random based on the probabilities output by the network
 		// The return value is the action to execute
-		int DecideAction(void * World);
+		int DecideAction(void * World, const class Population*);
 
 		// Creates a child by mating this two individuals
 		// It assumes that the individuals are compatible
@@ -53,6 +54,8 @@ namespace agio
 		const auto& GetComponents() const { return Components; }
 		const auto& GetParameters() const { return Parameters; }
 		const auto& GetGenome() const { return Genome; }
+		const auto& GetMorphologyTag() const { return Morphology;  }
+		int GetGlobalID() const { return GlobalID; }
 
 		// Fitness of the last evaluation of this individual
 		// Reset sets it to -1
@@ -61,6 +64,11 @@ namespace agio
 		// Serializes the individual to a file
 		void DumpToFile(const std::string& FilePath);
 	private:
+		// The current id, across all individuals and all populations
+		// Used to generate a global, unique id for the individuals
+		int GlobalID;
+		inline static std::atomic<int> CurrentGlobalID = 0;
+
 		// The state is defined by the user
 		// For this code, it's a black box
 		void * State;
@@ -110,8 +118,31 @@ namespace agio
 			std::vector<uint64_t> SensorsBitfield;
 
 			bool operator==(const MorphologyTag &rhs) const;
+			float DistanceTo(const MorphologyTag & other) const;
 		};
 	private:
 		MorphologyTag Morphology;
 	};
+}
+
+// This needs to be outside of the agio namespace
+namespace std
+{
+	template <>
+	struct hash<agio::Individual::MorphologyTag>
+	{
+		std::size_t operator()(const agio::Individual::MorphologyTag& k) const
+		{
+			std::size_t seed = k.NumberOfActions + k.NumberOfSensors;
+			
+			// Ref : [https://stackoverflow.com/questions/20511347/a-good-hash-function-for-a-vector]
+			for (auto& i : k.ActionsBitfield)
+				seed ^= i + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+			for (auto& i : k.SensorsBitfield)
+				seed ^= i + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+
+			return seed;
+		}
+	};
+
 }

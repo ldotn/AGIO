@@ -8,6 +8,7 @@
 #include <chrono>
 #include <assert.h>
 #include "../Core/Config.h"
+#include <bitset>
 
 // NEAT
 #include "neat.h"
@@ -33,6 +34,8 @@ void Individual::Spawn(int ID)
 {
 	assert(Interface->GetActionRegistry().size() > 0);
 	assert(Interface->GetSensorRegistry().size() > 0);
+
+	GlobalID = CurrentGlobalID.fetch_add(1);
 
 	// TODO : Find if there's a way to avoid the memory allocations
 	unordered_set<int> actions_set;
@@ -110,27 +113,27 @@ void Individual::Spawn(int ID)
 	Brain = Genome->genesis(Genome->genome_id);
 
 	// Create a new state
-	State = Interface->MakeState();
+	State = Interface->MakeState(this);
 
 	// Fill bitfields
-	ActionsBitfield.resize((Interface->GetActionRegistry().size()-1) / 64 + 1);
-	fill(ActionsBitfield.begin(), ActionsBitfield.end(), 0);
+	Morphology.ActionsBitfield.resize((Interface->GetActionRegistry().size()-1) / 64 + 1);
+	fill(Morphology.ActionsBitfield.begin(), Morphology.ActionsBitfield.end(), 0);
 	for (auto action : Actions)
 		// I'm hoping that the compiler is smart enough to change the / and % to ands and shift
-		ActionsBitfield[action / 64] |= 1 << (action % 64);
+		Morphology.ActionsBitfield[action / 64ull] |= 1ull << (action % 64ull);
 
-	SensorsBitfield.resize((Interface->GetSensorRegistry().size()-1) / 64 + 1);
-	fill(SensorsBitfield.begin(), SensorsBitfield.end(), 0);
+	Morphology.SensorsBitfield.resize((Interface->GetSensorRegistry().size()-1) / 64 + 1);
+	fill(Morphology.SensorsBitfield.begin(), Morphology.SensorsBitfield.end(), 0);
 	for (auto sensor : Sensors)
 		// I'm hoping that the compiler is smart enough to change the / and % to ands and shift
-		SensorsBitfield[sensor / 64] |= 1 << (sensor % 64);
+		Morphology.SensorsBitfield[sensor / 64ull] |= 1ull << (sensor % 64ull);
 }
 
-int Individual::DecideAction(void * World)
+int Individual::DecideAction(void * World, const class Population* PopulationPtr)
 {
 	// Load sensors
 	for (auto [value, idx] : zip(SensorsValues, Sensors))
-		value = Interface->GetSensorRegistry()[idx].Evaluate(State, World, this);
+		value = Interface->GetSensorRegistry()[idx].Evaluate(State, World, PopulationPtr, this);
 
 	// Send sensors to brain and activate
 	Brain->load_sensors(SensorsValues);
@@ -217,12 +220,12 @@ Individual Individual::Mate(const Individual& Other, int ChildID)
 	}
 
 	// Finally construct a new state and return
-	child.State = Interface->MakeState();
+	child.State = Interface->MakeState(this);
 
 	return child;
 }
 
-bool Individual::MorphologyTag::operator==(const MorphologyTag &rhs) const
+bool Individual::MorphologyTag::operator==(const Individual::MorphologyTag &rhs) const
 {
 	// Two organisms are compatible if they have the same set of actions and sensors
 	if (NumberOfActions != rhs.NumberOfActions)
@@ -239,4 +242,18 @@ bool Individual::MorphologyTag::operator==(const MorphologyTag &rhs) const
 
 	// Everything is equal, so they are compatible
 	return true;
+}
+
+float Individual::MorphologyTag::DistanceTo(const Individual::MorphologyTag & other) const
+{
+	// The distance is computed as the number of different action and sensors
+	float dist = 0;
+
+	for (auto [bf0, bf1] : zip(ActionsBitfield, other.ActionsBitfield))
+		dist += std::bitset<sizeof(bf0)>(~(bf0 ^ bf1)).count();
+
+	for (auto [bf0, bf1] : zip(SensorsBitfield, other.SensorsBitfield))
+		dist += std::bitset<sizeof(bf0)>(~(bf0 ^ bf1)).count();
+
+	return dist;
 }

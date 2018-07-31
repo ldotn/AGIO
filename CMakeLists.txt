@@ -19,9 +19,9 @@ set(project_sources
 	src/Tests/test.cpp
 	src/Tests/neat_test.cpp
 	src/Utils/Utils.cpp
-	src/Evolution/Globals.cpp
 	src/Core/AGIO.cpp
 	src/Evolution/Individual.cpp
+	src/Evolution/Population.cpp
 	${neat_sources}
 )
 
