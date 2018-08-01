@@ -48,7 +48,7 @@ void Population::Epoch(class World * WorldPtr)
 	// TODO :  Separate organisms by distance in the world too
 	
 	// Compute novelty metric
-	for (auto & [idx,org] : enumerate(Individuals))
+	for (auto [idx,org] : enumerate(Individuals))
 	{
 		// Clear the K buffer
 		for (auto & v : NearestKBuffer)
@@ -64,7 +64,7 @@ void Population::Epoch(class World * WorldPtr)
 			float dist = org.GetMorphologyTag().DistanceTo(other.GetMorphologyTag());
 
 			// Check if it's in the k nearest
-			for (auto & [kidx,v] : enumerate(NearestKBuffer))
+			for (auto [kidx,v] : enumerate(NearestKBuffer))
 			{
 				if (dist < v)
 				{
