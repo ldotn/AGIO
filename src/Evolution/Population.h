@@ -16,6 +16,7 @@ namespace agio
 
 		const auto& GetIndividuals() { return Individuals; }
 	private:
+		int CurrentGeneration;
 		std::vector<Individual> Individuals;
 		
 		// Encapsulates the data for a single species
@@ -34,6 +35,8 @@ namespace agio
 		// Information is lost that way, but shouldn't be necessary
 		//  and that should help to reduce dimensionality anyway
 		// This is Novelty Search basically
+		// That tag is the one of the representative individual
+		//	which is relevant because of the parameters
 	public:
 		struct MorphologyRecord
 		{

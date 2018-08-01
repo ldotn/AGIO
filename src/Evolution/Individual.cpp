@@ -127,6 +127,7 @@ void Individual::Spawn(int ID)
 	for (auto sensor : Sensors)
 		// I'm hoping that the compiler is smart enough to change the / and % to ands and shift
 		Morphology.SensorsBitfield[sensor / 64ull] |= 1ull << (sensor % 64ull);
+	Morphology.Parameters = Parameters;
 }
 
 int Individual::DecideAction(void * World, const class Population* PopulationPtr)
@@ -225,35 +226,81 @@ Individual Individual::Mate(const Individual& Other, int ChildID)
 	return child;
 }
 
-bool Individual::MorphologyTag::operator==(const Individual::MorphologyTag &rhs) const
+bool Individual::MorphologyTag::IsCompatible(const Individual::MorphologyTag & Other) const
 {
-	// Two organisms are compatible if they have the same set of actions and sensors
-	if (NumberOfActions != rhs.NumberOfActions)
+	// Two organisms are compatible if they have the same set of actions and sensors and the parameters match up
+	if (NumberOfActions != Other.NumberOfActions)
 		return false;
 
-	if (NumberOfSensors != rhs.NumberOfSensors)
+	if (NumberOfSensors != Other.NumberOfSensors)
 		return false;
 
 	// Check bitfields
-	for (auto [bf0, bf1] : zip(ActionsBitfield, rhs.ActionsBitfield))
+	for (auto[bf0, bf1] : zip(ActionsBitfield, Other.ActionsBitfield))
 		if (bf0 != bf1) return false;
-	for (auto [bf0, bf1] : zip(SensorsBitfield, rhs.SensorsBitfield))
+	for (auto[bf0, bf1] : zip(SensorsBitfield, Other.SensorsBitfield))
 		if (bf0 != bf1) return false;
 
 	// Everything is equal, so they are compatible
 	return true;
 }
 
-float Individual::MorphologyTag::DistanceTo(const Individual::MorphologyTag & other) const
+bool Individual::MorphologyTag::operator==(const Individual::MorphologyTag & Other) const
 {
-	// The distance is computed as the number of different action and sensors
+	// Check first if the are compatible
+	if (!IsCompatible(Other))
+		return false;
+
+	// They are compatible, so check that the parameters line up
+	if (Parameters.size() != Other.Parameters.size())
+		return false;
+
+	for (auto p0 : Parameters)
+	{
+		bool found = false;
+		for (auto p1 : Other.Parameters)
+		{
+			if (p0.ID == p1.ID)
+			{
+				// The parameters are the same, but they have a different historical origin
+				// TODO : Maybe instead of this one should use a distance threshold
+				if (p0.HistoricalMarker != p1.HistoricalMarker)
+					return false;
+
+				found = true;
+				break;
+			}
+		}
+		// Make sure that the parameters are the same
+		if (!found)
+			return false;
+	}
+
+	return true;
+}
+
+float Individual::MorphologyTag::DistanceTo(const Individual::MorphologyTag & Other) const
+{
+	// The distance is computed as the number of different action and sensors and the total parameter dist
 	float dist = 0;
 
-	for (auto [bf0, bf1] : zip(ActionsBitfield, other.ActionsBitfield))
+	for (auto [bf0, bf1] : zip(ActionsBitfield, Other.ActionsBitfield))
 		dist += std::bitset<sizeof(bf0)>(~(bf0 ^ bf1)).count();
 
-	for (auto [bf0, bf1] : zip(SensorsBitfield, other.SensorsBitfield))
+	for (auto [bf0, bf1] : zip(SensorsBitfield, Other.SensorsBitfield))
 		dist += std::bitset<sizeof(bf0)>(~(bf0 ^ bf1)).count();
+
+	for (auto p0 : Parameters)
+	{
+		for (auto p1 : Other.Parameters)
+		{
+			if (p0.ID == p1.ID)
+			{
+				dist += fabsf(p0.Value - p1.Value);
+				break;
+			}
+		}
+	}
 
 	return dist;
 }

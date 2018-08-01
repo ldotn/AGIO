@@ -63,6 +63,9 @@ namespace agio
 
 		// Serializes the individual to a file
 		void DumpToFile(const std::string& FilePath);
+
+		// Mutates this individual
+		void Mutate();
 	private:
 		// The current id, across all individuals and all populations
 		// Used to generate a global, unique id for the individuals
@@ -108,6 +111,9 @@ namespace agio
 		// You CAN'T know the components that make up an individual from the morphology tag
 		//	there may be multiple components that provide the same sensors/actions
 		// TODO : Maybe find a better name for this?
+		// It also keeps track of the parameters
+		// For equality only the historical markers are considered
+		// For distance, the historical markers are ignored
 	public:
 		struct MorphologyTag
 		{
@@ -116,9 +122,16 @@ namespace agio
 
 			std::vector<uint64_t> ActionsBitfield;
 			std::vector<uint64_t> SensorsBitfield;
+			std::vector<Parameter> Parameters;
 
-			bool operator==(const MorphologyTag &rhs) const;
-			float DistanceTo(const MorphologyTag & other) const;
+			// Ignores the parameters
+			bool operator==(const MorphologyTag &) const;
+
+			// Takes the parameters into account
+			float DistanceTo(const MorphologyTag &) const;
+
+			// Compares actions and sensors to see if two individuals can mate
+			bool IsCompatible(const MorphologyTag &) const;
 		};
 	private:
 		MorphologyTag Morphology;
@@ -140,6 +153,11 @@ namespace std
 				seed ^= i + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 			for (auto& i : k.SensorsBitfield)
 				seed ^= i + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+			for (auto& p : k.Parameters)
+			{
+				seed ^= p.ID + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+				seed ^= p.HistoricalMarker + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+			}
 
 			return seed;
 		}
