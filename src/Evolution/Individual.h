@@ -61,6 +61,10 @@ namespace agio
 		// Reset sets it to -1
 		float LastFitness;
 
+		// Novelty metric associated to the last evaluation
+		// Reset sets it to -1
+		float LastNoveltyMetric;
+
 		// Serializes the individual to a file
 		void DumpToFile(const std::string& FilePath);
 
@@ -124,11 +128,12 @@ namespace agio
 			std::vector<uint64_t> SensorsBitfield;
 			std::vector<Parameter> Parameters;
 
-			// Ignores the parameters
+			// Checks that the actions and sensors are the same, 
+			//  and that the parameters have the same historical marker
 			bool operator==(const MorphologyTag &) const;
 
 			// Takes the parameters into account
-			float DistanceTo(const MorphologyTag &) const;
+			float Distance(const MorphologyTag &) const;
 
 			// Compares actions and sensors to see if two individuals can mate
 			bool IsCompatible(const MorphologyTag &) const;

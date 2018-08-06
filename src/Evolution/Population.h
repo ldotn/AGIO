@@ -1,12 +1,18 @@
 #pragma once
 #include "Individual.h"
 #include <unordered_map>
+#include <chrono>
 
 namespace agio
 {
 	class Population
 	{
 	public:
+		// TODO : Docs
+		Population() :
+			RNG(std::chrono::high_resolution_clock::now().time_since_epoch().count())
+		{}
+
 		// Creates a new population of random individuals
 		// It also separates them into species
 		void Spawn(size_t Size);
@@ -18,7 +24,8 @@ namespace agio
 	private:
 		int CurrentGeneration;
 		std::vector<Individual> Individuals;
-		
+		std::minstd_rand RNG;
+
 		// Encapsulates the data for a single species
 		// TODO : Add whatever additional info is necessary
 	public:
@@ -28,10 +35,12 @@ namespace agio
 		};
 	private:
 		// Map from the morphology tag (that's what separates species) to the species
+		// IMPORTANT! : The parameters are REMOVED before creating the map
+		//	The tag cares about the parameters, but species are only separated by actions and sensors
 		std::unordered_map<Individual::MorphologyTag,Species> SpeciesMap;
 
 		// Used to keep track of the different morphologies that were tried
-		// It's only considering the actions and sensors, not the whole components and parameters
+		// It's only considering the actions, sensors and parameters, not the whole components and parameters
 		// Information is lost that way, but shouldn't be necessary
 		//  and that should help to reduce dimensionality anyway
 		// This is Novelty Search basically
@@ -54,7 +63,11 @@ namespace agio
 		std::unordered_map<Individual::MorphologyTag, MorphologyRecord> MorphologyRegistry;
 	
 		// Buffer vectors
-		std::vector<float> NoveltyBuffer;
 		std::vector<float> NearestKBuffer;
+		std::vector<float> DominationBuffer;
+		std::vector<Individual> ChildrenBuffer;
+
+		// Separates the individuals in species based on the actions and sensors
+		void BuildSpeciesMap();
 	};
 }

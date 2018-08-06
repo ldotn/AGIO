@@ -77,7 +77,7 @@ namespace agio
 		virtual bool IsAlive(class Individual *, void * World) = 0;
 
 		// Creates a new, possibly random, state
-		virtual void * MakeState(class Individual *) = 0;
+		virtual void * MakeState(const class Individual *) = 0;
 
 		// Sets an state back into it's initial form
 		virtual void ResetState(void * State) = 0;

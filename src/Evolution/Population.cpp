@@ -3,24 +3,38 @@
 #include "Globals.h"
 #include "../Core/Config.h"
 #include <numeric>
+#include <assert.h>
 
 using namespace std;
 using namespace agio;
 using namespace fpp;
+
+void Population::BuildSpeciesMap()
+{
+	SpeciesMap.clear();
+
+	for (auto [idx, org] : enumerate(Individuals))
+	{
+		auto tag = org.GetMorphologyTag(); // make a copy
+		tag.Parameters = {}; // remove parameters
+		SpeciesMap[tag].IndividualsIDs.push_back(idx);
+	}
+}
+
 
 void Population::Spawn(size_t Size)
 {
 	Individuals.resize(Size);
 	
 	for (auto [idx, org] : enumerate(Individuals))
-	{
 		org.Spawn(idx);
-		SpeciesMap[org.GetMorphologyTag()].IndividualsIDs.push_back(idx);
-	}
 
-	NoveltyBuffer.resize(Size);
+	DominationBuffer.resize(Size);
 	NearestKBuffer.resize(Settings::NoveltyNearestK);
+	ChildrenBuffer.resize(Size);
 	CurrentGeneration = 0;
+
+	BuildSpeciesMap();
 }
 
 void Population::Epoch(class World * WorldPtr)
@@ -61,7 +75,7 @@ void Population::Epoch(class World * WorldPtr)
 				continue;
 
 			// This is the morphology distance
-			float dist = org.GetMorphologyTag().DistanceTo(other.GetMorphologyTag());
+			float dist = org.GetMorphologyTag().Distance(other.GetMorphologyTag());
 
 			// Check if it's in the k nearest
 			for (auto [kidx,v] : enumerate(NearestKBuffer))
@@ -83,7 +97,7 @@ void Population::Epoch(class World * WorldPtr)
 				continue;
 
 			// This is the morphology distance
-			float dist = org.GetMorphologyTag().DistanceTo(tag);
+			float dist = org.GetMorphologyTag().Distance(tag);
 
 			// Check if it's in the k nearest
 			for (auto [kidx, v] : enumerate(NearestKBuffer))
@@ -102,7 +116,7 @@ void Population::Epoch(class World * WorldPtr)
 		// After the k nearest are found, compute novelty metric
 		// It's simply the average of the k nearest distances
 		float novelty = reduce(NearestKBuffer.begin(), NearestKBuffer.end()) / float(NearestKBuffer.size());
-		NoveltyBuffer[idx] = novelty;
+		org.LastNoveltyMetric = novelty;
 	
 		// If the novelty is above the threshold, add it to the registry
 		if (novelty > Settings::NoveltyThreshold)
@@ -142,12 +156,81 @@ void Population::Epoch(class World * WorldPtr)
 		}
 	}
 
-	// Mate within species based on NSGA-II
+	// Evolve the species
+	// TODO: This part would need to be reworked if you want to share individuals between concurrent (independent) executions
+	assert(DominationBuffer.size() == Individuals.size());
+	ChildrenBuffer.resize(0); // does not affect capacity
+
+	for (auto & [_, species] : SpeciesMap)
+	{
+		// Mate within species based on NSGA-II
+		// As a first, simple implementation, sort based on the number of individuals that dominate you (more is worst)
+		// TODO : Properly implement NSGA-II and check if it's better
+		assert(species.IndividualsIDs.size() > 0);
+
+		DominationBuffer.resize(0);
+		for (int this_idx : species.IndividualsIDs)
+		{
+			const auto& org = Individuals[this_idx];
+
+			// Check if this individual is on the non-dominated front
+			float domination_count = 0;
+			for (int other_idx : species.IndividualsIDs)
+			{
+				if (this_idx == other_idx)
+					continue;
+
+				const auto& other_org = Individuals[other_idx];
+
+				if (org.LastNoveltyMetric > org.LastNoveltyMetric &&
+					other_org.LastFitness > org.LastFitness)
+				{
+					domination_count++;
+				}
+			}
+
+			// Transform from a count to a selection weight (not a probability because they aren't normalized)
+			// The transform is simply f(x) = 1 / (x + 1)
+			DominationBuffer.push_back(1.0f / (domination_count + 1.0f));
+		}
+
+		// Now use the domination weights to randomly select parents and cross them
+		discrete_distribution<int> domination_dist(DominationBuffer.begin(), DominationBuffer.end());
+
+		assert(species.IndividualsIDs.size() > 1); // TODO : Find what to do here!
+
+		for (int i = 0; i < species.IndividualsIDs.size(); i++)
+		{
+			int mom_idx = domination_dist(RNG);
+			int dad_idx = domination_dist(RNG);
+
+			while (dad_idx == mom_idx) // Don't want someone to mate with itself
+				dad_idx = domination_dist(RNG);
+
+			auto& mom = Individuals[mom_idx];
+			auto& dad = Individuals[dad_idx];
+
+			ChildrenBuffer.push_back(mom.Mate(dad, ChildrenBuffer.size()));
+		}
+	}
 
 	// Mutate children
+	for (auto& child : ChildrenBuffer)
+		if(uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
+			child.Mutate();
 
 	// Make replacement
+	// TODO : Test different options
+	// Replace all the population by the childs
+	assert(ChildrenBuffer.size() == Individuals.size());
+	Individuals = ChildrenBuffer;
+
+	// Separate species
+	// TODO : I worked really hard to avoid memory allocs, and this part does a BUNCH of them
+	//	try to find a way to avoid them
+	BuildSpeciesMap();
 
 	// Finally increase generation number
 	CurrentGeneration++;
 }
+

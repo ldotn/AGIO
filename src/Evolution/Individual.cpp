@@ -28,6 +28,7 @@ Individual::Individual() : RNG(chrono::high_resolution_clock::now().time_since_e
 	Genome = nullptr;
 	Brain = nullptr;
 	LastFitness = -1;
+	LastNoveltyMetric = -1;
 }
 
 void Individual::Spawn(int ID)
@@ -167,6 +168,7 @@ void Individual::Reset()
 	Interface->ResetState(State);
 	if (Brain) Brain->flush();
 	LastFitness = -1;
+	LastNoveltyMetric = -1;
 }
 
 // TODO : Check if move semantics can make this faster
@@ -279,7 +281,7 @@ bool Individual::MorphologyTag::operator==(const Individual::MorphologyTag & Oth
 	return true;
 }
 
-float Individual::MorphologyTag::DistanceTo(const Individual::MorphologyTag & Other) const
+float Individual::MorphologyTag::Distance(const Individual::MorphologyTag & Other) const
 {
 	// The distance is computed as the number of different action and sensors and the total parameter dist
 	float dist = 0;
