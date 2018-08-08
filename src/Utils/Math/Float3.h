@@ -11,19 +11,18 @@ struct alignas(16) float3
 		struct
 		{
 			float x, y, z;
+			float w_;
 		};
 	};
 
 	float3() { _mm_xor_ps(mem, mem); }
-	float3(float v) { x = y = z = v; mem.m128_f32[3] = 0; }
+	float3(float v) { _mm_xor_ps(mem, mem); x = y = z = v; }
 	float3(float _x, float _y, float _z)
 	{
+		_mm_xor_ps(mem, mem);
 		x = _x; y = _y; z = _z;
-		mem.m128_f32[3] = 0;
 	}
-	float3(float4 v) { x = v.x; y = v.y; z = v.z; mem.m128_f32[3] = 0; }
-	float3(glm_vec4 v) { *this = (float4)v; mem.m128_f32[3] = 0; }
-	float3(glm::vec3 v) { x = v.x; y = v.y; z = v.z; mem.m128_f32[3] = 0; }
+	float3(float4 v) { x = v.x; y = v.y; z = v.z; }
 
 	inline bool operator==(const float3& rhs) { return (x == rhs.x) && (y == rhs.y) && (z == rhs.z); }
 	inline bool operator!=(const float3& rhs) { return !(*this == rhs); }
@@ -31,7 +30,7 @@ struct alignas(16) float3
 	float3& operator+=(const float3& rhs)
 	{
 		mem = _mm_add_ps(mem, rhs.mem);
-		mem.m128_f32[3] = 0;
+		//mem.m128_f32[3] = 0;
 		return *this; // return the result by reference
 	}
 
@@ -45,7 +44,7 @@ struct alignas(16) float3
 	float3& operator-=(const float3& rhs)
 	{
 		mem = _mm_sub_ps(mem, rhs.mem);
-		mem.m128_f32[3] = 0;
+		//mem.m128_f32[3] = 0;
 		return *this; // return the result by reference
 	}
 
@@ -58,7 +57,7 @@ struct alignas(16) float3
 	float3& operator*=(const float3& rhs)
 	{
 		mem = _mm_mul_ps(mem, rhs.mem);
-		mem.m128_f32[3] = 0;
+		//mem.m128_f32[3] = 0;
 		return *this; // return the result by reference
 	}
 
@@ -71,7 +70,8 @@ struct alignas(16) float3
 	float3& operator/=(const float3& rhs)
 	{
 		mem = _mm_div_ps(mem, rhs.mem);
-		mem.m128_f32[3] = 0;
+		w_ = 0;
+		//mem.m128_f32[3] = 0;
 		return *this; // return the result by reference
 	}
 
@@ -132,7 +132,8 @@ struct alignas(16) float3
 
 		//mem = _mm_mul_ps(mem, p2);
 		mem = _mm_div_ps(mem, p2);
-		mem.m128_f32[3] = 0;
+		w_ = 0;
+		//mem.m128_f32[3] = 0;
 		return *this;
 	}
 	float dot(const float3& rhs) const

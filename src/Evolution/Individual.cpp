@@ -287,13 +287,15 @@ float Individual::MorphologyTag::Distance(const Individual::MorphologyTag & Othe
 	{
 		auto param_iter = Other.Parameters.find(idx);
 
-		// Check that the parameters are the same and that they have the same historical origin
-		// TODO : Maybe instead of this one should use a distance threshold
+		// Check that the parameter exists
 		if (param_iter != Other.Parameters.end())
 		{
 			// Normalize when computing distance by parameter range
-			const auto& param_def = Interface->GetParameterDefRegistry()[p0.ID];
-			dist += fabsf(p0.Value - param_iter->second.Value) / (param_def.Max - param_def.Min);
+			/*const auto& param_def = Interface->GetParameterDefRegistry()[p0.ID];
+			dist += fabsf(p0.Value - param_iter->second.Value) / (param_def.Max - param_def.Min);*/
+			// Another option : Add one if the historical markers are different
+			if (p0.HistoricalMarker != param_iter->second.HistoricalMarker)
+				dist += 1;
 		}
 		else
 			// Mismatching parameter, take it into account
