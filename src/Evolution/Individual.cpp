@@ -277,10 +277,10 @@ float Individual::MorphologyTag::Distance(const Individual::MorphologyTag & Othe
 	float dist = 0;
 
 	for (auto [bf0, bf1] : zip(ActionsBitfield, Other.ActionsBitfield))
-		dist += std::bitset<sizeof(bf0)>(~(bf0 ^ bf1)).count();
+		dist += std::bitset<sizeof(bf0)>(bf0 ^ bf1).count();
 
 	for (auto [bf0, bf1] : zip(SensorsBitfield, Other.SensorsBitfield))
-		dist += std::bitset<sizeof(bf0)>(~(bf0 ^ bf1)).count();
+		dist += std::bitset<sizeof(bf0)>(bf0 ^ bf1).count();
 
 	// TODO : Find a better way to combine param and actions/sensors distance
 	for (const auto & [idx, p0] : Parameters)

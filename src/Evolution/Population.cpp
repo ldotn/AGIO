@@ -207,7 +207,6 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 			int mom_idx = domination_dist(RNG);
 			int dad_idx = domination_dist(RNG);
 
-			// TODO : JUST TESTING! This should be enabled
 			while (dad_idx == mom_idx) // Don't want someone to mate with itself
 				dad_idx = domination_dist(RNG);
 
