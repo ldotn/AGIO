@@ -6,7 +6,7 @@
 struct alignas(16) float2
 {
 private:
-	static const inline __m128 ElementMask = {0xffffffff, 0xffffffff, 0, 0};
+	static const inline __m128 ElementMask = _mm_castsi128_ps(_mm_set_epi32(0xffffffff, 0xffffffff, 0, 0));
 public:
 	union
 	{
