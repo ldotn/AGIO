@@ -1,3 +1,4 @@
+#if 0
 #include <iostream>
 #include <matplotlibcpp.h>
 #include <algorithm>
@@ -5,7 +6,7 @@
 
 namespace plt = matplotlibcpp;
 using namespace std;
-#if 0
+
 int main()
 {
 	plt::ion();
