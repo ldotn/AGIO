@@ -71,7 +71,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 		int k_buffer_top = 0;
 
 		// Check both against the population and the registry
-		for (auto& [otherIdx,other] : enumerate(Individuals))
+		for (auto [otherIdx,other] : enumerate(Individuals))
 		{
 			if (idx == otherIdx)
 				continue;
@@ -123,7 +123,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 		// After the k nearest are found, compute novelty metric
 		// It's simply the average of the k nearest distances
-		float novelty = reduce(NearestKBuffer.begin(), NearestKBuffer.begin() + k_buffer_top + 1) / float(NearestKBuffer.size());
+		float novelty = accumulate(NearestKBuffer.begin(), NearestKBuffer.begin() + k_buffer_top + 1) / float(NearestKBuffer.size());
 		org.LastNoveltyMetric = novelty;
 	
 		// If the novelty is above the threshold, add it to the registry
