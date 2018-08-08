@@ -14,14 +14,14 @@ using namespace fpp;
 
 // TODO : Refactor, this could be spread on a couple files. 
 //   Need to see if that's actually better though
-const int WorldSizeX = 20;
-const int WorldSizeY = 20;
+const int WorldSizeX = 30;
+const int WorldSizeY = 30;
 const float FoodLifeGain = 20;
 const float KillLifeGain = 60;
 const float StartingLife = 100;
 const int FoodCellCount = WorldSizeX * WorldSizeY*0.1;
 const int MaxSimulationSteps = 200;
-const int PopulationSize = 50;//250;
+const int PopulationSize = 100;
 const int GenerationsCount = 1000;
 
 minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
@@ -84,8 +84,7 @@ public:
 			{
 				auto state_ptr = (OrgState*)State;
 
-				// Clamp to the world limits
-				state_ptr->Position.y = clamp<int>(state_ptr->Position.y + 1, 0, WorldSizeY - 1);
+				state_ptr->Position.y = int(state_ptr->Position.y + 1) % WorldSizeY;//clamp<int>(state_ptr->Position.y + 1, 0, WorldSizeY - 1);
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::MoveBackwards] = Action
@@ -94,8 +93,7 @@ public:
 			{
 				auto state_ptr = (OrgState*)State;
 
-				// Clamp to the world limits
-				state_ptr->Position.y = clamp<int>(state_ptr->Position.y - 1, 0, WorldSizeY - 1);
+				state_ptr->Position.y = int(state_ptr->Position.y - 1) % WorldSizeY;//clamp<int>(state_ptr->Position.y - 1, 0, WorldSizeY - 1);
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::MoveRight] = Action
@@ -104,8 +102,7 @@ public:
 			{
 				auto state_ptr = (OrgState*)State;
 
-				// Clamp to the world limits
-				state_ptr->Position.x = clamp<int>(state_ptr->Position.x + 1, 0, WorldSizeX - 1);
+				state_ptr->Position.x = int(state_ptr->Position.x + 1) % WorldSizeX;//clamp<int>(state_ptr->Position.x + 1, 0, WorldSizeX - 1);
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::MoveLeft] = Action
@@ -114,8 +111,7 @@ public:
 			{
 				auto state_ptr = (OrgState*)State;
 
-				// Clamp to the world limits
-				state_ptr->Position.x = clamp<int>(state_ptr->Position.x - 1, 0, WorldSizeX - 1);
+				state_ptr->Position.x = int(state_ptr->Position.x - 1) % WorldSizeX;// clamp<int>(state_ptr->Position.x - 1, 0, WorldSizeX - 1);
 			}
 		);
 
@@ -130,7 +126,8 @@ public:
 				auto state_ptr = (OrgState*)State;
 
 				auto [_, jump_dist] = *param_iter;
-				state_ptr->Position.y = clamp<int>((int)round(state_ptr->Position.y + jump_dist.Value), 0, WorldSizeY - 1);
+
+				state_ptr->Position.y = (int)round(state_ptr->Position.y + jump_dist.Value) % WorldSizeY;//clamp<int>((int)round(state_ptr->Position.y + jump_dist.Value), 0, WorldSizeY - 1);
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::JumpBackwards] = Action
@@ -143,7 +140,7 @@ public:
 				auto state_ptr = (OrgState*)State;
 
 				auto [_, jump_dist] = *param_iter;
-				state_ptr->Position.y = clamp<int>((int)round(state_ptr->Position.y - jump_dist.Value), 0, WorldSizeY - 1);
+				state_ptr->Position.y = (int)round(state_ptr->Position.y - jump_dist.Value) % WorldSizeY;// clamp<int>((int)round(state_ptr->Position.y - jump_dist.Value), 0, WorldSizeY - 1);
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::JumpLeft] = Action
@@ -156,7 +153,7 @@ public:
 				auto state_ptr = (OrgState*)State;
 
 				auto [_, jump_dist] = *param_iter;
-				state_ptr->Position.x = clamp<int>((int)round(state_ptr->Position.x - jump_dist.Value), 0, WorldSizeX - 1);
+				state_ptr->Position.x = (int)round(state_ptr->Position.x - jump_dist.Value) % WorldSizeX;// clamp<int>((int)round(state_ptr->Position.x - jump_dist.Value), 0, WorldSizeX - 1);
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::JumpRight] = Action
@@ -169,7 +166,7 @@ public:
 				auto state_ptr = (OrgState*)State;
 
 				auto [_, jump_dist] = *param_iter;
-				state_ptr->Position.x = clamp<int>((int)round(state_ptr->Position.x + jump_dist.Value), 0, WorldSizeX - 1);
+				state_ptr->Position.x = (int)round(state_ptr->Position.x + jump_dist.Value) % WorldSizeX;// clamp<int>((int)round(state_ptr->Position.x + jump_dist.Value), 0, WorldSizeX - 1);
 			}
 		);
 
@@ -181,14 +178,18 @@ public:
 				auto world_ptr = (WorldData*)World;
 				auto state_ptr = (OrgState*)State;
 
-				for (auto pos : world_ptr->FoodPositions)
+				for (auto [idx,pos] : enumerate(world_ptr->FoodPositions))
 				{
 					auto diff = abs >> (pos - state_ptr->Position);
 
 					if (diff.x <= 1 && diff.y <= 1)
 					{
 						state_ptr->Life += FoodLifeGain;
-						// TODO : Maybe remove the food from the list?
+
+						// Remove food and create a new one
+						world_ptr->FoodPositions.erase(world_ptr->FoodPositions.begin() + idx);
+						float2 food_pos(uniform_real_distribution<float>(0, WorldSizeX)(RNG), uniform_real_distribution<float>(0, WorldSizeY)(RNG));
+						world_ptr->FoodPositions.push_back(food_pos);
 						break;
 					}
 				}
@@ -435,6 +436,8 @@ public:
 	// This computes fitness for the entire population
 	virtual void ComputeFitness(Population * Pop, void * World) override
 	{
+		// Make a copy of the individuals because dead ones have to be deleted
+
 		for (auto& org : Pop->GetIndividuals())
 			org.Reset();
 
@@ -538,11 +541,6 @@ int main()
 	vector<int> food_x, food_y;
 	food_x.resize(world.FoodPositions.size());
 	food_y.resize(world.FoodPositions.size());
-	for (auto [idx, pos] : enumerate(world.FoodPositions))
-	{
-		food_x[idx] = pos.x;
-		food_y[idx] = pos.y;
-	}
 
 	bool any_alive = true;
 	//vector<int> org_x, org_y;
@@ -551,6 +549,12 @@ int main()
 
 	while (any_alive)
 	{
+		for (auto[idx, pos] : enumerate(world.FoodPositions))
+		{
+			food_x[idx] = pos.x;
+			food_y[idx] = pos.y;
+		}
+
 		any_alive = false;
 		for (auto& org : pop.GetIndividuals())
 		{

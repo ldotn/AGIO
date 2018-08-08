@@ -68,6 +68,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 		// Clear the K buffer
 		for (auto & v : NearestKBuffer)
 			v = numeric_limits<float>::max();
+		int k_buffer_top = 0;
 
 		// Check both against the population and the registry
 		for (auto& [otherIdx,other] : enumerate(Individuals))
@@ -87,6 +88,8 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 					for (int i = Settings::NoveltyNearestK - 1; i < kidx; i--)
 						NearestKBuffer[i] = NearestKBuffer[i - 1];
 
+					if (kidx > k_buffer_top)
+						k_buffer_top = kidx;
 					v = dist;
 					break;
 				}
@@ -110,6 +113,8 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 					for (int i = Settings::NoveltyNearestK - 1; i < kidx; i--)
 						NearestKBuffer[i] = NearestKBuffer[i - 1];
 
+					if (kidx > k_buffer_top)
+						k_buffer_top = kidx;
 					v = dist;
 					break;
 				}
@@ -118,7 +123,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 		// After the k nearest are found, compute novelty metric
 		// It's simply the average of the k nearest distances
-		float novelty = reduce(NearestKBuffer.begin(), NearestKBuffer.end()) / float(NearestKBuffer.size());
+		float novelty = reduce(NearestKBuffer.begin(), NearestKBuffer.begin() + k_buffer_top + 1) / float(NearestKBuffer.size());
 		org.LastNoveltyMetric = novelty;
 	
 		// If the novelty is above the threshold, add it to the registry
@@ -185,8 +190,9 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 				const auto& other_org = Individuals[other_idx];
 
-				if (org.LastNoveltyMetric > org.LastNoveltyMetric &&
-					other_org.LastFitness > org.LastFitness)
+				if ((other_org.LastNoveltyMetric > org.LastNoveltyMetric && other_org.LastFitness > org.LastFitness) ||
+					(other_org.LastFitness == org.LastFitness && other_org.LastNoveltyMetric > org.LastNoveltyMetric) ||
+					(other_org.LastNoveltyMetric == org.LastNoveltyMetric && other_org.LastFitness > org.LastFitness) )
 				{
 					domination_count++;
 				}

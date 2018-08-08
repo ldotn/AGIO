@@ -14,7 +14,7 @@ namespace agio
 		inline static float ParameterMutationSpread = 0.025f;
 
 		// Number of nearest individuals to consider for the novelty metric
-		inline static int NoveltyNearestK = 5;
+		inline static int NoveltyNearestK = 10;
 
 		// Minimum novelty of an individual to add it to the morphology registry
 		// TODO : No idea what's the range of this. Maybe it can be automatically adjusted from the prev novelty?

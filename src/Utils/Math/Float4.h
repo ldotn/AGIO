@@ -13,7 +13,7 @@ struct alignas(16) float4
 		};
 	};
 
-	float4() { _mm_xor_ps(mem, mem); }
+	float4() { mem = _mm_xor_ps(mem, mem); }
 	float4(float v) { mem = _mm_set_ps1(v); }
 	float4(float _x, float _y, float _z, float _w)
 	{

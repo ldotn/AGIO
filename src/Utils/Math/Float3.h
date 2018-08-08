@@ -18,11 +18,11 @@ public:
 		};
 	};
 
-	float3() { _mm_xor_ps(mem, mem); }
-	float3(float v) { _mm_xor_ps(mem, mem); x = y = z = v; }
+	float3() { mem = _mm_xor_ps(mem, mem); }
+	float3(float v) { mem = _mm_xor_ps(mem, mem); x = y = z = v; }
 	float3(float _x, float _y, float _z)
 	{
-		_mm_xor_ps(mem, mem);
+		mem = _mm_xor_ps(mem, mem);
 		x = _x; y = _y; z = _z;
 	}
 	float3(float4 v) { x = v.x; y = v.y; z = v.z; }

@@ -18,14 +18,14 @@ public:
 		};
 	};
 
-	float2() { _mm_xor_ps(mem, mem); }
-	float2(float v) { _mm_xor_ps(mem, mem); x = y = v; }
+	float2() { mem = _mm_xor_ps(mem, mem); }
+	float2(float v) { mem = _mm_xor_ps(mem, mem); x = y = v; }
 	float2(float _x, float _y)
 	{
-		_mm_xor_ps(mem, mem);
+		mem = _mm_xor_ps(mem, mem);
 		x = _x; y = _y;
 	}
-	float2(float4 v) { _mm_xor_ps(mem, mem); x = v.x; y = v.y; }
+	float2(float4 v) { mem = _mm_xor_ps(mem, mem); x = v.x; y = v.y; }
 
 	inline bool operator==(const float2& rhs) { return (x == rhs.x) && (y == rhs.y); }
 	inline bool operator!=(const float2& rhs) { return !(*this == rhs); }

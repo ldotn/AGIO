@@ -29,14 +29,13 @@ Individual::Individual() : RNG(chrono::high_resolution_clock::now().time_since_e
 	Brain = nullptr;
 	LastFitness = -1;
 	LastNoveltyMetric = -1;
+	GlobalID = CurrentGlobalID.fetch_add(1);
 }
 
 void Individual::Spawn(int ID)
 {
 	assert(Interface->GetActionRegistry().size() > 0);
 	assert(Interface->GetSensorRegistry().size() > 0);
-
-	GlobalID = CurrentGlobalID.fetch_add(1);
 
 	// TODO : Find if there's a way to avoid the memory allocations
 	unordered_set<int> actions_set;
@@ -99,6 +98,12 @@ void Individual::Spawn(int ID)
 	for (auto[idx, sensor] : enumerate(sensors_set))
 		Sensors[idx] = sensor;
 
+	// Sort the actions and the sensors vectors
+	// This is important! Otherwise mating between individuals is meaningless, because the order is arbitrary
+	//  and the same input could mean different things for two individuals of the same species
+	sort(Actions.begin(), Actions.end());
+	sort(Sensors.begin(), Sensors.end());
+
 	SensorsValues.resize(Sensors.size());
 	ActivationsBuffer.resize(Actions.size());
 
@@ -132,6 +137,7 @@ void Individual::Spawn(int ID)
 	Morphology.Parameters = Parameters;
 	Morphology.NumberOfActions = Actions.size();
 	Morphology.NumberOfSensors = Sensors.size();
+	Morphology.ControlGenome = Genome;
 }
 
 void Individual::DecideAndExecute(void * World, const class Population* PopulationPtr)
@@ -311,6 +317,27 @@ float Individual::MorphologyTag::Distance(const Individual::MorphologyTag & Othe
 			dist += 1; // TODO : Idem as the last case
 	}
 
+	// Finally check number of mismatching genes on the genome of the control network
+	dist += abs((int)ControlGenome->genes.size() - (int)Other.ControlGenome->genes.size());
+	
+	for (const auto& gene : ControlGenome->genes)
+	{
+		bool found = false;
+
+		for (const auto& other_gene : Other.ControlGenome->genes)
+		{
+			if (gene->innovation_num == other_gene->innovation_num)
+			{
+				found == true;
+				break;
+			}
+		}
+
+		if (!found)
+			dist += 1;
+	}
+
+	
 	return dist;
 }
 

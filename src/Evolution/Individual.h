@@ -127,12 +127,13 @@ namespace agio
 			std::vector<uint64_t> ActionsBitfield;
 			std::vector<uint64_t> SensorsBitfield;
 			std::unordered_map<int, Parameter> Parameters;
+			NEAT::Genome * ControlGenome;
 
 			// Checks that the actions and sensors are the same, 
 			//  and that the parameters have the same historical marker
 			bool operator==(const MorphologyTag &) const;
 
-			// Takes the parameters into account
+			// Takes the parameters into account and genes
 			float Distance(const MorphologyTag &) const;
 
 			// Compares actions and sensors to see if two individuals can mate
