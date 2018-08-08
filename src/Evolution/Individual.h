@@ -32,12 +32,12 @@ namespace agio
 		// Takes as input the ID of the individual inside the population
 		void Spawn(int ID);
 
-		// Does 3 steps
+		// Does 4 steps
 		//    1) Load the sensors from the world
 		//    2) Input that values to the network and compute actions probabilities
 		//    3) Select the action to do at random based on the probabilities output by the network
-		// The return value is the action to execute
-		int DecideAction(void * World, const class Population*);
+		//	  4) Calls the selected action
+		void DecideAndExecute(void * World, const class Population*);
 
 		// Creates a child by mating this two individuals
 		// It assumes that the individuals are compatible
@@ -50,7 +50,7 @@ namespace agio
 		void Reset();
 
 		// Standard interface
-		auto GetState() { return State; }
+		auto GetState() const { return State; }
 		const auto& GetComponents() const { return Components; }
 		const auto& GetParameters() const { return Parameters; }
 		const auto& GetGenome() const { return Genome; }
@@ -89,8 +89,8 @@ namespace agio
 		std::vector<ComponentRef> Components;
 
 		// Instantiation of the parameters
-		// Just an ID into the global (user provided) parameters definition registry and the value
-		std::vector<Parameter> Parameters;
+		// The map takes as keys the user id
+		std::unordered_map<int,Parameter> Parameters;
 
 		// The genome and the neural network it generates
 		// Used to control de individual
@@ -126,7 +126,7 @@ namespace agio
 
 			std::vector<uint64_t> ActionsBitfield;
 			std::vector<uint64_t> SensorsBitfield;
-			std::vector<Parameter> Parameters;
+			std::unordered_map<int, Parameter> Parameters;
 
 			// Checks that the actions and sensors are the same, 
 			//  and that the parameters have the same historical marker
@@ -158,7 +158,7 @@ namespace std
 				seed ^= i + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 			for (auto& i : k.SensorsBitfield)
 				seed ^= i + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-			for (auto& p : k.Parameters)
+			for (auto& [_,p] : k.Parameters)
 			{
 				seed ^= p.ID + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 				seed ^= p.HistoricalMarker + 0x9e3779b9 + (seed << 6) + (seed >> 2);

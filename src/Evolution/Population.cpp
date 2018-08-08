@@ -37,16 +37,17 @@ void Population::Spawn(size_t Size)
 	BuildSpeciesMap();
 }
 
-void Population::Epoch(class World * WorldPtr)
+void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 {
 	// Compute fitness of each individual
-	for (auto& org : Individuals)
+	/*for (auto& org : Individuals)
 		org.Reset();
 
 	// TODO : Create an evaluation list and shuffle it. This way the evaluation order changes. Can't shuffle the individuals list directly because that would break the IDs
 	for (auto& org : Individuals)
-		org.LastFitness = Interface->ComputeFitness(&org, WorldPtr);
-		
+		org.LastFitness = Interface->ComputeFitness(&org, WorldPtr);*/
+	Interface->ComputeFitness(this, WorldPtr);
+
 	// Update the average fitness in the morphology registry
 	for (auto & [tag,s] : SpeciesMap)
 	{
@@ -87,6 +88,7 @@ void Population::Epoch(class World * WorldPtr)
 						NearestKBuffer[i] = NearestKBuffer[i - 1];
 
 					v = dist;
+					break;
 				}
 			}
 		}
@@ -109,6 +111,7 @@ void Population::Epoch(class World * WorldPtr)
 						NearestKBuffer[i] = NearestKBuffer[i - 1];
 
 					v = dist;
+					break;
 				}
 			}
 		}
@@ -158,7 +161,7 @@ void Population::Epoch(class World * WorldPtr)
 
 	// Evolve the species
 	// TODO: This part would need to be reworked if you want to share individuals between concurrent (independent) executions
-	assert(DominationBuffer.size() == Individuals.size());
+	assert(DominationBuffer.capacity() >= Individuals.size());
 	ChildrenBuffer.resize(0); // does not affect capacity
 
 	for (auto & [_, species] : SpeciesMap)
@@ -204,11 +207,12 @@ void Population::Epoch(class World * WorldPtr)
 			int mom_idx = domination_dist(RNG);
 			int dad_idx = domination_dist(RNG);
 
+			// TODO : JUST TESTING! This should be enabled
 			while (dad_idx == mom_idx) // Don't want someone to mate with itself
 				dad_idx = domination_dist(RNG);
 
-			auto& mom = Individuals[mom_idx];
-			auto& dad = Individuals[dad_idx];
+			auto& mom = Individuals[species.IndividualsIDs[mom_idx]];
+			auto& dad = Individuals[species.IndividualsIDs[dad_idx]];
 
 			ChildrenBuffer.push_back(mom.Mate(dad, ChildrenBuffer.size()));
 		}
@@ -218,6 +222,8 @@ void Population::Epoch(class World * WorldPtr)
 	for (auto& child : ChildrenBuffer)
 		if(uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
 			child.Mutate();
+
+	EpochCallback(CurrentGeneration);
 
 	// Make replacement
 	// TODO : Test different options

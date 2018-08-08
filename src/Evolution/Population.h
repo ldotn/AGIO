@@ -2,6 +2,7 @@
 #include "Individual.h"
 #include <unordered_map>
 #include <chrono>
+#include <functional>
 
 namespace agio
 {
@@ -17,10 +18,13 @@ namespace agio
 		// It also separates them into species
 		void Spawn(size_t Size);
 
-		 // Computes a single evolutive step
-		void Epoch(class World *);
+		// Computes a single evolutive step
+		// The callback is called just before replacement
+		void Epoch(void * World, std::function<void(int)> EpochCallback = [](int){});
 
-		const auto& GetIndividuals() { return Individuals; }
+		const auto& GetIndividuals() const { return Individuals; }
+		auto& GetIndividuals() { return Individuals; }
+		const auto& GetSpecies() const { return SpeciesMap; }
 	private:
 		int CurrentGeneration;
 		std::vector<Individual> Individuals;

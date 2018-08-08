@@ -7,6 +7,7 @@ namespace agio
 {
 	// Base struct for the entries of the global registries
 	// Stores an optional name
+	// TODO : Is this actually useful? Maybe just remove it
 	struct RegistryEntry
 	{
 		//int GlobalID;
@@ -15,7 +16,7 @@ namespace agio
 
 	// Represents a component of an organism
 	// A component defines a set of actions and/or sensors
-	struct Component : public RegistryEntry
+	struct Component //: public RegistryEntry
 	{
 		std::vector<int> Actions;
 		std::vector<int> Sensors;
@@ -23,10 +24,11 @@ namespace agio
 
 	// Groups related components together
 	// It specifies a cardinality, used when constructing a new individual
-	struct ComponentGroup : public RegistryEntry
+	struct ComponentGroup //: public RegistryEntry
 	{
 		// How many items of this group must be on an individual
 		// When selecting multiple components of a group there are no repetitions
+		// MinCardinality <= Components.size() <= MaxCardinality
 		int MinCardinality;
 		int MaxCardinality;
 
@@ -38,13 +40,22 @@ namespace agio
 	// They give greater flexibility to the user
 	struct ParameterDefinition : public RegistryEntry
 	{
-		// Used when constructing the individuals
-		// See "ComponentGroup"
-		int MinCardinality;
-		int MaxCardinality;
+		ParameterDefinition() = default;
+		ParameterDefinition(bool Required,float MinValue,float MaxValue, int ID, std::string Name = "")
+		{
+			IsRequired = Required;
+			Min = MinValue;
+			Max = MaxValue;
+			FriendlyName = Name;
+			UserID = ID;
+		}
 
+		// TODO : Maybe rework this, linking the parameters to the components
+		bool IsRequired; // If true this parameter will be in all individuals
 		float Min;
 		float Max;
+
+		int UserID; // Used to reference the parameters later
 	};
 
 	// Encapsulates the functionality of an action
@@ -52,29 +63,45 @@ namespace agio
 	// It executes the action, updating the state, the world and the population
 	struct Action : public RegistryEntry
 	{
-		std::function<void(void * State, class Population *,class Individual *, void * World)> Execute;
+		std::function<void(void * State,const class Population *, class Individual *, void * World)> Execute;
+
+		Action() = default;
+		Action(decltype(Execute) ActionFunction, std::string Name = "")
+		{
+			Execute = ActionFunction;
+			FriendlyName = Name;
+		}
 	};
 
 	// Encapsulates the functionality of a sensor
 	struct Sensor : public RegistryEntry
 	{
+		// TODO : Maybe having it return only one value always is not the best idea
+		//  Refactor this to return a vector
 		std::function<float(void * State, void * World,const class Population*, const class Individual *)> Evaluate;
+		
+		Sensor() = default;
+		Sensor(decltype(Evaluate) SensorFunction, std::string Name = "")
+		{
+			Evaluate = SensorFunction;
+			FriendlyName = Name;
+		}
 	};
 
-	// TODO : Docs
+	// TODO : Docs?
 	class PublicInterface
 	{
 	public:
 		// Fills the registries
 		virtual void Init() = 0;
 
-		// Returns a numeric value that represent how good is an individual
-		virtual float ComputeFitness(class Individual *, void * World) = 0;
+		// Computes fitness for all the individuals in a population
+		virtual void ComputeFitness(class Population *, void * World) = 0;
 
 		// Decides if an individual is alive or not
 		// "Alive" can refer to an abstract notion of active, depending on the user intention
 		// The simulation of an individual ends when IsAlive() returns false (or if over a certain number of steps)
-		virtual bool IsAlive(class Individual *, void * World) = 0;
+		//virtual bool IsAlive(class Individual *, void * World) = 0;
 
 		// Creates a new, possibly random, state
 		virtual void * MakeState(const class Individual *) = 0;
@@ -93,7 +120,7 @@ namespace agio
 		const auto & GetParameterDefRegistry() { return ParameterDefRegistry; }
 		const auto & GetActionRegistry() { return ActionRegistry; }
 		const auto & GetSensorRegistry() { return SensorRegistry; }
-	private:
+	protected:
 		std::vector<ComponentGroup> ComponentRegistry;
 		std::vector<ParameterDefinition> ParameterDefRegistry;
 		std::vector<Action> ActionRegistry;

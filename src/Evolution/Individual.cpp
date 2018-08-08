@@ -71,9 +71,9 @@ void Individual::Spawn(int ID)
 	// A mutation can change the parameter, and it'll get a new historical marker
 	for (auto [pidx, param] : enumerate(Interface->GetParameterDefRegistry()))
 	{
-		int count = uniform_int_distribution<int>(param.MinCardinality, param.MaxCardinality)(RNG);
-
-		for (int i = 0; i < count; i++)
+		// If the parameter is not required, select it randomly, 50/50 chance
+		// TODO : Maybe make the selection probability a parameter? Does it makes sense?
+		if (param.IsRequired || uniform_int_distribution<int>(0,1)(RNG))
 		{
 			Parameter p;
 			p.ID = pidx;
@@ -86,7 +86,7 @@ void Individual::Spawn(int ID)
 			// Clamp values
 			p.Value = clamp(p.Value, param.Min, param.Max);
 
-			Parameters.push_back(p);
+			Parameters[param.UserID] = p;
 		}	
 	}
 
@@ -128,10 +128,13 @@ void Individual::Spawn(int ID)
 	for (auto sensor : Sensors)
 		// I'm hoping that the compiler is smart enough to change the / and % to ands and shift
 		Morphology.SensorsBitfield[sensor / 64ull] |= 1ull << (sensor % 64ull);
+
 	Morphology.Parameters = Parameters;
+	Morphology.NumberOfActions = Actions.size();
+	Morphology.NumberOfSensors = Sensors.size();
 }
 
-int Individual::DecideAction(void * World, const class Population* PopulationPtr)
+void Individual::DecideAndExecute(void * World, const class Population* PopulationPtr)
 {
 	// Load sensors
 	for (auto [value, idx] : zip(SensorsValues, Sensors))
@@ -160,7 +163,8 @@ int Individual::DecideAction(void * World, const class Population* PopulationPtr
 		action = action_dist(RNG);
 	}
 
-	return action;
+	// Finally execute the action
+	Interface->GetActionRegistry()[Actions[action]].Execute(State, PopulationPtr, this, World);
 }
 
 void Individual::Reset()
@@ -201,23 +205,20 @@ Individual Individual::Mate(const Individual& Other, int ChildID)
 
 	// Finally cross parameters using the historical markers
 	// Taking as base the parameters of this parent
-	// I'm assuming here that you'll then go and call this function with the roles reversed
-	// Though it may not even be necessary, who knows
-	child.Parameters.resize(Parameters.size());
-	for (auto [idx, cparam] : enumerate(child.Parameters))
+	// That decision is arbitrary
+	child.Parameters = Parameters;
+	for (auto & [idx, cparam] : child.Parameters)
 	{
-		cparam = Parameters[idx];
-
 		// Search for this parameter in the other individual
-		for (const auto& p : Other.Parameters)
+		auto param_iter = Other.Parameters.find(idx);
+		if (param_iter != Other.Parameters.end())
 		{
 			// Also check that the parameters have the same historical marker
 			// This way you don't cross parameters that are far apart
-			if (p.ID == cparam.ID && p.HistoricalMarker == cparam.HistoricalMarker)
+			if (param_iter->second.HistoricalMarker == cparam.HistoricalMarker)
 			{
 				// Average the value of this parent with the other parent
-				cparam.Value = 0.5f*(cparam.Value + p.Value);
-				break;
+				cparam.Value = 0.5f*(cparam.Value + param_iter->second.Value);
 			}
 		}
 	}
@@ -257,24 +258,13 @@ bool Individual::MorphologyTag::operator==(const Individual::MorphologyTag & Oth
 	if (Parameters.size() != Other.Parameters.size())
 		return false;
 
-	for (auto p0 : Parameters)
+	for (const auto & [idx,param] : Parameters)
 	{
-		bool found = false;
-		for (auto p1 : Other.Parameters)
-		{
-			if (p0.ID == p1.ID)
-			{
-				// The parameters are the same, but they have a different historical origin
-				// TODO : Maybe instead of this one should use a distance threshold
-				if (p0.HistoricalMarker != p1.HistoricalMarker)
-					return false;
+		auto param_iter = Other.Parameters.find(idx);
 
-				found = true;
-				break;
-			}
-		}
-		// Make sure that the parameters are the same
-		if (!found)
+		// Check that the parameters are the same and that they have the same historical origin
+		// TODO : Maybe instead of this one should use a distance threshold
+		if (param_iter == Other.Parameters.end() || param.HistoricalMarker != param_iter->second.HistoricalMarker)
 			return false;
 	}
 
@@ -292,17 +282,37 @@ float Individual::MorphologyTag::Distance(const Individual::MorphologyTag & Othe
 	for (auto [bf0, bf1] : zip(SensorsBitfield, Other.SensorsBitfield))
 		dist += std::bitset<sizeof(bf0)>(~(bf0 ^ bf1)).count();
 
-	for (auto p0 : Parameters)
+	// TODO : Find a better way to combine param and actions/sensors distance
+	for (const auto & [idx, p0] : Parameters)
 	{
-		for (auto p1 : Other.Parameters)
+		auto param_iter = Other.Parameters.find(idx);
+
+		// Check that the parameters are the same and that they have the same historical origin
+		// TODO : Maybe instead of this one should use a distance threshold
+		if (param_iter != Other.Parameters.end())
 		{
-			if (p0.ID == p1.ID)
-			{
-				dist += fabsf(p0.Value - p1.Value);
-				break;
-			}
+			// Normalize when computing distance by parameter range
+			const auto& param_def = Interface->GetParameterDefRegistry()[p0.ID];
+			dist += fabsf(p0.Value - param_iter->second.Value) / (param_def.Max - param_def.Min);
 		}
+		else
+			// Mismatching parameter, take it into account
+			// TODO : Find a better value than just adding one?
+			dist += 1;
+	}
+
+	// Traverse the parameters of the other individual to see if there are some that don't exist on this
+	for (const auto & [idx, p1] : Other.Parameters)
+	{
+		auto param_iter = Parameters.find(idx);
+		if (param_iter == Parameters.end())
+			dist += 1; // TODO : Idem as the last case
 	}
 
 	return dist;
+}
+
+void Individual::Mutate()
+{
+	// TODO : Implement this!
 }
