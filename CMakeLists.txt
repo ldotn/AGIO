@@ -8,7 +8,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 find_package(PythonLibs 3.5)
 include_directories(${PYTHON_INCLUDE_DIRS})
 include_directories(${CMAKE_SOURCE_DIR}/matplotlib-cpp)
-include_directories(${CMAKE_SOURCE_DIR}/bullet3/src)
 include_directories(${CMAKE_SOURCE_DIR}/FPlusPlus/FPlusPlus)
 include_directories(${CMAKE_SOURCE_DIR}/NEAT/include)
 
@@ -26,13 +25,6 @@ set(project_sources
 )
 
 add_executable(agio ${project_sources} )
-
-SET(BULLET2_MULTITHREADING OFF CACHE BOOL "")
-SET(BUILD_CPU_DEMOS OFF CACHE BOOL "")
-SET(BUILD_BULLET2_DEMOS OFF CACHE BOOL "")
-SET(USE_GLUT OFF CACHE BOOL "")
-SET(BUILD_UNIT_TESTS OFF CACHE BOOL "")
-add_subdirectory(bullet3)
 
 target_link_libraries(agio ${PYTHON_LIBRARIES})
 target_link_libraries(agio BulletDynamics BulletCollision LinearMath)

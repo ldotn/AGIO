@@ -5,6 +5,9 @@
 // IMPORTANT! Alignment will force the use of padding when using this inside a struct
 struct alignas(16) float2
 {
+private:
+	static const inline __m128 ElementMask = {0xffffffff, 0xffffffff, 0, 0};
+public:
 	union
 	{
 		__m128 mem;
@@ -30,7 +33,6 @@ struct alignas(16) float2
 	float2& operator+=(const float2& rhs)
 	{
 		mem = _mm_add_ps(mem, rhs.mem);
-		//mem.m128_f32[3] = 0;
 		return *this; // return the result by reference
 	}
 
@@ -44,7 +46,6 @@ struct alignas(16) float2
 	float2& operator-=(const float2& rhs)
 	{
 		mem = _mm_sub_ps(mem, rhs.mem);
-		//mem.m128_f32[3] = 0;
 		return *this; // return the result by reference
 	}
 
@@ -57,7 +58,6 @@ struct alignas(16) float2
 	float2& operator*=(const float2& rhs)
 	{
 		mem = _mm_mul_ps(mem, rhs.mem);
-		//mem.m128_f32[3] = 0;
 		return *this; // return the result by reference
 	}
 
@@ -70,10 +70,8 @@ struct alignas(16) float2
 	float2& operator/=(const float2& rhs)
 	{
 		mem = _mm_div_ps(mem, rhs.mem);
-		
-		z_ = 0;
-		w_ = 0;
-		//mem.m128_f32[3] = 0;
+		mem = _mm_and_ps(mem, ElementMask);
+
 		return *this; // return the result by reference
 	}
 
@@ -114,9 +112,7 @@ struct alignas(16) float2
 		//mem = _mm_mul_ps(mem, p2);
 		mem = _mm_div_ps(mem, p2);
 
-		z_ = 0;
-		w_ = 0;
-		//mem.m128_f32[3] = 0;
+		mem = _mm_and_ps(mem, ElementMask);
 		return *this;
 	}
 	float dot(const float2& rhs) const
