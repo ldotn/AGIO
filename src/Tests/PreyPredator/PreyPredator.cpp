@@ -21,7 +21,7 @@ const float KillLifeGain = 30;
 const float StartingLife = 300;
 const int FoodCellCount = WorldSizeX * WorldSizeY*0.1;
 const int MaxSimulationSteps = 200;
-const int PopulationSize = 100;
+const int PopulationSize = 75;
 const int GenerationsCount = 1000;
 const float LifeLostPerTurn = 5;
 
@@ -398,6 +398,26 @@ public:
 		});
 		ComponentRegistry.push_back
 		({
+			0,2, // Jumping is optional
+			{
+				{
+					{
+						(int)ActionsIDs::JumpForward,
+						(int)ActionsIDs::JumpBackwards,
+					},
+					{} 
+				},
+				{
+					{
+						(int)ActionsIDs::JumpLeft,
+						(int)ActionsIDs::JumpRight,
+					},
+					{} 
+				}
+			}
+		});
+		ComponentRegistry.push_back
+		({
 			0,2, // Optional sensors groups
 			{
 				{
@@ -471,7 +491,9 @@ public:
 				state_ptr->Life -= LifeLostPerTurn;
 				
 				// Using as fitness the accumulated life
-				org.LastFitness += state_ptr->Life;
+				//org.LastFitness += state_ptr->Life;
+				// Second option : moving average
+				org.LastFitness = org.LastFitness*0.9f + state_ptr->Life*0.1f;
 			}
 		}
 	}
@@ -517,7 +539,21 @@ int main()
 			{
 				float avg_f = 0;
 				float avg_n = 0;
-				for (auto[idx, org] : enumerate(pop.GetIndividuals()))
+
+				vector<float> species_avg_fitness;
+				for (auto [species_idx, entry] : enumerate(pop.GetSpecies()))
+				{
+					const auto & [_, species] = entry;
+
+					float avg_fit = 0;
+
+					for (int idx : species.IndividualsIDs)
+						avg_fit += pop.GetIndividuals()[idx].LastFitness;
+
+					species_avg_fitness.push_back(avg_fit / species.IndividualsIDs.size());
+				}
+
+				for (auto [idx, org] : enumerate(pop.GetIndividuals()))
 				{
 					fitness_vec[idx] = org.LastFitness;
 					novelty_vec[idx] = org.LastNoveltyMetric;
@@ -535,14 +571,17 @@ int main()
 				avg_novelty.push_back(avg_n);
 
 				plt::clf();
-				plt::subplot(3, 1, 1);
+				plt::subplot(4, 1, 1);
 				plt::plot(fitness_vec, novelty_vec, "x");
 				
-				plt::subplot(3, 1, 2);
+				plt::subplot(4, 1, 2);
 				plt::plot(avg_fitness, "r");
 
-				plt::subplot(3, 1, 3);
+				plt::subplot(4, 1, 3);
 				plt::plot(avg_novelty, "g");
+
+				plt::subplot(4, 1, 4);
+				plt::plot(species_avg_fitness, "g");
 
 				plt::pause(0.01);
 #endif
@@ -644,7 +683,7 @@ int main()
 			}
 			plt::plot(herbivores_x, herbivores_y, "xg");
 			plt::plot(carnivores_x, carnivores_y, "xk");
-
+			
 			plt::xlim(-1, WorldSizeX);
 			plt::ylim(-1, WorldSizeY);
 			plt::pause(0.01);

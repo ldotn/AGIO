@@ -206,21 +206,31 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 		// Now use the domination weights to randomly select parents and cross them
 		discrete_distribution<int> domination_dist(DominationBuffer.begin(), DominationBuffer.end());
 
-		assert(species.IndividualsIDs.size() > 1); // TODO : Find what to do here!
-
-		for (int i = 0; i < species.IndividualsIDs.size(); i++)
+		//assert(species.IndividualsIDs.size() > 1); // TODO : Find what to do here!
+		assert(species.IndividualsIDs.size() > 0);
+		if (species.IndividualsIDs.size() == 1)
 		{
-			int mom_idx = domination_dist(RNG);
-			int dad_idx = domination_dist(RNG);
-
-			while (dad_idx == mom_idx) // Don't want someone to mate with itself
-				dad_idx = domination_dist(RNG);
-
-			auto& mom = Individuals[species.IndividualsIDs[mom_idx]];
-			auto& dad = Individuals[species.IndividualsIDs[dad_idx]];
-
-			ChildrenBuffer.push_back(mom.Mate(dad, ChildrenBuffer.size()));
+			// Only one individual on the species, so just clone it
+			// TODO : Find if there's some better way to handle this
+			ChildrenBuffer.push_back(Individuals[species.IndividualsIDs[0]]);
 		}
+		else
+		{
+			for (int i = 0; i < species.IndividualsIDs.size(); i++)
+			{
+				int mom_idx = domination_dist(RNG);
+				int dad_idx = domination_dist(RNG);
+
+				while (dad_idx == mom_idx) // Don't want someone to mate with itself
+					dad_idx = domination_dist(RNG);
+
+				auto& mom = Individuals[species.IndividualsIDs[mom_idx]];
+				auto& dad = Individuals[species.IndividualsIDs[dad_idx]];
+
+				ChildrenBuffer.push_back(mom.Mate(dad, ChildrenBuffer.size()));
+			}
+		}
+
 	}
 
 	// Mutate children
