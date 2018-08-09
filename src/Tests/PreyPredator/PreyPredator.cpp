@@ -17,12 +17,13 @@ using namespace fpp;
 const int WorldSizeX = 30;
 const int WorldSizeY = 30;
 const float FoodLifeGain = 20;
-const float KillLifeGain = 60;
-const float StartingLife = 100;
+const float KillLifeGain = 30;
+const float StartingLife = 300;
 const int FoodCellCount = WorldSizeX * WorldSizeY*0.1;
 const int MaxSimulationSteps = 200;
 const int PopulationSize = 100;
 const int GenerationsCount = 1000;
+const float LifeLostPerTurn = 5;
 
 minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
@@ -78,47 +79,51 @@ public:
 		ActionRegistry.resize((int)ActionsIDs::NumberOfActions);
 
 		// Basic movement
+		// The world is circular, doing this so that % works with negative numbers
+		auto cycle_x = [](int x) { return ((x % WorldSizeX) + WorldSizeX) % WorldSizeX; };
+		auto cycle_y = [](int y) { return ((y % WorldSizeY) + WorldSizeY) % WorldSizeY; };
+
 		ActionRegistry[(int)ActionsIDs::MoveForward] = Action
 		(
-			[](void * State, const Population * Pop,Individual * Org, void * World) 
+			[&](void * State, const Population * Pop,Individual * Org, void * World) 
 			{
 				auto state_ptr = (OrgState*)State;
 
-				state_ptr->Position.y = int(state_ptr->Position.y + 1) % WorldSizeY;//clamp<int>(state_ptr->Position.y + 1, 0, WorldSizeY - 1);
+				state_ptr->Position.y = cycle_y(state_ptr->Position.y + 1);//clamp<int>(state_ptr->Position.y + 1, 0, WorldSizeY - 1);
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::MoveBackwards] = Action
 		(
-			[](void * State, const Population * Pop,Individual * Org, void * World) 
+			[&](void * State, const Population * Pop,Individual * Org, void * World) 
 			{
 				auto state_ptr = (OrgState*)State;
 
-				state_ptr->Position.y = int(state_ptr->Position.y - 1) % WorldSizeY;//clamp<int>(state_ptr->Position.y - 1, 0, WorldSizeY - 1);
+				state_ptr->Position.y = cycle_y(state_ptr->Position.y - 1) % WorldSizeY;//clamp<int>(state_ptr->Position.y - 1, 0, WorldSizeY - 1);
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::MoveRight] = Action
 		(
-			[](void * State, const Population * Pop,Individual * Org, void * World) 
+			[&](void * State, const Population * Pop,Individual * Org, void * World) 
 			{
 				auto state_ptr = (OrgState*)State;
 
-				state_ptr->Position.x = int(state_ptr->Position.x + 1) % WorldSizeX;//clamp<int>(state_ptr->Position.x + 1, 0, WorldSizeX - 1);
+				state_ptr->Position.x = cycle_x(state_ptr->Position.x + 1) % WorldSizeX;//clamp<int>(state_ptr->Position.x + 1, 0, WorldSizeX - 1);
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::MoveLeft] = Action
 		(
-			[](void * State, const Population * Pop,Individual * Org, void * World) 
+			[&](void * State, const Population * Pop,Individual * Org, void * World) 
 			{
 				auto state_ptr = (OrgState*)State;
 
-				state_ptr->Position.x = int(state_ptr->Position.x - 1) % WorldSizeX;// clamp<int>(state_ptr->Position.x - 1, 0, WorldSizeX - 1);
+				state_ptr->Position.x = cycle_x(state_ptr->Position.x - 1) % WorldSizeX;// clamp<int>(state_ptr->Position.x - 1, 0, WorldSizeX - 1);
 			}
 		);
 
 		// "Jump". Move more than one cell at a time. Jump distance is a parameter
 		ActionRegistry[(int)ActionsIDs::JumpForward] = Action
 		(
-			[](void * State, const Population * Pop,Individual * Org, void * World) 
+			[&](void * State, const Population * Pop,Individual * Org, void * World) 
 			{
 				auto param_iter = Org->GetParameters().find((int)ParametersIDs::JumpDistance);
 				assert(param_iter != Org->GetParameters().end());
@@ -127,12 +132,12 @@ public:
 
 				auto [_, jump_dist] = *param_iter;
 
-				state_ptr->Position.y = (int)round(state_ptr->Position.y + jump_dist.Value) % WorldSizeY;//clamp<int>((int)round(state_ptr->Position.y + jump_dist.Value), 0, WorldSizeY - 1);
+				state_ptr->Position.y = cycle_y(round(state_ptr->Position.y + jump_dist.Value));//clamp<int>((int)round(state_ptr->Position.y + jump_dist.Value), 0, WorldSizeY - 1);
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::JumpBackwards] = Action
 		(
-			[](void * State, const Population * Pop,Individual * Org, void * World) 
+			[&](void * State, const Population * Pop,Individual * Org, void * World) 
 			{
 				auto param_iter = Org->GetParameters().find((int)ParametersIDs::JumpDistance);
 				assert(param_iter != Org->GetParameters().end());
@@ -140,12 +145,12 @@ public:
 				auto state_ptr = (OrgState*)State;
 
 				auto [_, jump_dist] = *param_iter;
-				state_ptr->Position.y = (int)round(state_ptr->Position.y - jump_dist.Value) % WorldSizeY;// clamp<int>((int)round(state_ptr->Position.y - jump_dist.Value), 0, WorldSizeY - 1);
+				state_ptr->Position.y = cycle_y(round(state_ptr->Position.y - jump_dist.Value));// clamp<int>((int)round(state_ptr->Position.y - jump_dist.Value), 0, WorldSizeY - 1);
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::JumpLeft] = Action
 		(
-			[](void * State, const Population * Pop,Individual * Org, void * World) 
+			[&](void * State, const Population * Pop,Individual * Org, void * World) 
 			{
 				auto param_iter = Org->GetParameters().find((int)ParametersIDs::JumpDistance);
 				assert(param_iter != Org->GetParameters().end());
@@ -153,12 +158,12 @@ public:
 				auto state_ptr = (OrgState*)State;
 
 				auto [_, jump_dist] = *param_iter;
-				state_ptr->Position.x = (int)round(state_ptr->Position.x - jump_dist.Value) % WorldSizeX;// clamp<int>((int)round(state_ptr->Position.x - jump_dist.Value), 0, WorldSizeX - 1);
+				state_ptr->Position.x = cycle_x(round(state_ptr->Position.x - jump_dist.Value));// clamp<int>((int)round(state_ptr->Position.x - jump_dist.Value), 0, WorldSizeX - 1);
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::JumpRight] = Action
 		(
-			[](void * State, const Population * Pop,Individual * Org, void * World) 
+			[&](void * State, const Population * Pop,Individual * Org, void * World) 
 			{
 				auto param_iter = Org->GetParameters().find((int)ParametersIDs::JumpDistance);
 				assert(param_iter != Org->GetParameters().end());
@@ -166,7 +171,7 @@ public:
 				auto state_ptr = (OrgState*)State;
 
 				auto [_, jump_dist] = *param_iter;
-				state_ptr->Position.x = (int)round(state_ptr->Position.x + jump_dist.Value) % WorldSizeX;// clamp<int>((int)round(state_ptr->Position.x + jump_dist.Value), 0, WorldSizeX - 1);
+				state_ptr->Position.x = cycle_x(round(state_ptr->Position.x + jump_dist.Value));// clamp<int>((int)round(state_ptr->Position.x + jump_dist.Value), 0, WorldSizeX - 1);
 			}
 		);
 
@@ -207,9 +212,14 @@ public:
 				// TODO : Find a way to avoid the copy of the tag
 				auto tag = Org->GetMorphologyTag();
 				tag.Parameters = {};
-
+				
+				// Find an individual of a DIFFERENT species.
+				// The species map is not really useful here
 				for (const auto& individual : Pop->GetIndividuals())
 				{
+					if (individual.GetState<OrgState>()->Life <= 0)
+						continue;
+
 					auto other_state_ptr = (OrgState*)individual.GetState();
 					auto diff = abs >> (other_state_ptr->Position - state_ptr->Position);
 					if (diff.x <= 1 && diff.y <= 1)
@@ -280,6 +290,9 @@ public:
 				float2 nearest_pos;
 				for (const auto& other_org : Pop->GetIndividuals())
 				{
+					if (other_org.GetState<OrgState>()->Life <= 0)
+						continue;
+
 					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
 					if (dist < nearest_dist)
 					{
@@ -315,6 +328,9 @@ public:
 				float2 nearest_pos;
 				for (const auto& other_org : Pop->GetIndividuals())
 				{
+					if (other_org.GetState<OrgState>()->Life <= 0)
+						continue;
+
 					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
 					if (dist < nearest_dist)
 					{
@@ -436,22 +452,23 @@ public:
 	// This computes fitness for the entire population
 	virtual void ComputeFitness(Population * Pop, void * World) override
 	{
-		// Make a copy of the individuals because dead ones have to be deleted
-
 		for (auto& org : Pop->GetIndividuals())
 			org.Reset();
 
 		// TODO : Shuffle the evaluation order
-		for (int i = 0; i < MaxSimulationSteps; i++)
+		bool any_alive = true;
+		for (int i = 0; i < MaxSimulationSteps && any_alive; i++)
 		{
+			any_alive = false;
 			for (auto& org : Pop->GetIndividuals())
 			{
 				auto state_ptr = (OrgState*)org.GetState();
 				if (state_ptr->Life <= 0)
 					continue;
+				any_alive = true;
 
 				org.DecideAndExecute(World, Pop);
-				state_ptr->Life -= StartingLife * 0.05; // Loose some percent of the starting life each turn
+				state_ptr->Life -= LifeLostPerTurn;
 				
 				// Using as fitness the accumulated life
 				org.LastFitness += state_ptr->Life;
@@ -535,98 +552,103 @@ int main()
 
 	// Generations finished, so visualize the individuals
 #ifndef _DEBUG
-	for (auto& org : pop.GetIndividuals())
-		org.Reset();
-
-	vector<int> food_x, food_y;
-	food_x.resize(world.FoodPositions.size());
-	food_y.resize(world.FoodPositions.size());
-
-	bool any_alive = true;
-	//vector<int> org_x, org_y;
-	//org_x.reserve(PopulationSize);
-	//org_y.reserve(PopulationSize);
-
-	while (any_alive)
+	while (true)
 	{
-		for (auto[idx, pos] : enumerate(world.FoodPositions))
-		{
-			food_x[idx] = pos.x;
-			food_y[idx] = pos.y;
-		}
-
-		any_alive = false;
 		for (auto& org : pop.GetIndividuals())
-		{
-			auto state_ptr = (OrgState*)org.GetState();
-			if (state_ptr->Life)
-				org.DecideAndExecute(&world, &pop);
-		}
+			org.Reset();
 
-		// Plot food
-		plt::clf();
-		plt::plot(food_x, food_y, "bo");
+		vector<int> food_x, food_y;
+		food_x.resize(world.FoodPositions.size());
+		food_y.resize(world.FoodPositions.size());
 
-		// Plot the individuals with different colors per species
-		/*for (auto [species_idx,entry] : enumerate(pop.GetSpecies()))
+		bool any_alive = true;
+		//vector<int> org_x, org_y;
+		//org_x.reserve(PopulationSize);
+		//org_y.reserve(PopulationSize);
+
+		while (any_alive)
 		{
+			for (auto[idx, pos] : enumerate(world.FoodPositions))
+			{
+				food_x[idx] = pos.x;
+				food_y[idx] = pos.y;
+			}
+
+			any_alive = false;
+			for (auto& org : pop.GetIndividuals())
+			{
+				auto state_ptr = (OrgState*)org.GetState();
+				if (state_ptr->Life >= 0)
+					org.DecideAndExecute(&world, &pop);
+				state_ptr->Life -= LifeLostPerTurn;
+			}
+
+			// Plot food
+			plt::clf();
+			plt::plot(food_x, food_y, "bo");
+
+			// Plot the individuals with different colors per species
+			/*for (auto [species_idx,entry] : enumerate(pop.GetSpecies()))
+			{
 			auto [_, species] = entry;
 			org_x.resize(species.IndividualsIDs.size());
 			org_y.resize(species.IndividualsIDs.size());
 
 			for (auto [idx, org_idx] : enumerate(species.IndividualsIDs))
 			{
-				auto state_ptr = (OrgState*)pop.GetIndividuals()[org_idx].GetState();
-				if (state_ptr->Life)
-				{
-					any_alive = true;
-					org_x[idx] = state_ptr->Position.x;
-					org_y[idx] = state_ptr->Position.y;
-				}
+			auto state_ptr = (OrgState*)pop.GetIndividuals()[org_idx].GetState();
+			if (state_ptr->Life)
+			{
+			any_alive = true;
+			org_x[idx] = state_ptr->Position.x;
+			org_y[idx] = state_ptr->Position.y;
+			}
 			}
 
 			plt::plot(org_x, org_y, string("x") + string("C") + to_string(species_idx));
-		}*/
+			}*/
 
-		// Plot herbivores on green and carnivores on black
-		vector<int> herbivores_x, herbivores_y;
-		vector<int> carnivores_x, carnivores_y;
-		herbivores_x.reserve(PopulationSize);
-		herbivores_y.reserve(PopulationSize);
-		carnivores_x.reserve(PopulationSize);
-		carnivores_y.reserve(PopulationSize);
+			// Plot herbivores on green and carnivores on black
+			vector<int> herbivores_x, herbivores_y;
+			vector<int> carnivores_x, carnivores_y;
+			herbivores_x.reserve(PopulationSize);
+			herbivores_y.reserve(PopulationSize);
+			carnivores_x.reserve(PopulationSize);
+			carnivores_y.reserve(PopulationSize);
 
-		for (const auto& org : pop.GetIndividuals())
-		{
-			bool is_carnivore = false;
-			for (const auto& comp : org.GetComponents())
+			for (const auto& org : pop.GetIndividuals())
 			{
-				// Group 0 is the "mouth", component 1 of that group is carnivores mouth
-				if (comp.GroupID == 0 && comp.ComponentID == 1)
-					is_carnivore = true;
-			}
+				bool is_carnivore = false;
+				for (const auto& comp : org.GetComponents())
+				{
+					// Group 0 is the "mouth", component 1 of that group is carnivores mouth
+					if (comp.GroupID == 0 && comp.ComponentID == 1)
+						is_carnivore = true;
+				}
 
-			auto state_ptr = (OrgState*)org.GetState();
-			if (state_ptr->Life > 0)
+				auto state_ptr = (OrgState*)org.GetState();
+				if (state_ptr->Life <= 0)
+					continue;
+
 				any_alive = true;
+				if (is_carnivore)
+				{
+					carnivores_x.push_back(state_ptr->Position.x);
+					carnivores_y.push_back(state_ptr->Position.y);
+				}
+				else
+				{
+					herbivores_x.push_back(state_ptr->Position.x);
+					herbivores_y.push_back(state_ptr->Position.y);
+				}
+			}
+			plt::plot(herbivores_x, herbivores_y, "xg");
+			plt::plot(carnivores_x, carnivores_y, "xk");
 
-			if (is_carnivore)
-			{
-				carnivores_x.push_back(state_ptr->Position.x);
-				carnivores_y.push_back(state_ptr->Position.y);
-			}
-			else
-			{
-				herbivores_x.push_back(state_ptr->Position.x);
-				herbivores_y.push_back(state_ptr->Position.y);
-			}
+			plt::xlim(-1, WorldSizeX);
+			plt::ylim(-1, WorldSizeY);
+			plt::pause(0.01);
 		}
-		plt::plot(herbivores_x, herbivores_y, "xg");
-		plt::plot(carnivores_x, carnivores_y, "xk");
-
-		plt::xlim(-1, WorldSizeX);
-		plt::ylim(-1, WorldSizeY);
-		plt::pause(0.01);
 	}
 #endif
 }

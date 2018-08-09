@@ -51,6 +51,8 @@ namespace agio
 
 		// Standard interface
 		auto GetState() const { return State; }
+		template<typename T>
+		T * GetState() const { return (T*)State; }
 		const auto& GetComponents() const { return Components; }
 		const auto& GetParameters() const { return Parameters; }
 		const auto& GetGenome() const { return Genome; }
