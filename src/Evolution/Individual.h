@@ -67,11 +67,14 @@ namespace agio
 		// Reset sets it to -1
 		float LastNoveltyMetric;
 
+		// Pointer to the current species where the individual belongs
+		class Species *SpeciesPtr;
+
 		// Serializes the individual to a file
 		void DumpToFile(const std::string& FilePath);
 
 		// Mutates this individual
-		void Mutate();
+		void Mutate(class Population *pop, int generation);
 	private:
 		// The current id, across all individuals and all populations
 		// Used to generate a global, unique id for the individuals
