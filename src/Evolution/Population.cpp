@@ -236,7 +236,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 	// Mutate children
 	for (auto& child : ChildrenBuffer)
 		if(uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
-			child.Mutate();
+			child.Mutate(this, CurrentGeneration);
 
 	EpochCallback(CurrentGeneration);
 

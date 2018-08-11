@@ -336,3 +336,7 @@ ASALocalRun/
 
 # VSCode internal files
 .vscode/
+
+# CLion cmake directories
+cmake-build-debug-gcc/
+cmake-build-release-gcc/

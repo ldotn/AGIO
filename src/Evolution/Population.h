@@ -3,16 +3,21 @@
 #include <unordered_map>
 #include <chrono>
 #include <functional>
+#include "innovation.h"
 
 namespace agio
 {
+	struct Species
+	{
+		std::vector<int> IndividualsIDs;
+		std::vector<NEAT::Innovation *> innovations;
+	};
+
 	class Population
 	{
 	public:
 		// TODO : Docs
-		Population() :
-			RNG(std::chrono::high_resolution_clock::now().time_since_epoch().count())
-		{}
+		Population() : RNG(std::chrono::high_resolution_clock::now().time_since_epoch().count()) {}
 
 		// Creates a new population of random individuals
 		// It also separates them into species
@@ -25,6 +30,11 @@ namespace agio
 		const auto& GetIndividuals() const { return Individuals; }
 		auto& GetIndividuals() { return Individuals; }
 		const auto& GetSpecies() const { return SpeciesMap; }
+
+
+		// Variables used in mutate_add_node and mutate_add_link (neat)
+		int cur_node_id;
+		double cur_innov_num;
 	private:
 		int CurrentGeneration;
 		std::vector<Individual> Individuals;
@@ -32,11 +42,6 @@ namespace agio
 
 		// Encapsulates the data for a single species
 		// TODO : Add whatever additional info is necessary
-	public:
-		struct Species
-		{
-			std::vector<int> IndividualsIDs;
-		};
 	private:
 		// Map from the morphology tag (that's what separates species) to the species
 		// IMPORTANT! : The parameters are REMOVED before creating the map
