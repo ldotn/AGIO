@@ -3,10 +3,17 @@
 #include <unordered_map>
 #include <chrono>
 #include <functional>
-#include "innovation.h"
+#include <memory>
+
+// Forward declaration
+namespace NEAT
+{
+	class Innovation;
+}
 
 namespace agio
 {
+	// Encapsulates the data for a single species
 	struct Species
 	{
 		std::vector<int> IndividualsIDs;
@@ -40,13 +47,10 @@ namespace agio
 		std::vector<Individual> Individuals;
 		std::minstd_rand RNG;
 
-		// Encapsulates the data for a single species
-		// TODO : Add whatever additional info is necessary
-	private:
 		// Map from the morphology tag (that's what separates species) to the species
 		// IMPORTANT! : The parameters are REMOVED before creating the map
 		//	The tag cares about the parameters, but species are only separated by actions and sensors
-		std::unordered_map<Individual::MorphologyTag, Species*> SpeciesMap;
+		std::unordered_map<Individual::MorphologyTag, std::unique_ptr<Species>> SpeciesMap;
 
 		// Used to keep track of the different morphologies that were tried
 		// It's only considering the actions, sensors and parameters, not the whole components and parameters
@@ -58,6 +62,8 @@ namespace agio
 	public:
 		struct MorphologyRecord
 		{
+			// TODO : GenerationNumber and AverageFitness seem useless, check that
+
 			// The generation at which this morphology first appeared
 			int GenerationNumber;
 
@@ -65,8 +71,9 @@ namespace agio
 			// It's a moving average across generations
 			float AverageFitness;
 			
-			// The historic best individual representative of this morphology
-			Individual Representative;
+			// The fitness of the individual that represents this morphology
+			// Used to keep the tag of the best one
+			float RepresentativeFitness;
 		};
 	private:
 		std::unordered_map<Individual::MorphologyTag, MorphologyRecord> MorphologyRegistry;

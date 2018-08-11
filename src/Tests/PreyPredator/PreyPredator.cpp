@@ -22,7 +22,7 @@ const float StartingLife = 300;
 const int FoodCellCount = WorldSizeX * WorldSizeY*0.1;
 const int MaxSimulationSteps = 200;
 const int PopulationSize = 75;
-const int GenerationsCount = 1000;
+const int GenerationsCount = 10000;
 const float LifeLostPerTurn = 5;
 
 minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
@@ -445,7 +445,7 @@ public:
 		state->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
 		state->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
 
-		return new OrgState;
+		return state;
 	}
 
 	virtual void ResetState(void * State) override
@@ -574,12 +574,20 @@ int main()
 				avg_n /= PopulationSize;
 #ifndef _DEBUG
 				avg_fitness.push_back(avg_f);
+
 				avg_novelty.push_back(avg_n);
+				// Compute median
+				// " nth_element is a partial sorting algorithm that rearranges elements in [first, last) such that:
+				//		The element pointed at by nth is changed to whatever element would occur in that position if[first, last) were sorted.
+				//		All of the elements before this new nth element are less than or equal to the elements after the new nth element."
+				/*std::nth_element(novelty_vec.begin(), novelty_vec.begin() + novelty_vec.size() / 2, novelty_vec.end());
+				median_novelty.push_back(novelty_vec[novelty_vec.size() / 2]);*/
+
 				simulation_steps.push_back(((TestInterface*)Interface.get())->LastSimulationStepCount);
 
 				plt::clf();
 				plt::subplot(4, 1, 1);
-				plt::plot(fitness_vec, novelty_vec, "x");
+				plt::loglog(fitness_vec, novelty_vec, "x");
 				
 				plt::subplot(4, 1, 2);
 				plt::plot(avg_fitness, "r");

@@ -28,6 +28,21 @@ namespace agio
 		// Constructor that set everything to null and seeds the RNG
 		Individual();
 
+		// Constructor that creates the new individual by mating two individuals
+		// It assumes that the individuals are compatible
+		// The child ID is the ID inside the offsprings
+		Individual(const Individual& Mom, const Individual& Dad, int ChildID);
+
+		// Prevent copying
+		Individual(const Individual&) = delete;
+
+		// Clears all the resources used by the individual
+		~Individual();
+
+		// Move constructor that sets the resources to nullptr of the moved from objet after the move
+		// That's necessary so that the destructor doesn't try to release a moved resource
+		Individual(Individual &&);
+
 		// Constructs a new, valid, individual
 		// Takes as input the ID of the individual inside the population
 		void Spawn(int ID);
@@ -38,11 +53,6 @@ namespace agio
 		//    3) Select the action to do at random based on the probabilities output by the network
 		//	  4) Calls the selected action
 		void DecideAndExecute(void * World, const class Population*);
-
-		// Creates a child by mating this two individuals
-		// It assumes that the individuals are compatible
-		// The child ID is the ID inside the offsprings
-		Individual Mate(const Individual& Other,int ChildID);
 
 		// Reset the state and set fitness to -1
 		// Also flush the neural network
@@ -68,7 +78,7 @@ namespace agio
 		float LastNoveltyMetric;
 
 		// Pointer to the current species where the individual belongs
-		class Species *SpeciesPtr;
+		class Species * SpeciesPtr;
 
 		// Serializes the individual to a file
 		void DumpToFile(const std::string& FilePath);
@@ -132,7 +142,9 @@ namespace agio
 			std::vector<uint64_t> ActionsBitfield;
 			std::vector<uint64_t> SensorsBitfield;
 			std::unordered_map<int, Parameter> Parameters;
-			NEAT::Genome * ControlGenome;
+			
+			// The innovation numbers of the genes
+			std::vector<double> GenesIDs;
 
 			// Checks that the actions and sensors are the same, 
 			//  and that the parameters have the same historical marker

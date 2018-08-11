@@ -17,11 +17,11 @@ namespace agio
 
         // Minimum novelty of an individual to add it to the morphology registry
         // TODO : No idea what's the range of this. Maybe it can be automatically adjusted from the prev novelty?
-        inline static float NoveltyThreshold = 4;
+        inline static float NoveltyThreshold = 2.75;
 
         // Probability of calling Mutate() on a child
         // TODO : Docs
-        inline static float ChildMutationProb = 0.1f;
+        inline static float ChildMutationProb = 0.75f;
         inline static float ParameterMutationProb = 0.1f;
         inline static float ParameterDestructiveMutationProb = 0.1f;
         inline static float ParameterMutationSpread = 0.025f;

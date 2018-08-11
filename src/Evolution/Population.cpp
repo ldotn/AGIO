@@ -12,11 +12,10 @@ using namespace fpp;
 void Population::BuildSpeciesMap()
 {
     // clear the species map
-	for(auto &[_, s] : SpeciesMap)
+	for(auto & [_, s] : SpeciesMap)
     {
-        for (auto &innovation : s->innovations)
+        for (auto innovation : s->innovations)
             delete innovation;
-        delete s;
     }
     SpeciesMap.clear();
 
@@ -26,21 +25,23 @@ void Population::BuildSpeciesMap()
 		auto tag = org.GetMorphologyTag(); // make a copy
 		tag.Parameters = {}; // remove parameters
 
+
 		Species* species_ptr = nullptr;
 		auto iter = SpeciesMap.find(tag);
 		if (iter == SpeciesMap.end())
 		{
-			species_ptr = new Species;
-			SpeciesMap[tag] = species_ptr;
+			unique_ptr<Species> tmp(new Species);
+			
+			species_ptr = tmp.get();
+			SpeciesMap[tag] = move(tmp);
 		}
 		else
-			species_ptr = iter->second;
+			species_ptr = iter->second.get();
 
 		species_ptr->IndividualsIDs.push_back(idx);
 		org.SpeciesPtr = species_ptr;
 	}
 }
-
 
 void Population::Spawn(size_t Size)
 {
@@ -118,9 +119,6 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 		for (auto & [tag, record] : MorphologyRegistry)
 		{
-			if (org.GetGlobalID() == record.Representative.GetGlobalID())
-				continue;
-
 			// This is the morphology distance
 			float dist = org.GetMorphologyTag().Distance(tag);
 
@@ -158,7 +156,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 				MorphologyRecord mr;
 				mr.AverageFitness = org.LastFitness;
 				mr.GenerationNumber = CurrentGeneration;
-				mr.Representative = org;
+				mr.RepresentativeFitness = org.LastFitness;
 
 				MorphologyRegistry[tag] = mr;
 			}
@@ -167,7 +165,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 				// The tag is already on the registry
 				// Check if this individual is better than the representative
 				// If it is, replace the individual and the tag
-				if (org.LastFitness > record->second.Representative.LastFitness)
+				if (org.LastFitness > record->second.RepresentativeFitness)
 				{
 					// This two tags compare equal and have the same hash
 					//  but may have different parameter's values
@@ -178,7 +176,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 					auto & record = MorphologyRegistry[tag];
 					record.AverageFitness = 0.5f*(record.AverageFitness + org.LastFitness);
-					record.Representative = org;
+					record.RepresentativeFitness = org.LastFitness;
 				}
 			}
 		}
@@ -219,8 +217,10 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 			}
 
 			// Transform from a count to a selection weight (not a probability because they aren't normalized)
-			// The transform is simply f(x) = 1 / (x + 1)
-			DominationBuffer.push_back(1.0f / (domination_count + 1.0f));
+			// The transform is simply f(x) = 1 / (x + 1)^alpha
+			// TODO : Expose this parameter
+			const float alpha = 1.0f;
+			DominationBuffer.push_back(1.0f / pow(domination_count + 1.0f,alpha));
 		}
 
 		// Now use the domination weights to randomly select parents and cross them
@@ -232,7 +232,12 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 		{
 			// Only one individual on the species, so just clone it
 			// TODO : Find if there's some better way to handle this
-			ChildrenBuffer.push_back(Individuals[species->IndividualsIDs[0]]);
+			//ChildrenBuffer.push_back(Individuals[species->IndividualsIDs[0]]);
+			
+			// Individuals have copy disabled as a way to ensure proper usage
+			// Because of that, the way to clone an individual is to mate it with itself
+			const auto& individual = Individuals[species->IndividualsIDs[0]];
+			ChildrenBuffer.emplace_back(individual,individual, ChildrenBuffer.size());
 		}
 		else
 		{
@@ -244,10 +249,10 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 				while (dad_idx == mom_idx) // Don't want someone to mate with itself
 					dad_idx = domination_dist(RNG);
 
-				auto& mom = Individuals[species->IndividualsIDs[mom_idx]];
-				auto& dad = Individuals[species->IndividualsIDs[dad_idx]];
+				const auto & mom = Individuals[species->IndividualsIDs[mom_idx]];
+				const auto & dad = Individuals[species->IndividualsIDs[dad_idx]];
 
-				ChildrenBuffer.push_back(mom.Mate(dad, ChildrenBuffer.size()));
+				ChildrenBuffer.emplace_back(mom,dad,ChildrenBuffer.size());
 			}
 		}
 
@@ -259,12 +264,23 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 	// TODO : Test different options
 	// Replace all the population by the childs
 	assert(ChildrenBuffer.size() == Individuals.size());
-	Individuals = ChildrenBuffer;
+	Individuals = move(ChildrenBuffer);
 
 	// Do a call first so that the childs know on what species they are 
 	// TODO : I worked really hard to avoid memory allocs, and this part does a BUNCH of them
 	//	try to find a way to avoid them
 	BuildSpeciesMap();
+
+
+
+
+
+	CurrentGeneration++;
+	return;
+
+
+
+
 
     // Mutate children
     for (auto& child : Individuals)

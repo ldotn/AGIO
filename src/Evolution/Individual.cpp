@@ -31,6 +31,7 @@ Individual::Individual() : RNG(chrono::high_resolution_clock::now().time_since_e
     LastFitness = -1;
     LastNoveltyMetric = -1;
     GlobalID = CurrentGlobalID.fetch_add(1);
+	SpeciesPtr = nullptr;
 }
 
 void Individual::Spawn(int ID)
@@ -139,7 +140,9 @@ void Individual::Spawn(int ID)
     Morphology.Parameters = Parameters;
     Morphology.NumberOfActions = Actions.size();
     Morphology.NumberOfSensors = Sensors.size();
-    Morphology.ControlGenome = Genome;
+	Morphology.GenesIDs.resize(Genome->genes.size());
+	for (auto[gene_id, gene] : zip(Morphology.GenesIDs, Genome->genes))
+		gene_id = gene->innovation_num;
 }
 
 void Individual::DecideAndExecute(void *World, const class Population *PopulationPtr)
@@ -182,43 +185,41 @@ void Individual::Reset()
     LastNoveltyMetric = -1;
 }
 
-// TODO : Check if move semantics can make this faster
-Individual Individual::Mate(const Individual &Other, int ChildID)
-{
-    assert(Morphology == Other.Morphology);
 
-    Individual child;
+Individual::Individual(const Individual& Mom, const Individual& Dad, int ChildID) : Individual()
+{
+    assert(Mom.Morphology == Dad.Morphology);
 
     // TODO : Use the other mating functions, and test which is better
     // We don't do inter-species mating
-    child.Genome = Genome->mate_multipoint(Other.Genome, ChildID, LastFitness, Other.LastFitness, false);
-    child.Brain = child.Genome->genesis(ChildID);
+    Genome = Mom.Genome->mate_multipoint(Dad.Genome, ChildID, Mom.LastFitness, Dad.LastFitness, false);
+    Brain = Genome->genesis(ChildID);
 
     // This vectors are the same for both parents
-    child.Actions = Actions;
-    child.Sensors = Sensors;
-    child.ActivationsBuffer.resize(child.Actions.size());
-    child.SensorsValues.resize(child.Sensors.size());
-    child.Morphology = Other.Morphology;
+    Actions = Mom.Actions;
+    Sensors = Mom.Sensors;
+    ActivationsBuffer.resize(Mom.Actions.size());
+    SensorsValues.resize(Mom.Sensors.size());
 
     // TODO : Find a way to mix the components.
     // You can't trivially swap because you need to respect groups cardinalities
     // For now, just take the components of one parent randomly
     // Usually this vectors are equal between parents, so it shouldn't be that much of a difference
-    if (uniform_int_distribution<int>(0, 1)(RNG))
-        child.Components = Components;
+	if (uniform_int_distribution<int>(0, 1)(RNG))
+		Components = Components;
     else
-        child.Components = Other.Components;
+        Components = Dad.Components;
 
-    // Finally cross parameters using the historical markers
-    // Taking as base the parameters of this parent
+    // Cross parameters using the historical markers
+    // Taking as base the parameters of the first
     // That decision is arbitrary
-    child.Parameters = Parameters;
-    for (auto &[idx, cparam] : child.Parameters)
+	// TODO : Randomly choose between mom or dad?
+    Parameters = Mom.Parameters;
+    for (auto &[idx, cparam] : Parameters)
     {
         // Search for this parameter in the other individual
-        auto param_iter = Other.Parameters.find(idx);
-        if (param_iter != Other.Parameters.end())
+        auto param_iter = Dad.Parameters.find(idx);
+        if (param_iter != Dad.Parameters.end())
         {
             // Also check that the parameters have the same historical marker
             // This way you don't cross parameters that are far apart
@@ -230,10 +231,18 @@ Individual Individual::Mate(const Individual &Other, int ChildID)
         }
     }
 
-    // Finally construct a new state and return
-    child.State = Interface->MakeState(this);
+	// Build morphology
+	Morphology.NumberOfActions = Mom.Morphology.NumberOfActions;
+	Morphology.NumberOfSensors = Mom.Morphology.NumberOfSensors;
+	Morphology.ActionsBitfield = Mom.Morphology.ActionsBitfield;
+	Morphology.SensorsBitfield = Mom.Morphology.SensorsBitfield;
+	Morphology.Parameters = Parameters;
+	Morphology.GenesIDs.resize(Genome->genes.size());
+	for (auto [gene_id, gene] : zip(Morphology.GenesIDs, Genome->genes))
+		gene_id = gene->innovation_num;
 
-    return child;
+    // Finally construct a new state
+    State = Interface->MakeState(this);
 }
 
 bool Individual::MorphologyTag::IsCompatible(const Individual::MorphologyTag &Other) const
@@ -318,15 +327,15 @@ float Individual::MorphologyTag::Distance(const Individual::MorphologyTag &Other
     }
 
     // Finally check number of mismatching genes on the genome of the control network
-    dist += abs((int) ControlGenome->genes.size() - (int) Other.ControlGenome->genes.size());
+    dist += abs((int)GenesIDs.size() - (int) Other.GenesIDs.size());
 
-    for (const auto &gene : ControlGenome->genes)
+    for (const auto &gene : GenesIDs)
     {
         bool found = false;
 
-		for (const auto& other_gene : Other.ControlGenome->genes)
+		for (const auto& other_gene : GenesIDs)
 		{
-			if (gene->innovation_num == other_gene->innovation_num)
+			if (gene == other_gene)
 			{
 				found = true;
 				break;
@@ -382,7 +391,6 @@ void Individual::Mutate(Population *pop, int generation)
             Genome->mutate_toggle_enable(1);
 
         if (randfloat() < Settings::NEAT::mutate_gene_reenable_prob)
-            //std::cout<<"mutate gene reenable"<<std::endl;
             Genome->mutate_gene_reenable();
     }
 
@@ -403,4 +411,31 @@ void Individual::Mutate(Population *pop, int generation)
             }
         }
     }
+}
+
+Individual::Individual(Individual && other)
+{
+	GlobalID = other.GlobalID;
+	State = other.State;
+	Components = move(other.Components);
+	Parameters = move(other.Parameters);
+	Genome = other.Genome;
+	Brain = other.Brain;
+	Actions = move(other.Actions);
+	Sensors = move(other.Sensors);
+	SensorsValues = move(other.SensorsValues);
+	ActivationsBuffer = move(other.ActivationsBuffer);
+	RNG = move(other.RNG);
+	Morphology = move(other.Morphology);
+
+	other.Genome = nullptr;
+	other.Brain = nullptr;
+	other.State = nullptr;
+}
+
+Individual::~Individual()
+{
+	if (Brain) delete Brain;
+	if (Genome) delete Genome;
+	if (State) Interface->DestroyState(State);
 }
