@@ -46,7 +46,7 @@ namespace agio
 		// Map from the morphology tag (that's what separates species) to the species
 		// IMPORTANT! : The parameters are REMOVED before creating the map
 		//	The tag cares about the parameters, but species are only separated by actions and sensors
-		std::unordered_map<Individual::MorphologyTag,Species> SpeciesMap;
+		std::unordered_map<Individual::MorphologyTag, Species*> SpeciesMap;
 
 		// Used to keep track of the different morphologies that were tried
 		// It's only considering the actions, sensors and parameters, not the whole components and parameters
