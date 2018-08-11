@@ -328,7 +328,7 @@ float Individual::MorphologyTag::Distance(const Individual::MorphologyTag & Othe
 		{
 			if (gene->innovation_num == other_gene->innovation_num)
 			{
-				found == true;
+				found = true;
 				break;
 			}
 		}

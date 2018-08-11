@@ -6,7 +6,11 @@
 struct alignas(16) float2
 {
 private:
-	static const inline __m128 ElementMask = _mm_castsi128_ps(_mm_set_epi32(0xffffffff, 0xffffffff, 0, 0));
+	static constexpr union
+	{
+		unsigned int Raw[4];
+		__m128 Value;
+	} ElementMask = { 0xffffffff, 0xffffffff, 0, 0 };
 public:
 	union
 	{
@@ -70,7 +74,7 @@ public:
 	float2& operator/=(const float2& rhs)
 	{
 		mem = _mm_div_ps(mem, rhs.mem);
-		mem = _mm_and_ps(mem, ElementMask);
+		mem = _mm_and_ps(mem, ElementMask.Value);
 
 		return *this; // return the result by reference
 	}
@@ -112,7 +116,7 @@ public:
 		//mem = _mm_mul_ps(mem, p2);
 		mem = _mm_div_ps(mem, p2);
 
-		mem = _mm_and_ps(mem, ElementMask);
+		mem = _mm_and_ps(mem, ElementMask.Value);
 		return *this;
 	}
 	float dot(const float2& rhs) const
