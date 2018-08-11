@@ -11,14 +11,11 @@ using namespace fpp;
 
 void Population::BuildSpeciesMap()
 {
-
     // clear the species map
 	for(auto &[_, s] : SpeciesMap)
     {
         for (auto &innovation : s->innovations)
-        {
             delete innovation;
-        }
         delete s;
     }
     SpeciesMap.clear();
@@ -29,10 +26,18 @@ void Population::BuildSpeciesMap()
 		auto tag = org.GetMorphologyTag(); // make a copy
 		tag.Parameters = {}; // remove parameters
 
-		if (SpeciesMap[tag] == nullptr)
-			SpeciesMap[tag] = new Species();
-		SpeciesMap[tag]->IndividualsIDs.push_back(idx);
-		org.SpeciesPtr = SpeciesMap[tag];
+		Species* species_ptr = nullptr;
+		auto iter = SpeciesMap.find(tag);
+		if (iter == SpeciesMap.end())
+		{
+			species_ptr = new Species;
+			SpeciesMap[tag] = species_ptr;
+		}
+		else
+			species_ptr = iter->second;
+
+		species_ptr->IndividualsIDs.push_back(idx);
+		org.SpeciesPtr = species_ptr;
 	}
 }
 
@@ -256,22 +261,19 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 	assert(ChildrenBuffer.size() == Individuals.size());
 	Individuals = ChildrenBuffer;
 
-	// Separate species
+	// Do a call first so that the childs know on what species they are 
 	// TODO : I worked really hard to avoid memory allocs, and this part does a BUNCH of them
 	//	try to find a way to avoid them
 	BuildSpeciesMap();
 
-	// NOTE: Need to mutate after buildSpeciesMap, otherwise children don't know which species belong
-    // Reset innovation vectors before mutating
-    for (auto &[_, species] : SpeciesMap) {
-        for (auto &innovation : species->innovations)
-            delete innovation;
-        species->innovations.clear();
-    }
     // Mutate children
     for (auto& child : Individuals)
         if(uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
             child.Mutate(this, CurrentGeneration);
+
+	// After mutation, the species might have changed, so this needs to be rebuilt
+	// TODO : Find a way to avoid the double call to this
+	BuildSpeciesMap();
 
 	// Finally increase generation number
 	CurrentGeneration++;

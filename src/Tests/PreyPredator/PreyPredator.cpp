@@ -469,6 +469,9 @@ public:
 		return 0; // Not used
 	}
 
+	// How many steps did the last simulation took before everyone died
+	int LastSimulationStepCount = 0;
+
 	// This computes fitness for the entire population
 	virtual void ComputeFitness(Population * Pop, void * World) override
 	{
@@ -476,6 +479,7 @@ public:
 			org.Reset();
 
 		// TODO : Shuffle the evaluation order
+		LastSimulationStepCount = 0;
 		bool any_alive = true;
 		for (int i = 0; i < MaxSimulationSteps && any_alive; i++)
 		{
@@ -491,10 +495,11 @@ public:
 				state_ptr->Life -= LifeLostPerTurn;
 				
 				// Using as fitness the accumulated life
-				//org.LastFitness += state_ptr->Life;
+				org.LastFitness += state_ptr->Life;
 				// Second option : moving average
-				org.LastFitness = org.LastFitness*0.9f + state_ptr->Life*0.1f;
+				//org.LastFitness = org.LastFitness*0.9f + state_ptr->Life*0.1f;
 			}
+			LastSimulationStepCount++;
 		}
 	}
 };
@@ -521,8 +526,9 @@ int main()
 	// Do evolution loop
 	vector<float> fitness_vec(PopulationSize);
 	vector<float> novelty_vec(PopulationSize);
-	vector<float> avg_fitness(PopulationSize);
-	vector<float> avg_novelty(PopulationSize);
+	vector<float> avg_fitness;
+	vector<float> avg_novelty;
+	vector<float> simulation_steps;
 	// TODO : Make the plot work in debug
 #ifndef _DEBUG
 	plt::ion();
@@ -569,6 +575,7 @@ int main()
 #ifndef _DEBUG
 				avg_fitness.push_back(avg_f);
 				avg_novelty.push_back(avg_n);
+				simulation_steps.push_back(((TestInterface*)Interface.get())->LastSimulationStepCount);
 
 				plt::clf();
 				plt::subplot(4, 1, 1);
@@ -581,7 +588,7 @@ int main()
 				plt::plot(avg_novelty, "g");
 
 				plt::subplot(4, 1, 4);
-				plt::plot(species_avg_fitness, "g");
+				plt::plot(simulation_steps, "g");
 
 				plt::pause(0.01);
 #endif
