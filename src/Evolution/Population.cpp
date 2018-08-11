@@ -11,13 +11,28 @@ using namespace fpp;
 
 void Population::BuildSpeciesMap()
 {
-	SpeciesMap.clear();
 
+    // clear the species map
+	for(auto &[_, s] : SpeciesMap)
+    {
+        for (auto &innovation : s->innovations)
+        {
+            delete innovation;
+        }
+        delete s;
+    }
+    SpeciesMap.clear();
+
+	// put every individual into his corresponding species
 	for (auto [idx, org] : enumerate(Individuals))
 	{
 		auto tag = org.GetMorphologyTag(); // make a copy
 		tag.Parameters = {}; // remove parameters
-		SpeciesMap[tag].IndividualsIDs.push_back(idx);
+
+		if (SpeciesMap[tag] == nullptr)
+			SpeciesMap[tag] = new Species();
+		SpeciesMap[tag]->IndividualsIDs.push_back(idx);
+		org.SpeciesPtr = SpeciesMap[tag];
 	}
 }
 
@@ -52,10 +67,10 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 	for (auto & [tag,s] : SpeciesMap)
 	{
 		float avg_fitness = 0;
-		for (auto & idx : s.IndividualsIDs)
+		for (auto & idx : s->IndividualsIDs)
 			avg_fitness += Individuals[idx].LastFitness;
 
-		avg_fitness /= s.IndividualsIDs.size();
+		avg_fitness /= s->IndividualsIDs.size();
 
 		MorphologyRegistry[tag].AverageFitness = 0.5f * (MorphologyRegistry[tag].AverageFitness + avg_fitness);
 	}
@@ -174,16 +189,16 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 		// Mate within species based on NSGA-II
 		// As a first, simple implementation, sort based on the number of individuals that dominate you (more is worst)
 		// TODO : Properly implement NSGA-II and check if it's better
-		assert(species.IndividualsIDs.size() > 0);
+		assert(species->IndividualsIDs.size() > 0);
 
 		DominationBuffer.resize(0);
-		for (int this_idx : species.IndividualsIDs)
+		for (int this_idx : species->IndividualsIDs)
 		{
 			const auto& org = Individuals[this_idx];
 
 			// Check if this individual is on the non-dominated front
 			float domination_count = 0;
-			for (int other_idx : species.IndividualsIDs)
+			for (int other_idx : species->IndividualsIDs)
 			{
 				if (this_idx == other_idx)
 					continue;
@@ -207,16 +222,16 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 		discrete_distribution<int> domination_dist(DominationBuffer.begin(), DominationBuffer.end());
 
 		//assert(species.IndividualsIDs.size() > 1); // TODO : Find what to do here!
-		assert(species.IndividualsIDs.size() > 0);
-		if (species.IndividualsIDs.size() == 1)
+		assert(species->IndividualsIDs.size() > 0);
+		if (species->IndividualsIDs.size() == 1)
 		{
 			// Only one individual on the species, so just clone it
 			// TODO : Find if there's some better way to handle this
-			ChildrenBuffer.push_back(Individuals[species.IndividualsIDs[0]]);
+			ChildrenBuffer.push_back(Individuals[species->IndividualsIDs[0]]);
 		}
 		else
 		{
-			for (int i = 0; i < species.IndividualsIDs.size(); i++)
+			for (int i = 0; i < species->IndividualsIDs.size(); i++)
 			{
 				int mom_idx = domination_dist(RNG);
 				int dad_idx = domination_dist(RNG);
@@ -224,19 +239,14 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 				while (dad_idx == mom_idx) // Don't want someone to mate with itself
 					dad_idx = domination_dist(RNG);
 
-				auto& mom = Individuals[species.IndividualsIDs[mom_idx]];
-				auto& dad = Individuals[species.IndividualsIDs[dad_idx]];
+				auto& mom = Individuals[species->IndividualsIDs[mom_idx]];
+				auto& dad = Individuals[species->IndividualsIDs[dad_idx]];
 
 				ChildrenBuffer.push_back(mom.Mate(dad, ChildrenBuffer.size()));
 			}
 		}
 
 	}
-
-	// Mutate children
-	for (auto& child : ChildrenBuffer)
-		if(uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
-			child.Mutate(this, CurrentGeneration);
 
 	EpochCallback(CurrentGeneration);
 
@@ -250,6 +260,18 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 	// TODO : I worked really hard to avoid memory allocs, and this part does a BUNCH of them
 	//	try to find a way to avoid them
 	BuildSpeciesMap();
+
+	// NOTE: Need to mutate after buildSpeciesMap, otherwise children don't know which species belong
+    // Reset innovation vectors before mutating
+    for (auto &[_, species] : SpeciesMap) {
+        for (auto &innovation : species->innovations)
+            delete innovation;
+        species->innovations.clear();
+    }
+    // Mutate children
+    for (auto& child : Individuals)
+        if(uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
+            child.Mutate(this, CurrentGeneration);
 
 	// Finally increase generation number
 	CurrentGeneration++;

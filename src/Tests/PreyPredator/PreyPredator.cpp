@@ -547,10 +547,10 @@ int main()
 
 					float avg_fit = 0;
 
-					for (int idx : species.IndividualsIDs)
+					for (int idx : species->IndividualsIDs)
 						avg_fit += pop.GetIndividuals()[idx].LastFitness;
 
-					species_avg_fitness.push_back(avg_fit / species.IndividualsIDs.size());
+					species_avg_fitness.push_back(avg_fit / species->IndividualsIDs.size());
 				}
 
 				for (auto [idx, org] : enumerate(pop.GetIndividuals()))
