@@ -324,14 +324,14 @@ float Individual::MorphologyTag::Distance(const Individual::MorphologyTag &Other
     {
         bool found = false;
 
-        for (const auto &other_gene : Other.ControlGenome->genes)
-        {
-            if (gene->innovation_num == other_gene->innovation_num)
-            {
-                found == true;
-                break;
-            }
-        }
+		for (const auto& other_gene : Other.ControlGenome->genes)
+		{
+			if (gene->innovation_num == other_gene->innovation_num)
+			{
+				found = true;
+				break;
+			}
+		}
 
         if (!found)
             dist += 1;
