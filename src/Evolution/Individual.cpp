@@ -32,6 +32,7 @@ Individual::Individual() : RNG(chrono::high_resolution_clock::now().time_since_e
     LastNoveltyMetric = -1;
     GlobalID = CurrentGlobalID.fetch_add(1);
 	SpeciesPtr = nullptr;
+	LastDominationCount = -1;
 }
 
 void Individual::Spawn(int ID)
@@ -183,6 +184,7 @@ void Individual::Reset()
     if (Brain) Brain->flush();
     LastFitness = -1;
     LastNoveltyMetric = -1;
+	LastDominationCount = -1;
 }
 
 
@@ -192,7 +194,7 @@ Individual::Individual(const Individual& Mom, const Individual& Dad, int ChildID
 
     // TODO : Use the other mating functions, and test which is better
     // We don't do inter-species mating
-    Genome = Mom.Genome->mate_multipoint(Dad.Genome, ChildID, Mom.LastFitness, Dad.LastFitness, false);
+    Genome = Mom.Genome->mate_multipoint_avg(Dad.Genome, ChildID, Mom.LastFitness, Dad.LastFitness, false);
     Brain = Genome->genesis(ChildID);
 
     // This vectors are the same for both parents

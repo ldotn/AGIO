@@ -77,6 +77,9 @@ namespace agio
 		// Reset sets it to -1
 		float LastNoveltyMetric;
 
+		// Number of individuals that dominates this one from the last evaluation
+		float LastDominationCount;
+
 		// Pointer to the current species where the individual belongs
 		class Species * SpeciesPtr;
 
