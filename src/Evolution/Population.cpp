@@ -271,17 +271,6 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 	//	try to find a way to avoid them
 	BuildSpeciesMap();
 
-
-
-
-
-	CurrentGeneration++;
-	return;
-
-
-
-
-
     // Mutate children
     for (auto& child : Individuals)
         if(uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
