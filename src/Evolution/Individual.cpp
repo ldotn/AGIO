@@ -80,7 +80,7 @@ void Individual::Spawn(int ID)
             Parameter p;
             p.ID = pidx;
             p.Value = 0.5f * (param.Min + param.Max);
-            p.HistoricalMarker = 0;
+            p.HistoricalMarker = Parameter::CurrentMarkerID;
 
             // Small shift
             p.Value +=
@@ -211,10 +211,6 @@ Individual::Individual(const Individual& Mom, const Individual& Dad, int ChildID
 	// TODO : Check if this is correct
 	// Because now we can have all individuals mixed with the new ones, let's use the global id as child id
 	ChildID = GlobalID;
-
-
-
-    assert(Mom.Morphology == Dad.Morphology);
 
     // TODO : Use the other mating functions, and test which is better
     // We don't do inter-species mating

@@ -143,7 +143,6 @@ namespace agio
 		// TODO : Maybe find a better name for this?
 		// It also keeps track of the parameters
 		// For equality only the historical markers are considered
-		// For distance, the historical markers are ignored
 	public:
 		struct MorphologyTag
 		{

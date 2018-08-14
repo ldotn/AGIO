@@ -63,7 +63,6 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 	/*for (auto& org : Individuals)
 		org.Reset();
 
-	// TODO : Create an evaluation list and shuffle it. This way the evaluation order changes. Can't shuffle the individuals list directly because that would break the IDs
 	for (auto& org : Individuals)
 		org.LastFitness = Interface->ComputeFitness(&org, WorldPtr);*/
 	Interface->ComputeFitness(this, WorldPtr);
@@ -334,7 +333,6 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 	EpochCallback(CurrentGeneration);
 
-
 	// Using just the simple replacement for now
 	Individuals = move(ChildrenBuffer);
 
@@ -349,19 +347,10 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 	// TODO : Find a way to avoid the double call to this
 	BuildSpeciesMap();
 
-
 	CurrentGeneration++;
 	return;
 
-
-
-
-
-
-
-	
-
-
+#if 0
 
 	// Make replacement
 	assert(ChildrenBuffer.size() == Individuals.size());
@@ -514,6 +503,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 	// Finally increase generation number
 	CurrentGeneration++;
+#endif
 }
 
 

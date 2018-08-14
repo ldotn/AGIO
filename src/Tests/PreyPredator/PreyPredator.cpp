@@ -21,8 +21,8 @@ const float KillLifeGain = 30;
 const float StartingLife = 300;
 const int FoodCellCount = WorldSizeX * WorldSizeY*0.1;
 const int MaxSimulationSteps = 200;
-const int PopulationSize = 75;
-const int GenerationsCount = 1000;
+const int PopulationSize = 100;
+const int GenerationsCount = 2000;
 const float LifeLostPerTurn = 5;
 
 minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
@@ -550,7 +550,7 @@ int main()
 			cout << "Generation : " << gen << endl;
 
 			// Every some generations graph the fitness & novelty of the individuals of the registry
-			if (gen % 10 == 0)
+			if (gen % 20 == 0)
 			{
 				for (auto [idx, org] : enumerate(pop.GetIndividuals()))
 				{
@@ -587,22 +587,28 @@ int main()
 				avg_novelty.push_back(avg_n);
 				species_count.push_back(pop.GetNonDominatedRegistry().size());
 
-				// TODO : Use a different color for each species on the fitness vs novelty plots
 				plt::clf();
-				plt::subplot(5, 1, 1);
-				plt::loglog(fitness_vec, novelty_vec, "x");
-				
-				plt::subplot(5, 1, 2);
-				plt::loglog(fitness_vec_registry, novelty_vec_registry, "x");
 
-				plt::subplot(5, 1, 3);
+				plt::subplot(7, 1, 1);
+				plt::loglog(fitness_vec, novelty_vec, "x");
+
+				plt::subplot(7, 1, 2);
+				plt::loglog(fitness_vec_registry, novelty_vec_registry, string("x"));
+
+				plt::subplot(7, 1, 3);
 				plt::plot(avg_fitness, "r");
 
-				plt::subplot(5, 1, 4);
+				plt::subplot(7, 1, 4);
 				plt::plot(avg_novelty, "g");
 
-				plt::subplot(5, 1, 5);
+				plt::subplot(7, 1, 5);
 				plt::plot(species_count, "k");
+
+				plt::subplot(7, 1, 6);
+				plt::hist(fitness_vec_registry);
+
+				plt::subplot(7, 1, 7);
+				plt::hist(novelty_vec_registry);
 
 				plt::pause(0.01);
 #endif
@@ -648,7 +654,7 @@ int main()
 
 			// Plot food
 			plt::clf();
-			plt::plot(food_x, food_y, "bo");
+			plt::plot(food_x, food_y, "gx");
 
 			// Plot the individuals with different colors per species
 			/*for (auto [species_idx,entry] : enumerate(pop.GetSpecies()))
@@ -705,12 +711,12 @@ int main()
 					herbivores_y.push_back(state_ptr->Position.y);
 				}
 			}
-			plt::plot(herbivores_x, herbivores_y, "xg");
-			plt::plot(carnivores_x, carnivores_y, "xk");
+			plt::plot(herbivores_x, herbivores_y, "ob");
+			plt::plot(carnivores_x, carnivores_y, "ok");
 			
 			plt::xlim(-1, WorldSizeX);
 			plt::ylim(-1, WorldSizeY);
-			plt::pause(0.25);
+			plt::pause(0.1);
 		}
 	}
 #endif
