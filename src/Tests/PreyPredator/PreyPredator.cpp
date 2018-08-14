@@ -22,7 +22,7 @@ const float StartingLife = 300;
 const int FoodCellCount = WorldSizeX * WorldSizeY*0.1;
 const int MaxSimulationSteps = 200;
 const int PopulationSize = 75;
-const int GenerationsCount = 10000;
+const int GenerationsCount = 1000;
 const float LifeLostPerTurn = 5;
 
 minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
@@ -469,6 +469,13 @@ public:
 		return 0; // Not used
 	}
 
+	virtual void * DuplicateState(void * State) override
+	{
+		auto new_state = new OrgState;
+		*new_state = *(OrgState*)State;
+		return new_state;
+	}
+
 	// How many steps did the last simulation took before everyone died
 	int LastSimulationStepCount = 0;
 
@@ -526,9 +533,11 @@ int main()
 	// Do evolution loop
 	vector<float> fitness_vec(PopulationSize);
 	vector<float> novelty_vec(PopulationSize);
+	vector<float> fitness_vec_registry;
+	vector<float> novelty_vec_registry;
 	vector<float> avg_fitness;
 	vector<float> avg_novelty;
-	vector<float> simulation_steps;
+	vector<float> species_count;
 	// TODO : Make the plot work in debug
 #ifndef _DEBUG
 	plt::ion();
@@ -540,63 +549,60 @@ int main()
 		{
 			cout << "Generation : " << gen << endl;
 
-			// Every some generations graph the fitness & novelty of the population
+			// Every some generations graph the fitness & novelty of the individuals of the registry
 			if (gen % 10 == 0)
 			{
-				float avg_f = 0;
-				float avg_n = 0;
-
-				vector<float> species_avg_fitness;
-				for (auto [species_idx, entry] : enumerate(pop.GetSpecies()))
-				{
-					const auto & [_, species] = entry;
-
-					float avg_fit = 0;
-
-					for (int idx : species->IndividualsIDs)
-						avg_fit += pop.GetIndividuals()[idx].LastFitness;
-
-					species_avg_fitness.push_back(avg_fit / species->IndividualsIDs.size());
-				}
-
 				for (auto [idx, org] : enumerate(pop.GetIndividuals()))
 				{
 					fitness_vec[idx] = org.LastFitness;
 					novelty_vec[idx] = org.LastNoveltyMetric;
-					avg_f += org.LastFitness;
-					avg_n += org.LastNoveltyMetric;
-#ifdef _DEBUG
-					cout << "[" << org.LastFitness << " | " << org.LastNoveltyMetric << "]";
-#endif
 				}
 
-				avg_f /= PopulationSize;
-				avg_n /= PopulationSize;
-#ifndef _DEBUG
+				float avg_f = 0;
+				float avg_n = 0;
+
+				int registry_count = 0;
+				fitness_vec_registry.resize(0);
+				novelty_vec_registry.resize(0);
+				for (const auto&[_, individuals] : pop.GetNonDominatedRegistry())
+				{
+					for (const auto& org : individuals)
+					{
+						avg_f += org.LastFitness;
+						avg_n += org.LastNoveltyMetric;
+						
+						fitness_vec_registry.push_back(org.LastFitness);
+						novelty_vec_registry.push_back(org.LastNoveltyMetric);
+
+						registry_count++;
+					}
+				}
+
+				avg_f /= (float)registry_count;
+				avg_n /= (float)registry_count;
+#ifdef _DEBUG
+				cout << "    Avg Fitnes (registry) : " << avg_f << " , Avg Novelty (registry) : " << avg_n << endl;
+#else
 				avg_fitness.push_back(avg_f);
-
 				avg_novelty.push_back(avg_n);
-				// Compute median
-				// " nth_element is a partial sorting algorithm that rearranges elements in [first, last) such that:
-				//		The element pointed at by nth is changed to whatever element would occur in that position if[first, last) were sorted.
-				//		All of the elements before this new nth element are less than or equal to the elements after the new nth element."
-				/*std::nth_element(novelty_vec.begin(), novelty_vec.begin() + novelty_vec.size() / 2, novelty_vec.end());
-				median_novelty.push_back(novelty_vec[novelty_vec.size() / 2]);*/
+				species_count.push_back(pop.GetNonDominatedRegistry().size());
 
-				simulation_steps.push_back(((TestInterface*)Interface.get())->LastSimulationStepCount);
-
+				// TODO : Use a different color for each species on the fitness vs novelty plots
 				plt::clf();
-				plt::subplot(4, 1, 1);
+				plt::subplot(5, 1, 1);
 				plt::loglog(fitness_vec, novelty_vec, "x");
 				
-				plt::subplot(4, 1, 2);
+				plt::subplot(5, 1, 2);
+				plt::loglog(fitness_vec_registry, novelty_vec_registry, "x");
+
+				plt::subplot(5, 1, 3);
 				plt::plot(avg_fitness, "r");
 
-				plt::subplot(4, 1, 3);
+				plt::subplot(5, 1, 4);
 				plt::plot(avg_novelty, "g");
 
-				plt::subplot(4, 1, 4);
-				plt::plot(simulation_steps, "g");
+				plt::subplot(5, 1, 5);
+				plt::plot(species_count, "k");
 
 				plt::pause(0.01);
 #endif
@@ -606,6 +612,9 @@ int main()
 
 	// Generations finished, so visualize the individuals
 #ifndef _DEBUG
+	// After evolution is done, replace the population with the ones of the registry
+	pop.BuildFinalPopulation();
+
 	while (true)
 	{
 		for (auto& org : pop.GetIndividuals())
@@ -701,7 +710,7 @@ int main()
 			
 			plt::xlim(-1, WorldSizeX);
 			plt::ylim(-1, WorldSizeY);
-			plt::pause(0.01);
+			plt::pause(0.25);
 		}
 	}
 #endif

@@ -30,6 +30,9 @@ namespace agio
 		// It also separates them into species
 		void Spawn(size_t Size);
 
+		// Replaces the individuals with the ones from the non dominated registry
+		void BuildFinalPopulation();
+
 		// Computes a single evolutive step
 		// The callback is called just before replacement
 		void Epoch(void * World, std::function<void(int)> EpochCallback = [](int){});
@@ -37,7 +40,7 @@ namespace agio
 		const auto& GetIndividuals() const { return Individuals; }
 		auto& GetIndividuals() { return Individuals; }
 		const auto& GetSpecies() const { return SpeciesMap; }
-
+		const auto& GetNonDominatedRegistry() const { return NonDominatedRegistry; }
 
 		// Variables used in mutate_add_node and mutate_add_link (neat)
 		int cur_node_id;
@@ -85,5 +88,10 @@ namespace agio
 
 		// Separates the individuals in species based on the actions and sensors
 		void BuildSpeciesMap();
+
+		// Historical record of non-dominated individuals found
+		// Separated by species
+		// TODO : If the world is dynamic the old fitness values might no longer be valid or relevant
+		std::unordered_map<Individual::MorphologyTag, std::vector<Individual>> NonDominatedRegistry;
 	};
 }

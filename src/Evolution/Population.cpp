@@ -190,7 +190,13 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 	assert(DominationBuffer.capacity() >= Individuals.size());
 	ChildrenBuffer.resize(0); // does not affect capacity
 
-	for (auto & [_, species] : SpeciesMap)
+	auto dominates = [](const Individual& A, const Individual& B)
+	{
+		return (A.LastNoveltyMetric >= B.LastNoveltyMetric && A.LastFitness >= B.LastFitness) &&
+			(A.LastNoveltyMetric > B.LastNoveltyMetric || A.LastFitness > B.LastFitness);
+	};
+
+	for (auto & [tag, species] : SpeciesMap)
 	{
 		// Mate within species based on NSGA-II
 		// As a first, simple implementation, sort based on the number of individuals that dominate you (more is worst)
@@ -211,13 +217,8 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 				const auto& other_org = Individuals[other_idx];
 
-
-				if ((other_org.LastNoveltyMetric > org.LastNoveltyMetric && other_org.LastFitness > org.LastFitness) ||
-					(other_org.LastFitness == org.LastFitness && other_org.LastNoveltyMetric > org.LastNoveltyMetric) ||
-					(other_org.LastNoveltyMetric == org.LastNoveltyMetric && other_org.LastFitness > org.LastFitness) )
-				{
+				if (dominates(other_org,org))
 					org.LastDominationCount++;
-				}
 			}
 
 			// Transform from a count to a selection weight (not a probability because they aren't normalized)
@@ -225,42 +226,142 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 			DominationBuffer.push_back(1.0f / (org.LastDominationCount + 1.0f));
 		}
 
+		// Update the non-dominated registry
+		auto registry_entry = NonDominatedRegistry.find(tag);
+		if (registry_entry == NonDominatedRegistry.end())
+		{
+			// There's no record of this species, so add it
+			vector<Individual> best_individuals;
+			for (int idx : species->IndividualsIDs)
+			{
+				const auto& org = Individuals[idx];
+				if (org.LastDominationCount == 0) // it's non dominated
+					best_individuals.emplace_back(org, Individual::Make::Clone);
+			}
+
+			NonDominatedRegistry[tag] = move(best_individuals);
+		}
+		else
+		{
+			// Update the non-dominated registry
+			vector<Individual> best_individuals;
+			vector<bool> is_dominated(registry_entry->second.size());
+			fill(is_dominated.begin(), is_dominated.end(), false);
+
+			for (int idx : species->IndividualsIDs)
+			{
+				// Check on the registry to know if this is dominated
+				const auto& org = Individuals[idx];
+				bool dominated_by_registry = false;
+
+				for (auto [idx,registry_org] : enumerate(registry_entry->second))
+				{
+					if (dominates(org, registry_org))
+					{
+						// Flag that the individual on the registry is dominated
+						is_dominated[idx] = true;
+					}
+					else
+					{
+						if (dominates(registry_org, org))
+						{
+							// Dominated by someone on the registry, so it won't be added to the vector
+							dominated_by_registry = true;
+							break;
+						}
+					}
+				}
+
+				// If it wasn't dominated by anyone on the registry, add it
+				if (!dominated_by_registry)
+					best_individuals.emplace_back(org, Individual::Make::Clone);
+
+			}
+
+			// Instead of removing from the vector, move the non dominated values
+			for (auto[idx, org] : enumerate(registry_entry->second))
+				if (!is_dominated[idx])
+					best_individuals.push_back(move(org));
+
+			// Finally store the new best individuals vector
+			registry_entry->second = move(best_individuals);
+		}
+
 		// Now use the domination weights to randomly select parents and cross them
 		discrete_distribution<int> domination_dist(DominationBuffer.begin(), DominationBuffer.end());
 
-		//assert(species.IndividualsIDs.size() > 1); // TODO : Find what to do here!
 		assert(species->IndividualsIDs.size() > 0);
 		if (species->IndividualsIDs.size() == 1)
 		{
 			// Only one individual on the species, so just clone it
 			// TODO : Find if there's some better way to handle this
 			//ChildrenBuffer.push_back(Individuals[species->IndividualsIDs[0]]);
-			
-			// Individuals have copy disabled as a way to ensure proper usage
-			// Because of that, the way to clone an individual is to mate it with itself
+
+			// Using the special clone ctor
+			// The last parameter is ignored, but using an enum value as a way to remember
 			const auto& individual = Individuals[species->IndividualsIDs[0]];
-			ChildrenBuffer.emplace_back(individual,individual, ChildrenBuffer.size());
+			ChildrenBuffer.emplace_back(individual, Individual::Make::Clone);
 		}
 		else
 		{
+			registry_entry = NonDominatedRegistry.find(tag);
+
 			for (int i = 0; i < species->IndividualsIDs.size(); i++)
 			{
-				int mom_idx = domination_dist(RNG);
-				int dad_idx = domination_dist(RNG);
+				// With some probability p clone an individual from the best individuals registry instead of mating
+				if (uniform_real_distribution<float>()(RNG) < Settings::RegistryCloneProb)
+				{
+					int idx = uniform_int_distribution<int>(0, registry_entry->second.size() - 1)(RNG);
+					ChildrenBuffer.emplace_back(registry_entry->second[idx],Individual::Make::Clone);
+				}
+				else
+				{
+					int mom_idx = domination_dist(RNG);
+					int dad_idx = domination_dist(RNG);
 
-				while (dad_idx == mom_idx) // Don't want someone to mate with itself
-					dad_idx = domination_dist(RNG);
+					while (dad_idx == mom_idx) // Don't want someone to mate with itself
+						dad_idx = domination_dist(RNG);
 
-				const auto & mom = Individuals[species->IndividualsIDs[mom_idx]];
-				const auto & dad = Individuals[species->IndividualsIDs[dad_idx]];
+					const auto & mom = Individuals[species->IndividualsIDs[mom_idx]];
+					const auto & dad = Individuals[species->IndividualsIDs[dad_idx]];
 
-				ChildrenBuffer.emplace_back(mom,dad,ChildrenBuffer.size());
+					ChildrenBuffer.emplace_back(mom, dad, ChildrenBuffer.size());
+				}
 			}
 		}
 
 	}
 
 	EpochCallback(CurrentGeneration);
+
+
+	// Using just the simple replacement for now
+	Individuals = move(ChildrenBuffer);
+
+	BuildSpeciesMap();
+
+	// Mutate children
+	for (auto& child : Individuals)
+		if (uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
+			child.Mutate(this, CurrentGeneration);
+
+	// After mutation, the species might have changed, so this needs to be rebuilt
+	// TODO : Find a way to avoid the double call to this
+	BuildSpeciesMap();
+
+
+	CurrentGeneration++;
+	return;
+
+
+
+
+
+
+
+	
+
+
 
 	// Make replacement
 	assert(ChildrenBuffer.size() == Individuals.size());
@@ -415,3 +516,14 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 	CurrentGeneration++;
 }
 
+
+void Population::BuildFinalPopulation()
+{
+	vector<Individual> final_pop;
+	for (const auto& [_, individuals] : NonDominatedRegistry)
+		for (const auto& org : individuals)
+			final_pop.emplace_back(org, Individual::Make::Clone);
+
+	Individuals = move(final_pop);
+	BuildSpeciesMap();
+}

@@ -19,6 +19,9 @@ namespace agio
 		int ID;
 		float Value;
 		int HistoricalMarker; // Used to keep track of changes, same as NEAT
+							  
+		// Used to create the historical markers IDs
+		inline static std::atomic<int> CurrentMarkerID = 0;
 	};
 
 	// Represents an individual in the population
@@ -30,9 +33,14 @@ namespace agio
 
 		// Constructor that creates the new individual by mating two individuals
 		// It assumes that the individuals are compatible
-		// The child ID is the ID inside the offsprings
+		// The child ID is the ID inside the children
 		Individual(const Individual& Mom, const Individual& Dad, int ChildID);
 
+		// Constructor that clones an individual
+		// The extra dummy parameter is just to separate this from a copy ctor
+		enum class Make { Clone }; // Ignored, just to remember that this ctor makes a copy
+		Individual(const Individual& Parent, Make);
+		
 		// Prevent copying
 		Individual(const Individual&) = delete;
 

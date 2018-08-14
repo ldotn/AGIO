@@ -116,11 +116,15 @@ namespace agio
 		// Computes the distance in the world for two individuals
 		virtual float Distance(class Individual *, class Individual *, void * World) = 0;
 
+		// Creates a new state that has the same values as the provided state
+		virtual void * DuplicateState(void * State) = 0;
+
 		// Getters
-		const auto & GetComponentRegistry() { return ComponentRegistry; }
-		const auto & GetParameterDefRegistry() { return ParameterDefRegistry; }
-		const auto & GetActionRegistry() { return ActionRegistry; }
-		const auto & GetSensorRegistry() { return SensorRegistry; }
+		const auto & GetComponentRegistry() const { return ComponentRegistry; }
+		const auto & GetParameterDefRegistry() const { return ParameterDefRegistry; }
+		auto & GetParameterDefRegistry() { return ParameterDefRegistry; }
+		const auto & GetActionRegistry() const { return ActionRegistry; }
+		const auto & GetSensorRegistry() const { return SensorRegistry; }
 	protected:
 		std::vector<ComponentGroup> ComponentRegistry;
 		std::vector<ParameterDefinition> ParameterDefRegistry;

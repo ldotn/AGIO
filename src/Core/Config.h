@@ -16,15 +16,19 @@ namespace agio
         // TODO : No idea what's the range of this. Maybe it can be automatically adjusted from the prev novelty?
         inline static float NoveltyThreshold = 2.75;
 
+		// Probability of cloning an individual from the registry
+		inline static float RegistryCloneProb = 0.25f;
+
         // Probability of calling Mutate() on a child
         // TODO : Docs
         inline static float ChildMutationProb = 0.25f;
-        inline static float ParameterMutationProb = 0.1f;
+        inline static float ParameterMutationProb = 0.25f;
         inline static float ParameterDestructiveMutationProb = 0.1f;
 		// Controls the spread of the mutation of a parameter when shifting it
 		// TODO : better docs?
         inline static float ParameterMutationSpread = 0.025f;
 
+		// TODO : Refactor this so names are consistent
         struct NEAT
         {
             inline static float mutate_add_node_prob = 0.03;

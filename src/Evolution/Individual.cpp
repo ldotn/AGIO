@@ -187,9 +187,33 @@ void Individual::Reset()
 	LastDominationCount = -1;
 }
 
+Individual::Individual(const Individual& Parent, Individual::Make) : Individual()
+{
+	LastDominationCount = Parent.LastDominationCount;
+	LastFitness = Parent.LastFitness;
+	LastNoveltyMetric = Parent.LastNoveltyMetric;
+
+	Actions = Parent.Actions;
+	Sensors = Parent.Sensors;
+	ActivationsBuffer.resize(Parent.Actions.size());
+	SensorsValues.resize(Parent.Sensors.size());
+	Components = Parent.Components;
+	Parameters = Parent.Parameters;
+	Morphology = Parent.Morphology;
+	State = Interface->DuplicateState(Parent.State);
+
+	Genome = Parent.Genome->duplicate(GlobalID);
+	Brain = Genome->genesis(Genome->genome_id);
+};
 
 Individual::Individual(const Individual& Mom, const Individual& Dad, int ChildID) : Individual()
 {
+	// TODO : Check if this is correct
+	// Because now we can have all individuals mixed with the new ones, let's use the global id as child id
+	ChildID = GlobalID;
+
+
+
     assert(Mom.Morphology == Dad.Morphology);
 
     // TODO : Use the other mating functions, and test which is better
@@ -406,6 +430,7 @@ void Individual::Mutate(Population *pop, int generation)
                 auto &parameterDef = Interface->GetParameterDefRegistry()[idx];
                 uniform_real_distribution<float> distribution(parameterDef.Min, parameterDef.Max);
                 param.Value = distribution(RNG);
+				param.HistoricalMarker = Parameter::CurrentMarkerID.fetch_add(1);// Create new historical marker
             } else
             {
                 normal_distribution<float> distribution(param.Value, Settings::ParameterMutationSpread);
@@ -429,6 +454,12 @@ Individual::Individual(Individual && other)
 	ActivationsBuffer = move(other.ActivationsBuffer);
 	RNG = move(other.RNG);
 	Morphology = move(other.Morphology);
+	LastDominationCount = other.LastDominationCount;
+	LastFitness = other.LastFitness;
+	LastNoveltyMetric = other.LastNoveltyMetric;
+
+	// Careful with this, you don't exactly know if it's still valid
+	SpeciesPtr = other.SpeciesPtr;
 
 	other.Genome = nullptr;
 	other.Brain = nullptr;
