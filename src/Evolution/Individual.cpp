@@ -547,10 +547,10 @@ void Individual::Mutate(Population *population, int generation)
     {
         // Only mutate network and parameters if the components were not mutated
         // Mutate NEAT network
-        if (randfloat() < Settings::NEAT::mutate_add_node_prob)
+        if (randfloat() < Settings::NEAT::MutateAddNodeProb)
         {
             Genome->mutate_add_node(SpeciesPtr->innovations, population->cur_node_id, population->cur_innov_num);
-        } else if (randfloat() < Settings::NEAT::mutate_add_link_prob)
+        } else if (randfloat() < Settings::NEAT::MutateAddLinkProb)
         {
             // TODO: Find out why genesis is done in neat code (species.cpp 585)
             NEAT::Network *net_analogue = Genome->genesis(generation);
@@ -562,22 +562,22 @@ void Individual::Mutate(Population *population, int generation)
             //        will not be appropriately altered to reflect the change
 
             //If we didn't do a structural mutation, we do the other kinds
-            if (randfloat() < Settings::NEAT::mutate_random_trait_prob)
+            if (randfloat() < Settings::NEAT::MutateRandomTraitProb)
                 Genome->mutate_random_trait();
 
-            if (randfloat() < Settings::NEAT::mutate_link_trait_prob)
+            if (randfloat() < Settings::NEAT::MutateLinkTraitProb)
                 Genome->mutate_link_trait(1);
 
-            if (randfloat() < Settings::NEAT::mutate_node_trait_prob)
+            if (randfloat() < Settings::NEAT::MutateNodeTraitProb)
                 Genome->mutate_node_trait(1);
 
-            if (randfloat() < Settings::NEAT::mutate_link_weights_prob)
-                Genome->mutate_link_weights(Settings::NEAT::weight_mut_power, 1.0, NEAT::mutator::GAUSSIAN);
+            if (randfloat() < Settings::NEAT::MutateLinkWeightsProb)
+                Genome->mutate_link_weights(Settings::NEAT::WeightMutPower, 1.0, NEAT::mutator::GAUSSIAN);
 
-            if (randfloat() < Settings::NEAT::mutate_toggle_enable_prob)
+            if (randfloat() < Settings::NEAT::MutateToggleEnableProb)
                 Genome->mutate_toggle_enable(1);
 
-            if (randfloat() < Settings::NEAT::mutate_gene_reenable_prob)
+            if (randfloat() < Settings::NEAT::MutateGeneReenableProb)
                 Genome->mutate_gene_reenable();
         }
 

@@ -35,15 +35,15 @@ namespace agio
 		// TODO : Refactor this so names are consistent
         struct NEAT
         {
-            inline static float mutate_add_node_prob = 0.03;
-            inline static float mutate_add_link_prob = 0.05;
-            inline static float mutate_random_trait_prob = 0.1;
-            inline static float mutate_link_trait_prob = 0.1;
-            inline static float mutate_node_trait_prob = 0.1;
-            inline static float mutate_link_weights_prob = 0.9;
-            inline static float mutate_toggle_enable_prob = 0;
-            inline static float mutate_gene_reenable_prob = 0;
-            inline static float weight_mut_power = 2.5;
+            inline static float MutateAddNodeProb = 0.03;
+            inline static float MutateAddLinkProb = 0.05;
+            inline static float MutateRandomTraitProb = 0.1;
+            inline static float MutateLinkTraitProb = 0.1;
+            inline static float MutateNodeTraitProb = 0.1;
+            inline static float MutateLinkWeightsProb = 0.9;
+            inline static float MutateToggleEnableProb = 0;
+            inline static float MutateGeneReenableProb = 0;
+            inline static float WeightMutPower = 2.5;
 
         };
 
