@@ -5,6 +5,9 @@
 #include <numeric>
 #include <assert.h>
 
+// NEAT
+#include "innovation.h"
+
 using namespace std;
 using namespace agio;
 using namespace fpp;

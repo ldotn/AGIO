@@ -1,24 +1,19 @@
-#include "Individual.h"
-#include "Globals.h"
-#include <random>
-#include "enumerate.h"
-#include "zip.h"
-#include <algorithm>
 #include <unordered_set>
 #include <chrono>
-#include <assert.h>
-#include "../Core/Config.h"
 #include <bitset>
-#include "Population.h"
 #include <list>
+#include <cassert>
+
+#include "enumerate.h"
+#include "zip.h"
+#include "Individual.h"
+#include "Population.h"
+#include "../Core/Config.h"
 
 // NEAT
 #include "neat.h"
 #include "network.h"
-#include "population.h"
 #include "organism.h"
-#include "genome.h"
-#include "species.h"
 
 using namespace agio;
 using namespace std;
@@ -32,13 +27,13 @@ Individual::Individual() : RNG(chrono::high_resolution_clock::now().time_since_e
     LastFitness = 0;
     LastNoveltyMetric = 0;
     OriginalID = GlobalID = CurrentGlobalID.fetch_add(1);
-	SpeciesPtr = nullptr;
-	LastDominationCount = -1;
+    SpeciesPtr = nullptr;
+    LastDominationCount = -1;
 
 
-	AccumulatedFitness_MoveThisOutFromHere = 0;
-	AccumulatedNovelty_MoveThisOutFromHere = 0;
-	AverageCount_MoveThisOutFromHere = 0;
+    AccumulatedFitness_MoveThisOutFromHere = 0;
+    AccumulatedNovelty_MoveThisOutFromHere = 0;
+    AverageCount_MoveThisOutFromHere = 0;
 }
 
 void Individual::Spawn(int ID)
@@ -89,8 +84,8 @@ void Individual::Spawn(int ID)
             p.HistoricalMarker = Parameter::CurrentMarkerID;
 
             // Small shift
-            p.Value +=
-                    normal_distribution<float>(0, Settings::ParameterMutationSpread)(RNG) * abs(param.Max - param.Min);
+            float shift = normal_distribution<float>(0, Settings::ParameterMutationSpread)(RNG);
+            p.Value +=  shift * abs(param.Max - param.Min);
 
             // Clamp values
             p.Value = clamp(p.Value, param.Min, param.Max);
@@ -147,9 +142,9 @@ void Individual::Spawn(int ID)
     Morphology.Parameters = Parameters;
     Morphology.NumberOfActions = Actions.size();
     Morphology.NumberOfSensors = Sensors.size();
-	Morphology.GenesIDs.resize(Genome->genes.size());
-	for (auto[gene_id, gene] : zip(Morphology.GenesIDs, Genome->genes))
-		gene_id = gene->innovation_num;
+    Morphology.GenesIDs.resize(Genome->genes.size());
+    for (auto[gene_id, gene] : zip(Morphology.GenesIDs, Genome->genes))
+        gene_id = gene->innovation_num;
 }
 
 void Individual::DecideAndExecute(void *World, const class Population *PopulationPtr)
@@ -190,38 +185,38 @@ void Individual::Reset()
     if (Brain) Brain->flush();
     LastFitness = 0;
     LastNoveltyMetric = 0;
-	LastDominationCount = -1;
+    LastDominationCount = -1;
 }
 
-Individual::Individual(const Individual& Parent, Individual::Make) : Individual()
+Individual::Individual(const Individual &Parent, Individual::Make) : Individual()
 {
-	OriginalID = Parent.OriginalID;
-	LastDominationCount = Parent.LastDominationCount;
-	LastFitness = Parent.LastFitness;
-	LastNoveltyMetric = Parent.LastNoveltyMetric;
+    OriginalID = Parent.OriginalID;
+    LastDominationCount = Parent.LastDominationCount;
+    LastFitness = Parent.LastFitness;
+    LastNoveltyMetric = Parent.LastNoveltyMetric;
 
-	Actions = Parent.Actions;
-	Sensors = Parent.Sensors;
-	ActivationsBuffer.resize(Parent.Actions.size());
-	SensorsValues.resize(Parent.Sensors.size());
-	Components = Parent.Components;
-	Parameters = Parent.Parameters;
-	Morphology = Parent.Morphology;
-	State = Interface->DuplicateState(Parent.State);
+    Actions = Parent.Actions;
+    Sensors = Parent.Sensors;
+    ActivationsBuffer.resize(Parent.Actions.size());
+    SensorsValues.resize(Parent.Sensors.size());
+    Components = Parent.Components;
+    Parameters = Parent.Parameters;
+    Morphology = Parent.Morphology;
+    State = Interface->DuplicateState(Parent.State);
 
-	Genome = Parent.Genome->duplicate(GlobalID);
-	Brain = Genome->genesis(Genome->genome_id);
+    Genome = Parent.Genome->duplicate(GlobalID);
+    Brain = Genome->genesis(Genome->genome_id);
 
-	AccumulatedFitness_MoveThisOutFromHere = Parent.AccumulatedFitness_MoveThisOutFromHere;
-	AccumulatedNovelty_MoveThisOutFromHere = Parent.AccumulatedNovelty_MoveThisOutFromHere;
-	AverageCount_MoveThisOutFromHere = Parent.AverageCount_MoveThisOutFromHere;
+    AccumulatedFitness_MoveThisOutFromHere = Parent.AccumulatedFitness_MoveThisOutFromHere;
+    AccumulatedNovelty_MoveThisOutFromHere = Parent.AccumulatedNovelty_MoveThisOutFromHere;
+    AverageCount_MoveThisOutFromHere = Parent.AverageCount_MoveThisOutFromHere;
 };
 
-Individual::Individual(const Individual& Mom, const Individual& Dad, int ChildID) : Individual()
+Individual::Individual(const Individual &Mom, const Individual &Dad, int ChildID) : Individual()
 {
-	// TODO : Check if this is correct
-	// Because now we can have all individuals mixed with the new ones, let's use the global id as child id
-	ChildID = GlobalID;
+    // TODO : Check if this is correct
+    // Because now we can have all individuals mixed with the new ones, let's use the global id as child id
+    ChildID = GlobalID;
 
     // TODO : Use the other mating functions, and test which is better
     // We don't do inter-species mating
@@ -238,15 +233,15 @@ Individual::Individual(const Individual& Mom, const Individual& Dad, int ChildID
     // You can't trivially swap because you need to respect groups cardinalities
     // For now, just take the components of one parent randomly
     // Usually this vectors are equal between parents, so it shouldn't be that much of a difference
-	if (uniform_int_distribution<int>(0, 1)(RNG))
-		Components = Mom.Components;
-	else
+    if (uniform_int_distribution<int>(0, 1)(RNG))
+        Components = Mom.Components;
+    else
         Components = Dad.Components;
 
     // Cross parameters using the historical markers
     // Taking as base the parameters of the first
     // That decision is arbitrary
-	// TODO : Randomly choose between mom or dad?
+    // TODO : Randomly choose between mom or dad?
     Parameters = Mom.Parameters;
     for (auto &[idx, cparam] : Parameters)
     {
@@ -264,15 +259,15 @@ Individual::Individual(const Individual& Mom, const Individual& Dad, int ChildID
         }
     }
 
-	// Build morphology
-	Morphology.NumberOfActions = Mom.Morphology.NumberOfActions;
-	Morphology.NumberOfSensors = Mom.Morphology.NumberOfSensors;
-	Morphology.ActionsBitfield = Mom.Morphology.ActionsBitfield;
-	Morphology.SensorsBitfield = Mom.Morphology.SensorsBitfield;
-	Morphology.Parameters = Parameters;
-	Morphology.GenesIDs.resize(Genome->genes.size());
-	for (auto [gene_id, gene] : zip(Morphology.GenesIDs, Genome->genes))
-		gene_id = gene->innovation_num;
+    // Build morphology
+    Morphology.NumberOfActions = Mom.Morphology.NumberOfActions;
+    Morphology.NumberOfSensors = Mom.Morphology.NumberOfSensors;
+    Morphology.ActionsBitfield = Mom.Morphology.ActionsBitfield;
+    Morphology.SensorsBitfield = Mom.Morphology.SensorsBitfield;
+    Morphology.Parameters = Parameters;
+    Morphology.GenesIDs.resize(Genome->genes.size());
+    for (auto[gene_id, gene] : zip(Morphology.GenesIDs, Genome->genes))
+        gene_id = gene->innovation_num;
 
     // Finally construct a new state
     State = Interface->MakeState(this);
@@ -360,20 +355,20 @@ float Individual::MorphologyTag::Distance(const Individual::MorphologyTag &Other
     }
 
     // Finally check number of mismatching genes on the genome of the control network
-    dist += abs((int)GenesIDs.size() - (int) Other.GenesIDs.size());
+    dist += abs((int) GenesIDs.size() - (int) Other.GenesIDs.size());
 
     for (const auto &gene : GenesIDs)
     {
         bool found = false;
 
-		for (const auto& other_gene : GenesIDs)
-		{
-			if (gene == other_gene)
-			{
-				found = true;
-				break;
-			}
-		}
+        for (const auto &other_gene : GenesIDs)
+        {
+            if (gene == other_gene)
+            {
+                found = true;
+                break;
+            }
+        }
 
         if (!found)
             dist += 1;
@@ -385,9 +380,9 @@ float Individual::MorphologyTag::Distance(const Individual::MorphologyTag &Other
 
 void Individual::Mutate(Population *population, int generation)
 {
-	// If there was any mutation at all, and this individual was a clone of a previous one, it stops beign a copy
-	//  so the original ID needs to change
-	bool any_mutation = false;
+    // If there was any mutation at all, and this individual was a clone of a previous one, it stops beign a copy
+    //  so the original ID needs to change
+    bool any_mutation = false;
 
     auto randfloat = [this]()
     {
@@ -395,7 +390,7 @@ void Individual::Mutate(Population *population, int generation)
     };
 
     // Mutate components
-    if(randfloat() < Settings::ComponentMutationProb)
+    if (randfloat() < Settings::ComponentMutationProb)
     {
         bool mutated = false;
         int numberOfTries = 5;
@@ -556,7 +551,7 @@ void Individual::Mutate(Population *population, int generation)
             NEAT::Network *net_analogue = Genome->genesis(generation);
             Genome->mutate_add_link(SpeciesPtr->innovations, population->cur_innov_num, NEAT::newlink_tries);
             delete net_analogue;
-        }  else
+        } else
         {
             // NOTE:  A link CANNOT be added directly after a node was added because the phenotype
             //        will not be appropriately altered to reflect the change
@@ -589,60 +584,60 @@ void Individual::Mutate(Population *population, int generation)
                 auto &parameterDef = Interface->GetParameterDefRegistry()[idx];
                 uniform_real_distribution<float> distribution(parameterDef.Min, parameterDef.Max);
                 param.Value = distribution(RNG);
-				param.HistoricalMarker = Parameter::CurrentMarkerID.fetch_add(1);// Create new historical marker
+                param.HistoricalMarker = Parameter::CurrentMarkerID.fetch_add(1);// Create new historical marker
 
-				any_mutation = true;
+                any_mutation = true;
             } else
             {
                 normal_distribution<float> distribution(param.Value, Settings::ParameterMutationSpread);
                 param.Value = distribution(RNG);
 
-				any_mutation = true;
+                any_mutation = true;
             }
         }
     }
 
-	// If it was a clone and it mutated, it's no longer a clone
-	if (any_mutation && GlobalID != OriginalID)
-		OriginalID = GlobalID;
+    // If it was a clone and it mutated, it's no longer a clone
+    if (any_mutation && GlobalID != OriginalID)
+        OriginalID = GlobalID;
 }
 
-Individual::Individual(Individual && other) noexcept
+Individual::Individual(Individual &&other) noexcept
 {
-	OriginalID = other.OriginalID;
-	GlobalID = other.GlobalID;
-	State = other.State;
-	Components = move(other.Components);
-	Parameters = move(other.Parameters);
-	Genome = other.Genome;
-	Brain = other.Brain;
-	Actions = move(other.Actions);
-	Sensors = move(other.Sensors);
-	SensorsValues = move(other.SensorsValues);
-	ActivationsBuffer = move(other.ActivationsBuffer);
-	RNG = other.RNG;
-	Morphology = move(other.Morphology);
-	LastDominationCount = other.LastDominationCount;
-	LastFitness = other.LastFitness;
-	LastNoveltyMetric = other.LastNoveltyMetric;
+    OriginalID = other.OriginalID;
+    GlobalID = other.GlobalID;
+    State = other.State;
+    Components = move(other.Components);
+    Parameters = move(other.Parameters);
+    Genome = other.Genome;
+    Brain = other.Brain;
+    Actions = move(other.Actions);
+    Sensors = move(other.Sensors);
+    SensorsValues = move(other.SensorsValues);
+    ActivationsBuffer = move(other.ActivationsBuffer);
+    RNG = other.RNG;
+    Morphology = move(other.Morphology);
+    LastDominationCount = other.LastDominationCount;
+    LastFitness = other.LastFitness;
+    LastNoveltyMetric = other.LastNoveltyMetric;
 
 
-	AccumulatedFitness_MoveThisOutFromHere = other.AccumulatedFitness_MoveThisOutFromHere;
-	AccumulatedNovelty_MoveThisOutFromHere = other.AccumulatedNovelty_MoveThisOutFromHere;
-	AverageCount_MoveThisOutFromHere = other.AverageCount_MoveThisOutFromHere;
+    AccumulatedFitness_MoveThisOutFromHere = other.AccumulatedFitness_MoveThisOutFromHere;
+    AccumulatedNovelty_MoveThisOutFromHere = other.AccumulatedNovelty_MoveThisOutFromHere;
+    AverageCount_MoveThisOutFromHere = other.AverageCount_MoveThisOutFromHere;
 
 
-	// Careful with this, you don't exactly know if it's still valid
-	SpeciesPtr = other.SpeciesPtr;
+    // Careful with this, you don't exactly know if it's still valid
+    SpeciesPtr = other.SpeciesPtr;
 
-	other.Genome = nullptr;
-	other.Brain = nullptr;
-	other.State = nullptr;
+    other.Genome = nullptr;
+    other.Brain = nullptr;
+    other.State = nullptr;
 }
 
 Individual::~Individual()
 {
-	delete Brain;
-	delete Genome;
-	if (State) Interface->DestroyState(State);
+    delete Brain;
+    delete Genome;
+    if (State) Interface->DestroyState(State);
 }
