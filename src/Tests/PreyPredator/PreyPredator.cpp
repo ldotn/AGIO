@@ -581,7 +581,7 @@ int main()
 				avg_f /= (float)registry_count;
 				avg_n /= (float)registry_count;
 #ifdef _DEBUG
-				cout << "    Avg Fitnes (registry) : " << avg_f << " , Avg Novelty (registry) : " << avg_n << endl;
+				cout << "    Avg Fitness (registry) : " << avg_f << " , Avg Novelty (registry) : " << avg_n << endl;
 #else
 				avg_fitness.push_back(avg_f);
 				avg_novelty.push_back(avg_n);

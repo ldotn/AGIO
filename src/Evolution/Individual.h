@@ -76,17 +76,27 @@ namespace agio
 		const auto& GetGenome() const { return Genome; }
 		const auto& GetMorphologyTag() const { return Morphology;  }
 		int GetGlobalID() const { return GlobalID; }
+		int GetOriginalID() const { return OriginalID; }
 
 		// Fitness of the last evaluation of this individual
-		// Reset sets it to -1
+		// Reset sets it to 0
 		float LastFitness;
 
 		// Novelty metric associated to the last evaluation
-		// Reset sets it to -1
+		// Reset sets it to 0
 		float LastNoveltyMetric;
 
 		// Number of individuals that dominates this one from the last evaluation
 		float LastDominationCount;
+
+
+		// TODO : Refactor! This shouldn't be here!!
+		// This is only used by the population registry of non dominated individuals and should ONLY exist there
+		float AccumulatedFitness_MoveThisOutFromHere;
+		float AccumulatedNovelty_MoveThisOutFromHere;
+		float AverageCount_MoveThisOutFromHere;
+
+
 
 		// Pointer to the current species where the individual belongs
 		class Species * SpeciesPtr;
@@ -100,6 +110,7 @@ namespace agio
 		// The current id, across all individuals and all populations
 		// Used to generate a global, unique id for the individuals
 		int GlobalID;
+		int OriginalID; // This is usually equal to the GlobalID, except when an individual is cloned. Then it's equal to the original individual ID
 		inline static std::atomic<int> CurrentGlobalID = 0;
 
 		// The state is defined by the user

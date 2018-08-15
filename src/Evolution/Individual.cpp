@@ -28,11 +28,16 @@ Individual::Individual() : RNG(chrono::high_resolution_clock::now().time_since_e
     State = nullptr;
     Genome = nullptr;
     Brain = nullptr;
-    LastFitness = -1;
-    LastNoveltyMetric = -1;
-    GlobalID = CurrentGlobalID.fetch_add(1);
+    LastFitness = 0;
+    LastNoveltyMetric = 0;
+    OriginalID = GlobalID = CurrentGlobalID.fetch_add(1);
 	SpeciesPtr = nullptr;
 	LastDominationCount = -1;
+
+
+	AccumulatedFitness_MoveThisOutFromHere = 0;
+	AccumulatedNovelty_MoveThisOutFromHere = 0;
+	AverageCount_MoveThisOutFromHere = 0;
 }
 
 void Individual::Spawn(int ID)
@@ -182,13 +187,14 @@ void Individual::Reset()
 {
     Interface->ResetState(State);
     if (Brain) Brain->flush();
-    LastFitness = -1;
-    LastNoveltyMetric = -1;
+    LastFitness = 0;
+    LastNoveltyMetric = 0;
 	LastDominationCount = -1;
 }
 
 Individual::Individual(const Individual& Parent, Individual::Make) : Individual()
 {
+	OriginalID = Parent.OriginalID;
 	LastDominationCount = Parent.LastDominationCount;
 	LastFitness = Parent.LastFitness;
 	LastNoveltyMetric = Parent.LastNoveltyMetric;
@@ -204,6 +210,10 @@ Individual::Individual(const Individual& Parent, Individual::Make) : Individual(
 
 	Genome = Parent.Genome->duplicate(GlobalID);
 	Brain = Genome->genesis(Genome->genome_id);
+
+	AccumulatedFitness_MoveThisOutFromHere = Parent.AccumulatedFitness_MoveThisOutFromHere;
+	AccumulatedNovelty_MoveThisOutFromHere = Parent.AccumulatedNovelty_MoveThisOutFromHere;
+	AverageCount_MoveThisOutFromHere = Parent.AverageCount_MoveThisOutFromHere;
 };
 
 Individual::Individual(const Individual& Mom, const Individual& Dad, int ChildID) : Individual()
@@ -374,6 +384,10 @@ float Individual::MorphologyTag::Distance(const Individual::MorphologyTag &Other
 
 void Individual::Mutate(Population *pop, int generation)
 {
+	// If there was any mutation at all, and this individual was a clone of a previous one, it stops beign a copy
+	//  so the original ID needs to change
+	bool any_mutation = false;
+
     auto randfloat = [this]()
     {
         return uniform_real_distribution<float>()(RNG);
@@ -384,6 +398,7 @@ void Individual::Mutate(Population *pop, int generation)
     if (randfloat() < Settings::NEAT::mutate_add_node_prob)
     {
         Genome->mutate_add_node(SpeciesPtr->innovations, pop->cur_node_id, pop->cur_innov_num);
+		any_mutation = true;
     }
     else if (randfloat() < Settings::NEAT::mutate_add_link_prob)
     {
@@ -391,29 +406,48 @@ void Individual::Mutate(Population *pop, int generation)
         NEAT::Network *net_analogue = Genome->genesis(generation);
         Genome->mutate_add_link(SpeciesPtr->innovations, pop->cur_innov_num, NEAT::newlink_tries);
         delete net_analogue;
+		any_mutation = true;
     }
     // NOTE:  A link CANNOT be added directly after a node was added because the phenotype
     //        will not be appropriately altered to reflect the change
-    else
-    {
-        //If we didn't do a structural mutation, we do the other kinds
-        if (randfloat() < Settings::NEAT::mutate_random_trait_prob)
-            Genome->mutate_random_trait();
+	else
+	{
+		//If we didn't do a structural mutation, we do the other kinds
+		if (randfloat() < Settings::NEAT::mutate_random_trait_prob)
+		{
+			Genome->mutate_random_trait();
+			any_mutation = true;
+		}
 
-        if (randfloat() < Settings::NEAT::mutate_link_trait_prob)
-            Genome->mutate_link_trait(1);
+		if (randfloat() < Settings::NEAT::mutate_link_trait_prob)
+		{
+			Genome->mutate_link_trait(1);
+			any_mutation = true;
+		}
 
-        if (randfloat() < Settings::NEAT::mutate_node_trait_prob)
-            Genome->mutate_node_trait(1);
+		if (randfloat() < Settings::NEAT::mutate_node_trait_prob)
+		{
+			Genome->mutate_node_trait(1);
+			any_mutation = true;
+		}
 
-        if (randfloat() < Settings::NEAT::mutate_link_weights_prob)
-            Genome->mutate_link_weights(Settings::NEAT::weight_mut_power, 1.0, NEAT::mutator::GAUSSIAN);
+		if (randfloat() < Settings::NEAT::mutate_link_weights_prob)
+		{
+			Genome->mutate_link_weights(Settings::NEAT::weight_mut_power, 1.0, NEAT::mutator::GAUSSIAN);
+			any_mutation = true;
+		}
 
-        if (randfloat() < Settings::NEAT::mutate_toggle_enable_prob)
-            Genome->mutate_toggle_enable(1);
-
-        if (randfloat() < Settings::NEAT::mutate_gene_reenable_prob)
-            Genome->mutate_gene_reenable();
+		if (randfloat() < Settings::NEAT::mutate_toggle_enable_prob)
+		{
+			Genome->mutate_toggle_enable(1);
+			any_mutation = true;
+		}
+			
+		if (randfloat() < Settings::NEAT::mutate_gene_reenable_prob)
+		{
+			Genome->mutate_gene_reenable();
+			any_mutation = true;
+		}
     }
 
     // Mutate all parameters with certain probability
@@ -427,17 +461,27 @@ void Individual::Mutate(Population *pop, int generation)
                 uniform_real_distribution<float> distribution(parameterDef.Min, parameterDef.Max);
                 param.Value = distribution(RNG);
 				param.HistoricalMarker = Parameter::CurrentMarkerID.fetch_add(1);// Create new historical marker
-            } else
+
+				any_mutation = true;
+            } 
+			else
             {
                 normal_distribution<float> distribution(param.Value, Settings::ParameterMutationSpread);
                 param.Value = distribution(RNG);
+
+				any_mutation = true;
             }
         }
     }
+
+	// If it was a clone and it mutated, it's no longer a clone
+	if (any_mutation && GlobalID != OriginalID)
+		OriginalID = GlobalID;
 }
 
 Individual::Individual(Individual && other)
 {
+	OriginalID = other.OriginalID;
 	GlobalID = other.GlobalID;
 	State = other.State;
 	Components = move(other.Components);
@@ -453,6 +497,12 @@ Individual::Individual(Individual && other)
 	LastDominationCount = other.LastDominationCount;
 	LastFitness = other.LastFitness;
 	LastNoveltyMetric = other.LastNoveltyMetric;
+
+
+	AccumulatedFitness_MoveThisOutFromHere = other.AccumulatedFitness_MoveThisOutFromHere;
+	AccumulatedNovelty_MoveThisOutFromHere = other.AccumulatedNovelty_MoveThisOutFromHere;
+	AverageCount_MoveThisOutFromHere = other.AverageCount_MoveThisOutFromHere;
+
 
 	// Careful with this, you don't exactly know if it's still valid
 	SpeciesPtr = other.SpeciesPtr;

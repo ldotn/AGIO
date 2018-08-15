@@ -24,7 +24,7 @@ namespace agio
 	{
 	public:
 		// TODO : Docs
-		Population() : RNG(std::chrono::high_resolution_clock::now().time_since_epoch().count()) {}
+		Population();
 
 		// Creates a new population of random individuals
 		// It also separates them into species
@@ -43,6 +43,7 @@ namespace agio
 		const auto& GetNonDominatedRegistry() const { return NonDominatedRegistry; }
 
 		// Variables used in mutate_add_node and mutate_add_link (neat)
+		// TODO : Refactor this so that the naming is consistent
 		int cur_node_id;
 		double cur_innov_num;
 	private:
