@@ -10,6 +10,7 @@
 #include "../Core/Config.h"
 #include <bitset>
 #include "Population.h"
+#include <list>
 
 // NEAT
 #include "neat.h"
@@ -228,8 +229,8 @@ Individual::Individual(const Individual& Mom, const Individual& Dad, int ChildID
     // For now, just take the components of one parent randomly
     // Usually this vectors are equal between parents, so it shouldn't be that much of a difference
 	if (uniform_int_distribution<int>(0, 1)(RNG))
-		Components = Components;
-    else
+		Components = Mom.Components;
+	else
         Components = Dad.Components;
 
     // Cross parameters using the historical markers
@@ -372,56 +373,143 @@ float Individual::MorphologyTag::Distance(const Individual::MorphologyTag &Other
     return dist;
 }
 
-void Individual::Mutate(Population *pop, int generation)
+void Individual::Mutate(Population *population, int generation)
 {
     auto randfloat = [this]()
     {
         return uniform_real_distribution<float>()(RNG);
     };
 
-    // TODO : Implement mutation of components!
-
-    if (randfloat() < Settings::NEAT::mutate_add_node_prob)
+    // Mutate components
+    if(randfloat() < Settings::ComponentMutationProb)
     {
-        Genome->mutate_add_node(SpeciesPtr->innovations, pop->cur_node_id, pop->cur_innov_num);
-    }
-    else if (randfloat() < Settings::NEAT::mutate_add_link_prob)
-    {
-        // TODO: Find out why genesis is done in neat code (species.cpp 585)
-        NEAT::Network *net_analogue = Genome->genesis(generation);
-        Genome->mutate_add_link(SpeciesPtr->innovations, pop->cur_innov_num, NEAT::newlink_tries);
-        delete net_analogue;
-    }
-    // NOTE:  A link CANNOT be added directly after a node was added because the phenotype
-    //        will not be appropriately altered to reflect the change
-    else
-    {
-        //If we didn't do a structural mutation, we do the other kinds
-        if (randfloat() < Settings::NEAT::mutate_random_trait_prob)
-            Genome->mutate_random_trait();
-
-        if (randfloat() < Settings::NEAT::mutate_link_trait_prob)
-            Genome->mutate_link_trait(1);
-
-        if (randfloat() < Settings::NEAT::mutate_node_trait_prob)
-            Genome->mutate_node_trait(1);
-
-        if (randfloat() < Settings::NEAT::mutate_link_weights_prob)
-            Genome->mutate_link_weights(Settings::NEAT::weight_mut_power, 1.0, NEAT::mutator::GAUSSIAN);
-
-        if (randfloat() < Settings::NEAT::mutate_toggle_enable_prob)
-            Genome->mutate_toggle_enable(1);
-
-        if (randfloat() < Settings::NEAT::mutate_gene_reenable_prob)
-            Genome->mutate_gene_reenable();
-    }
-
-    // Mutate all parameters with certain probability
-    for (auto &[idx, param] : Parameters)
-    {
-        if (uniform_real_distribution<float>()(RNG) <= Settings::ParameterMutationProb)
+        bool mutated = false;
+        int numberOfTries = 5;
+        while (!mutated && numberOfTries > 0)
         {
-            if (uniform_real_distribution<float>()(RNG) <= Settings::ParameterDestructiveMutationProb)
+            numberOfTries--;
+
+            // Choose at random one component and try to mutate
+            int idx = uniform_int_distribution<int>(0, Components.size() - 1)(RNG);
+            auto &component = Components[idx];
+
+            const ComponentGroup &componentGroup = Interface->GetComponentRegistry()[component.GroupID];
+
+            // If group min cardinality is less than the group size then the component can be mutated, otherwise
+            // all components of the group have to be used and no mutation can be performed
+            if (componentGroup.MinCardinality != componentGroup.Components.size())
+            {
+                // Check how many components of the chosen component's group are in the individual
+                int groupCount = 0;
+                for (auto &c : Components)
+                    if (c.GroupID == component.GroupID)
+                        groupCount++;
+
+                // If the removal of the chosen component cause the groupCount to be less than the groupMinCardinality then
+                // we have to mutate using a component of the same group
+                if (componentGroup.MinCardinality == groupCount)
+                {
+                    std::list<ComponentRef> replacements;
+
+                    for (int i = 0; i < componentGroup.Components.size(); i++)
+                    {
+                        bool found = false;
+                        for (auto &c : Components)
+                            if (c.GroupID == component.GroupID && c.ComponentID == i)
+                            {
+                                found = true;
+                                break;
+                            }
+
+                        if (!found)
+                            replacements.push_back({component.GroupID, i});
+                    }
+
+                    int replacementIdx = uniform_int_distribution<int>(0, replacements.size() - 1)(RNG);
+                    std::list<ComponentRef>::iterator it = replacements.begin();
+                    std::advance(it, replacementIdx);
+                    Components[idx] = *it;
+
+                    mutated = true;
+                } else
+                {
+                    // Mutate in a random component
+                    int groupID = uniform_int_distribution<int>(0, Interface->GetComponentRegistry().size())(RNG);
+                    const ComponentGroup &group = Interface->GetComponentRegistry()[groupID];
+                    int replacementID = uniform_int_distribution<int>(0, group.Components.size())(RNG);
+
+                    // Check that we can use the chosen component as replacement
+                    // We are able to use it if it doesn't belong to the individual and if the group max cardinality
+                    // of the component is not exceed after add him
+                    bool belongs = false;
+                    int replacementGroupCount = 0;
+                    for (auto &c : Components)
+                    {
+                        if (c.GroupID == groupID)
+                        {
+                            if (c.ComponentID == replacementID)
+                            {
+                                belongs = true;
+                                break;
+                            } else
+                                replacementGroupCount++;
+                        }
+                    }
+                    if (!belongs && replacementGroupCount < group.MaxCardinality)
+                    {
+                        Components[idx] = {groupID, replacementID};
+                        mutated = true;
+                    }
+                }
+            }
+        } // end while
+
+        if (mutated)
+        {
+            // TODO: Do everything that is done in spawn but with the components already chosen
+        }
+    } else
+    {
+        // Only mutate network and parameters if the components were not mutated
+        // Mutate NEAT network
+        if (randfloat() < Settings::NEAT::mutate_add_node_prob)
+        {
+            Genome->mutate_add_node(SpeciesPtr->innovations, population->cur_node_id, population->cur_innov_num);
+        } else if (randfloat() < Settings::NEAT::mutate_add_link_prob)
+        {
+            // TODO: Find out why genesis is done in neat code (species.cpp 585)
+            NEAT::Network *net_analogue = Genome->genesis(generation);
+            Genome->mutate_add_link(SpeciesPtr->innovations, population->cur_innov_num, NEAT::newlink_tries);
+            delete net_analogue;
+        }  else
+        {
+            // NOTE:  A link CANNOT be added directly after a node was added because the phenotype
+            //        will not be appropriately altered to reflect the change
+
+            //If we didn't do a structural mutation, we do the other kinds
+            if (randfloat() < Settings::NEAT::mutate_random_trait_prob)
+                Genome->mutate_random_trait();
+
+            if (randfloat() < Settings::NEAT::mutate_link_trait_prob)
+                Genome->mutate_link_trait(1);
+
+            if (randfloat() < Settings::NEAT::mutate_node_trait_prob)
+                Genome->mutate_node_trait(1);
+
+            if (randfloat() < Settings::NEAT::mutate_link_weights_prob)
+                Genome->mutate_link_weights(Settings::NEAT::weight_mut_power, 1.0, NEAT::mutator::GAUSSIAN);
+
+            if (randfloat() < Settings::NEAT::mutate_toggle_enable_prob)
+                Genome->mutate_toggle_enable(1);
+
+            if (randfloat() < Settings::NEAT::mutate_gene_reenable_prob)
+                Genome->mutate_gene_reenable();
+        }
+
+        // Mutate all parameters with certain probability
+        for (auto &[idx, param] : Parameters)
+        {
+            if (uniform_real_distribution<float>()(RNG) <= Settings::ParameterMutationProb)
             {
                 auto &parameterDef = Interface->GetParameterDefRegistry()[idx];
                 uniform_real_distribution<float> distribution(parameterDef.Min, parameterDef.Max);
@@ -464,7 +552,7 @@ Individual::Individual(Individual && other)
 
 Individual::~Individual()
 {
-	if (Brain) delete Brain;
-	if (Genome) delete Genome;
+	delete Brain;
+	delete Genome;
 	if (State) Interface->DestroyState(State);
 }

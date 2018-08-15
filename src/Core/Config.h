@@ -21,9 +21,10 @@ namespace agio
 
         // Probability of calling Mutate() on a child
         // TODO : Docs
-        inline static float ChildMutationProb = 0.75f;
-        inline static float ParameterMutationProb = 0.5f;
-        inline static float ParameterDestructiveMutationProb = 0.2f;
+        inline static float ChildMutationProb = 0.25f;
+        inline static float ComponentMutationProb = 0.01;
+        inline static float ParameterMutationProb = 0.1f;
+        inline static float ParameterDestructiveMutationProb = 0.1f;
 		// Controls the spread of the mutation of a parameter when shifting it
 		// TODO : better docs?
         inline static float ParameterMutationSpread = 0.025f;
