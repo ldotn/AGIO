@@ -9,6 +9,13 @@ using namespace std;
 using namespace agio;
 using namespace fpp;
 
+Population::Population() : RNG(std::chrono::high_resolution_clock::now().time_since_epoch().count())
+{
+	cur_node_id = 0;
+	cur_innov_num = 0;
+	CurrentGeneration = 0;
+}
+
 void Population::BuildSpeciesMap()
 {
     // clear the species map
@@ -233,26 +240,72 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 			vector<Individual> best_individuals;
 			for (int idx : species->IndividualsIDs)
 			{
-				const auto& org = Individuals[idx];
+				auto& org = Individuals[idx];
 				if (org.LastDominationCount == 0) // it's non dominated
+				{
+					org.AccumulatedFitness_MoveThisOutFromHere = org.LastFitness;
+					org.AccumulatedNovelty_MoveThisOutFromHere = org.LastNoveltyMetric;
+					org.AverageCount_MoveThisOutFromHere = 1;
 					best_individuals.emplace_back(org, Individual::Make::Clone);
+				}
+					
 			}
 
 			NonDominatedRegistry[tag] = move(best_individuals);
 		}
 		else
 		{
+			// First of all, update the registry if one individual of the population is also on the registry (as a clone)
+			// The update consists on averaging fitness and novelty
+			vector<bool> is_duplicated(species->IndividualsIDs.size());
+			fill(is_duplicated.begin(), is_duplicated.end(), false);
+
+			for (auto [idx,org_idx] : enumerate(species->IndividualsIDs))
+			{
+				const auto& org = Individuals[org_idx];
+
+				if (org.LastDominationCount > 0)
+					continue;
+
+				for (auto& registry_org : registry_entry->second)
+				{
+					if (org.GetOriginalID() == org.GetOriginalID())
+					{
+						// This individual is already on the registry, so just update the entry if it's not dominated on this population
+						// If the individual is inside the registry that means it's not dominated by anyone on the registry
+						//  and because it's also not dominated by anyone on the population, it's sure it'll be added to the registry
+						// But it already exists, so just update the values
+						is_duplicated[idx] = true;
+
+						registry_org.AccumulatedFitness_MoveThisOutFromHere += org.LastFitness;
+						registry_org.AccumulatedNovelty_MoveThisOutFromHere += org.LastNoveltyMetric;
+						registry_org.AverageCount_MoveThisOutFromHere++;
+
+						registry_org.LastFitness = registry_org.AccumulatedFitness_MoveThisOutFromHere / registry_org.AverageCount_MoveThisOutFromHere;
+						registry_org.LastNoveltyMetric = registry_org.AccumulatedNovelty_MoveThisOutFromHere / registry_org.AverageCount_MoveThisOutFromHere;
+					}
+				}
+			}
+
 			// Update the non-dominated registry
 			vector<Individual> best_individuals;
 			vector<bool> is_dominated(registry_entry->second.size());
 			fill(is_dominated.begin(), is_dominated.end(), false);
 
-			for (int idx : species->IndividualsIDs)
+			for (auto [vector_idx,idx] : enumerate(species->IndividualsIDs))
 			{
+				if (is_duplicated[vector_idx])
+					continue; // Skip individuals that are already on the registry
+
 				// Check on the registry to know if this is dominated
 				const auto& org = Individuals[idx];
-				bool dominated_by_registry = false;
 
+				// First of all, make sure it's not dominated inside the population
+				if (org.LastDominationCount > 0)
+					continue;
+
+				// Then check domination inside the registry
+				bool dominated_by_registry = false;
 				for (auto [idx,registry_org] : enumerate(registry_entry->second))
 				{
 					if (dominates(org, registry_org))
@@ -278,11 +331,31 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 			}
 
 			// Instead of removing from the vector, move the non dominated values
-			for (auto[idx, org] : enumerate(registry_entry->second))
+			for (auto [idx, org] : enumerate(registry_entry->second))
+			{
 				if (!is_dominated[idx])
-					best_individuals.push_back(move(org));
+				{
+					// The individual of the registry isn't dominated by anyone of the new individuals
+					// But because you may have had a duplicated one, and updated the values, this might be dominated inside the registry
+					// Need to make sure it's not before adding it
+					bool dominated_by_registry = false;
+					for (auto [idx, other_org] : enumerate(registry_entry->second))
+					{
+						if (dominates(other_org, org))
+						{
+							// Dominated by someone on the registry, so it won't be added to the vector
+							dominated_by_registry = true;
+							break;
+						}
+					}
+
+					if(!dominated_by_registry)
+						best_individuals.push_back(move(org));
+				}
+			}
 
 			// Finally store the new best individuals vector
+			assert(best_individuals.size() >= 1);
 			registry_entry->second = move(best_individuals);
 		}
 
@@ -316,15 +389,27 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 				else
 				{
 					int mom_idx = domination_dist(RNG);
-					int dad_idx = domination_dist(RNG);
-
-					while (dad_idx == mom_idx) // Don't want someone to mate with itself
-						dad_idx = domination_dist(RNG);
-
 					const auto & mom = Individuals[species->IndividualsIDs[mom_idx]];
-					const auto & dad = Individuals[species->IndividualsIDs[dad_idx]];
 
-					ChildrenBuffer.emplace_back(mom, dad, ChildrenBuffer.size());
+					if (uniform_real_distribution<float>()(RNG) < Settings::RegistryParentProb)
+					{
+						int registry_idx = uniform_int_distribution<int>(0, registry_entry->second.size() - 1)(RNG);
+						const auto & dad = registry_entry->second[registry_idx];
+
+						ChildrenBuffer.emplace_back(mom, dad, ChildrenBuffer.size());
+					}
+					else
+					{
+						int dad_idx = domination_dist(RNG);
+
+						while (dad_idx == mom_idx) // Don't want someone to mate with itself
+							dad_idx = domination_dist(RNG);
+
+
+						const auto & dad = Individuals[species->IndividualsIDs[dad_idx]];
+
+						ChildrenBuffer.emplace_back(mom, dad, ChildrenBuffer.size());
+					}
 				}
 			}
 		}
