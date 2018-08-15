@@ -83,7 +83,7 @@ void Individual::Spawn(int ID)
         // TODO : Maybe make the selection probability a parameter? Does it makes sense?
         if (param.IsRequired || uniform_int_distribution<int>(0, 1)(RNG))
         {
-            Parameter p;
+            Parameter p{};
             p.ID = pidx;
             p.Value = 0.5f * (param.Min + param.Max);
             p.HistoricalMarker = Parameter::CurrentMarkerID;
@@ -440,7 +440,7 @@ void Individual::Mutate(Population *population, int generation)
                     }
 
                     int replacementIdx = uniform_int_distribution<int>(0, replacements.size() - 1)(RNG);
-                    std::list<ComponentRef>::iterator it = replacements.begin();
+                    auto it = replacements.begin();
                     std::advance(it, replacementIdx);
                     Components[idx] = *it;
 
@@ -448,9 +448,9 @@ void Individual::Mutate(Population *population, int generation)
                 } else
                 {
                     // Mutate in a random component
-                    int groupID = uniform_int_distribution<int>(0, Interface->GetComponentRegistry().size())(RNG);
+                    int groupID = uniform_int_distribution<int>(0, Interface->GetComponentRegistry().size() - 1)(RNG);
                     const ComponentGroup &group = Interface->GetComponentRegistry()[groupID];
-                    int replacementID = uniform_int_distribution<int>(0, group.Components.size())(RNG);
+                    int replacementID = uniform_int_distribution<int>(0, group.Components.size() - 1)(RNG);
 
                     // Check that we can use the chosen component as replacement
                     // We are able to use it if it doesn't belong to the individual and if the group max cardinality
@@ -480,7 +480,68 @@ void Individual::Mutate(Population *population, int generation)
 
         if (mutated)
         {
-            // TODO: Do everything that is done in spawn but with the components already chosen
+            unordered_set<int> actions_set;
+            unordered_set<int> sensors_set;
+
+            for (const auto &compRef : Components)
+            {
+                const ComponentGroup &group = Interface->GetComponentRegistry()[compRef.GroupID];
+                const auto &component = group.Components[compRef.ComponentID];
+                actions_set.insert(component.Actions.begin(), component.Actions.end());
+                sensors_set.insert(component.Sensors.begin(), component.Sensors.end());
+            }
+
+            std::vector<int> newActions(actions_set.size());
+            std::vector<int> newSensors(sensors_set.size());
+
+            for (auto[idx, action] : enumerate(actions_set))
+                newActions[idx] = action;
+
+            for (auto[idx, sensor] : enumerate(sensors_set))
+                newSensors[idx] = sensor;
+
+            sort(newActions.begin(), newActions.end());
+            sort(newSensors.begin(), newSensors.end());
+
+            if (newActions != Actions || newSensors != Sensors)
+            {
+                Actions = newActions;
+                Sensors = newSensors;
+
+                SensorsValues.resize(Sensors.size());
+                ActivationsBuffer.resize(Actions.size());
+
+                // Create base genome and network
+                Genome = new NEAT::Genome(Sensors.size(), Actions.size(), 0, 0);
+
+                // Randomize weights and traits
+                // The settings are taken from NEAT/src/population.cpp, line 280
+                Genome->mutate_link_weights(1, 1, NEAT::COLDGAUSSIAN);
+                Genome->randomize_traits();
+
+                // Construct network from genome
+                Brain = Genome->genesis(Genome->genome_id);
+
+                // Fill bitfields
+                Morphology.ActionsBitfield.resize((Interface->GetActionRegistry().size() - 1) / 64 + 1);
+                fill(Morphology.ActionsBitfield.begin(), Morphology.ActionsBitfield.end(), 0);
+                for (auto action : Actions)
+                    // I'm hoping that the compiler is smart enough to change the / and % to ands and shift
+                    Morphology.ActionsBitfield[action / 64ull] |= 1ull << (action % 64ull);
+
+                Morphology.SensorsBitfield.resize((Interface->GetSensorRegistry().size() - 1) / 64 + 1);
+                fill(Morphology.SensorsBitfield.begin(), Morphology.SensorsBitfield.end(), 0);
+                for (auto sensor : Sensors)
+                    // I'm hoping that the compiler is smart enough to change the / and % to ands and shift
+                    Morphology.SensorsBitfield[sensor / 64ull] |= 1ull << (sensor % 64ull);
+
+                Morphology.Parameters = Parameters;
+                Morphology.NumberOfActions = Actions.size();
+                Morphology.NumberOfSensors = Sensors.size();
+                Morphology.GenesIDs.resize(Genome->genes.size());
+                for (auto[gene_id, gene] : zip(Morphology.GenesIDs, Genome->genes))
+                    gene_id = gene->innovation_num;
+            }
         }
     } else
     {
@@ -531,8 +592,7 @@ void Individual::Mutate(Population *population, int generation)
 				param.HistoricalMarker = Parameter::CurrentMarkerID.fetch_add(1);// Create new historical marker
 
 				any_mutation = true;
-            } 
-			else
+            } else
             {
                 normal_distribution<float> distribution(param.Value, Settings::ParameterMutationSpread);
                 param.Value = distribution(RNG);
@@ -547,7 +607,7 @@ void Individual::Mutate(Population *population, int generation)
 		OriginalID = GlobalID;
 }
 
-Individual::Individual(Individual && other)
+Individual::Individual(Individual && other) noexcept
 {
 	OriginalID = other.OriginalID;
 	GlobalID = other.GlobalID;
@@ -560,7 +620,7 @@ Individual::Individual(Individual && other)
 	Sensors = move(other.Sensors);
 	SensorsValues = move(other.SensorsValues);
 	ActivationsBuffer = move(other.ActivationsBuffer);
-	RNG = move(other.RNG);
+	RNG = other.RNG;
 	Morphology = move(other.Morphology);
 	LastDominationCount = other.LastDominationCount;
 	LastFitness = other.LastFitness;

@@ -49,7 +49,7 @@ namespace agio
 
 		// Move constructor that sets the resources to nullptr of the moved from objet after the move
 		// That's necessary so that the destructor doesn't try to release a moved resource
-		Individual(Individual &&);
+		Individual(Individual &&) noexcept;
 
 		// Constructs a new, valid, individual
 		// Takes as input the ID of the individual inside the population
