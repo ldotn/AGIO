@@ -392,88 +392,65 @@ void Individual::Mutate(Population *population, int generation)
     // Mutate components
     if (randfloat() < Settings::ComponentMutationProb)
     {
-        bool mutated = false;
-        int numberOfTries = 5;
-        while (!mutated && numberOfTries > 0)
+        bool componentMutated = false;
+
+        // Choose at random one group to mutate a component
+        int group_idx = uniform_int_distribution<int>(0, Interface->GetComponentRegistry().size() - 1)(RNG);
+        const ComponentGroup &group = Interface->GetComponentRegistry()[group_idx];
+
+        // The component to be mutated
+        int component_idx = uniform_int_distribution<int>(0, group.Components.size() - 1)(RNG);
+
+        int group_count = 0;
+        for (auto &c : Components)
+            if (c.GroupID == group_idx)
+                group_count++;
+
+        if (randfloat() < Settings::ComponentAddProbability && group.MaxCardinality < group_count)
         {
-            numberOfTries--;
-
-            // Choose at random one component and try to mutate
-            int idx = uniform_int_distribution<int>(0, Components.size() - 1)(RNG);
-            auto &component = Components[idx];
-
-            const ComponentGroup &componentGroup = Interface->GetComponentRegistry()[component.GroupID];
-
-            // If group min cardinality is less than the group size then the component can be mutated, otherwise
-            // all components of the group have to be used and no mutation can be performed
-            if (componentGroup.MinCardinality != componentGroup.Components.size())
+            // If the individual hasn't the chosen component yet, add it
+            bool found = false;
+            for (auto &c : Components)
             {
-                // Check how many components of the chosen component's group are in the individual
-                int groupCount = 0;
-                for (auto &c : Components)
-                    if (c.GroupID == component.GroupID)
-                        groupCount++;
-
-                // If the removal of the chosen component cause the groupCount to be less than the groupMinCardinality then
-                // we have to mutate using a component of the same group
-                if (componentGroup.MinCardinality == groupCount)
+                if (c.GroupID == group_idx && c.ComponentID == component_idx)
                 {
-                    std::list<ComponentRef> replacements;
-
-                    for (int i = 0; i < componentGroup.Components.size(); i++)
-                    {
-                        bool found = false;
-                        for (auto &c : Components)
-                            if (c.GroupID == component.GroupID && c.ComponentID == i)
-                            {
-                                found = true;
-                                break;
-                            }
-
-                        if (!found)
-                            replacements.push_back({component.GroupID, i});
-                    }
-
-                    int replacementIdx = uniform_int_distribution<int>(0, replacements.size() - 1)(RNG);
-                    auto it = replacements.begin();
-                    std::advance(it, replacementIdx);
-                    Components[idx] = *it;
-
-                    mutated = true;
-                } else
-                {
-                    // Mutate in a random component
-                    int groupID = uniform_int_distribution<int>(0, Interface->GetComponentRegistry().size() - 1)(RNG);
-                    const ComponentGroup &group = Interface->GetComponentRegistry()[groupID];
-                    int replacementID = uniform_int_distribution<int>(0, group.Components.size() - 1)(RNG);
-
-                    // Check that we can use the chosen component as replacement
-                    // We are able to use it if it doesn't belong to the individual and if the group max cardinality
-                    // of the component is not exceed after add him
-                    bool belongs = false;
-                    int replacementGroupCount = 0;
-                    for (auto &c : Components)
-                    {
-                        if (c.GroupID == groupID)
-                        {
-                            if (c.ComponentID == replacementID)
-                            {
-                                belongs = true;
-                                break;
-                            } else
-                                replacementGroupCount++;
-                        }
-                    }
-                    if (!belongs && replacementGroupCount < group.MaxCardinality)
-                    {
-                        Components[idx] = {groupID, replacementID};
-                        mutated = true;
-                    }
+                    found = true;
+                    break;
                 }
             }
-        } // end while
 
-        if (mutated)
+            if (!found)
+            {
+                Components.push_back({group_idx, component_idx});
+                componentMutated = true;
+            }
+        } else if (randfloat() < Settings::ComponentRemoveProbability && group.MinCardinality < group_count)
+        {
+            for (auto it = Components.begin(); it != Components.end(); it++)
+            {
+                if (it->GroupID == group_idx && it->ComponentID == component_idx)
+                {
+                    Components.erase(it);
+                    componentMutated = true;
+                    break;
+                }
+            }
+        } else if (randfloat() < Settings::ComponentChangeProbability)
+        {
+            // If the individual has the chosen component, swap it for one at random of the same group
+            for (auto it = Components.begin(); it != Components.end(); it++)
+            {
+                if (it->GroupID == group_idx && it->ComponentID == component_idx)
+                {
+                    int replacement_idx = uniform_int_distribution<int>(0, group.Components.size() - 1)(RNG);
+                    *it = {group_idx, replacement_idx};
+                    componentMutated = true;
+                    break;
+                }
+            }
+
+        }
+        if (componentMutated)
         {
             unordered_set<int> actions_set;
             unordered_set<int> sensors_set;
@@ -581,18 +558,21 @@ void Individual::Mutate(Population *population, int generation)
         {
             if (uniform_real_distribution<float>()(RNG) <= Settings::ParameterMutationProb)
             {
-                auto &parameterDef = Interface->GetParameterDefRegistry()[idx];
-                uniform_real_distribution<float> distribution(parameterDef.Min, parameterDef.Max);
-                param.Value = distribution(RNG);
-                param.HistoricalMarker = Parameter::CurrentMarkerID.fetch_add(1);// Create new historical marker
+                if (uniform_real_distribution<float>()(RNG) <= Settings::ParameterDestructiveMutationProb)
+                {
+                    auto &parameterDef = Interface->GetParameterDefRegistry()[idx];
+                    uniform_real_distribution<float> distribution(parameterDef.Min, parameterDef.Max);
+                    param.Value = distribution(RNG);
+                    param.HistoricalMarker = Parameter::CurrentMarkerID.fetch_add(1);// Create new historical marker
 
-                any_mutation = true;
-            } else
-            {
-                normal_distribution<float> distribution(param.Value, Settings::ParameterMutationSpread);
-                param.Value = distribution(RNG);
+                    any_mutation = true;
+                } else
+                {
+                    normal_distribution<float> distribution(param.Value, Settings::ParameterMutationSpread);
+                    param.Value = distribution(RNG);
 
-                any_mutation = true;
+                    any_mutation = true;
+                }
             }
         }
     }

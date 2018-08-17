@@ -26,6 +26,10 @@ namespace agio
         // TODO : Docs
         inline static float ChildMutationProb = 0.25f;
         inline static float ComponentMutationProb = 0.01f;
+        // ComponentAddProbability + ComponentRemoveProbability + ComponentChangeProbability must sum 1
+        inline static float ComponentAddProbability = 0.3f;
+        inline static float ComponentRemoveProbability = 0.3f;
+        inline static float ComponentChangeProbability = 0.3f;
         inline static float ParameterMutationProb = 0.1f;
         inline static float ParameterDestructiveMutationProb = 0.1f;
 		// Controls the spread of the mutation of a parameter when shifting it
