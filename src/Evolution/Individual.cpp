@@ -381,7 +381,7 @@ float Individual::MorphologyTag::Distance(const Individual::MorphologyTag &Other
 void Individual::Mutate(Population *population, int generation)
 {
     // If there was any mutation at all, and this individual was a clone of a previous one, it stops beign a copy
-    //  so the original ID needs to change
+    // so the original ID needs to change
     bool any_mutation = false;
 
     auto randfloat = [this]()
@@ -392,8 +392,6 @@ void Individual::Mutate(Population *population, int generation)
     // Mutate components
     if (randfloat() < Settings::ComponentMutationProb)
     {
-        bool componentMutated = false;
-
         // Choose at random one group to mutate a component
         int group_idx = uniform_int_distribution<int>(0, Interface->GetComponentRegistry().size() - 1)(RNG);
         const ComponentGroup &group = Interface->GetComponentRegistry()[group_idx];
@@ -422,7 +420,7 @@ void Individual::Mutate(Population *population, int generation)
             if (!found)
             {
                 Components.push_back({group_idx, component_idx});
-                componentMutated = true;
+                any_mutation = true;
             }
         } else if (randfloat() < Settings::ComponentRemoveProbability && group.MinCardinality < group_count)
         {
@@ -431,7 +429,7 @@ void Individual::Mutate(Population *population, int generation)
                 if (it->GroupID == group_idx && it->ComponentID == component_idx)
                 {
                     Components.erase(it);
-                    componentMutated = true;
+                    any_mutation = true;
                     break;
                 }
             }
@@ -444,13 +442,13 @@ void Individual::Mutate(Population *population, int generation)
                 {
                     int replacement_idx = uniform_int_distribution<int>(0, group.Components.size() - 1)(RNG);
                     *it = {group_idx, replacement_idx};
-                    componentMutated = true;
+                    any_mutation = true;
                     break;
                 }
             }
 
         }
-        if (componentMutated)
+        if (any_mutation)
         {
             unordered_set<int> actions_set;
             unordered_set<int> sensors_set;
@@ -522,12 +520,14 @@ void Individual::Mutate(Population *population, int generation)
         if (randfloat() < Settings::NEAT::MutateAddNodeProb)
         {
             Genome->mutate_add_node(SpeciesPtr->innovations, population->cur_node_id, population->cur_innov_num);
+            any_mutation = true;
         } else if (randfloat() < Settings::NEAT::MutateAddLinkProb)
         {
             // TODO: Find out why genesis is done in neat code (species.cpp 585)
             NEAT::Network *net_analogue = Genome->genesis(generation);
             Genome->mutate_add_link(SpeciesPtr->innovations, population->cur_innov_num, NEAT::newlink_tries);
             delete net_analogue;
+            any_mutation = true;
         } else
         {
             // NOTE:  A link CANNOT be added directly after a node was added because the phenotype
@@ -535,22 +535,39 @@ void Individual::Mutate(Population *population, int generation)
 
             //If we didn't do a structural mutation, we do the other kinds
             if (randfloat() < Settings::NEAT::MutateRandomTraitProb)
+            {
                 Genome->mutate_random_trait();
+                any_mutation = true;
+            }
 
             if (randfloat() < Settings::NEAT::MutateLinkTraitProb)
+            {
                 Genome->mutate_link_trait(1);
-
+                any_mutation = true;
+            }
             if (randfloat() < Settings::NEAT::MutateNodeTraitProb)
+            {
                 Genome->mutate_node_trait(1);
-
+                any_mutation = true;
+            }
             if (randfloat() < Settings::NEAT::MutateLinkWeightsProb)
+            {
                 Genome->mutate_link_weights(Settings::NEAT::WeightMutPower, 1.0, NEAT::mutator::GAUSSIAN);
-
+                any_mutation = true;
+            }
             if (randfloat() < Settings::NEAT::MutateToggleEnableProb)
+            {
+
                 Genome->mutate_toggle_enable(1);
+                any_mutation = true;
+            }
 
             if (randfloat() < Settings::NEAT::MutateGeneReenableProb)
+            {
                 Genome->mutate_gene_reenable();
+                any_mutation = true;
+            }
+
         }
 
         // Mutate all parameters with certain probability
