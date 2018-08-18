@@ -11,6 +11,7 @@ using namespace fpp;
 
 Population::Population() : RNG(std::chrono::high_resolution_clock::now().time_since_epoch().count())
 {
+	// TODO : Create a bigger population and only simulate a few on each step
 	cur_node_id = 0;
 	cur_innov_num = 0;
 	CurrentGeneration = 0;
@@ -89,107 +90,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 	// TODO :  Separate organisms by distance in the world too
 	
 	// Compute novelty metric
-	auto compute_novelty = [&,this]()
-	{
-		for (auto[idx, org] : enumerate(Individuals))
-		{
-			// Clear the K buffer
-			for (auto & v : NearestKBuffer)
-				v = numeric_limits<float>::max();
-			int k_buffer_top = 0;
-
-			// Check both against the population and the registry
-			for (auto[otherIdx, other] : enumerate(Individuals))
-			{
-				if (idx == otherIdx)
-					continue;
-
-				// This is the morphology distance
-				float dist = org.GetMorphologyTag().Distance(other.GetMorphologyTag());
-
-				// Check if it's in the k nearest
-				for (auto[kidx, v] : enumerate(NearestKBuffer))
-				{
-					if (dist < v)
-					{
-						// Move all the values to the right
-						for (int i = Settings::NoveltyNearestK - 1; i < kidx; i--)
-							NearestKBuffer[i] = NearestKBuffer[i - 1];
-
-						if (kidx > k_buffer_top)
-							k_buffer_top = kidx;
-						v = dist;
-						break;
-					}
-				}
-			}
-
-			for (auto &[tag, record] : MorphologyRegistry)
-			{
-				// This is the morphology distance
-				float dist = org.GetMorphologyTag().Distance(tag);
-
-				// Check if it's in the k nearest
-				for (auto[kidx, v] : enumerate(NearestKBuffer))
-				{
-					if (dist < v)
-					{
-						// Move all the values to the right
-						for (int i = Settings::NoveltyNearestK - 1; i < kidx; i--)
-							NearestKBuffer[i] = NearestKBuffer[i - 1];
-
-						if (kidx > k_buffer_top)
-							k_buffer_top = kidx;
-						v = dist;
-						break;
-					}
-				}
-			}
-
-			// After the k nearest are found, compute novelty metric
-			// It's simply the average of the k nearest distances
-			float novelty = accumulate(NearestKBuffer.begin(), NearestKBuffer.begin() + k_buffer_top + 1, 0) / float(NearestKBuffer.size());
-			org.LastNoveltyMetric = novelty;
-
-			// If the novelty is above the threshold, add it to the registry
-			if (novelty > Settings::NoveltyThreshold)
-			{
-				// First check if it already exists
-				const auto& tag = org.GetMorphologyTag();
-				auto record = MorphologyRegistry.find(tag);
-
-				if (record == MorphologyRegistry.end())
-				{
-					MorphologyRecord mr;
-					mr.AverageFitness = org.LastFitness;
-					mr.GenerationNumber = CurrentGeneration;
-					mr.RepresentativeFitness = org.LastFitness;
-
-					MorphologyRegistry[tag] = mr;
-				}
-				else
-				{
-					// The tag is already on the registry
-					// Check if this individual is better than the representative
-					// If it is, replace the individual and the tag
-					if (org.LastFitness > record->second.RepresentativeFitness)
-					{
-						// This two tags compare equal and have the same hash
-						//  but may have different parameter's values
-						// Doing this to always keep the parameters of the representative
-						auto new_iter = MorphologyRegistry.extract(tag);
-						new_iter.key() = tag;
-						MorphologyRegistry.insert(move(new_iter));
-
-						auto & record = MorphologyRegistry[tag];
-						record.AverageFitness = 0.5f*(record.AverageFitness + org.LastFitness);
-						record.RepresentativeFitness = org.LastFitness;
-					}
-				}
-			}
-		}
-	};
-	compute_novelty();
+	ComputeNovelty();
 
 	// Evolve the species
 	// TODO: This part would need to be reworked if you want to share individuals between concurrent (independent) executions
@@ -591,6 +492,106 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 #endif
 }
 
+void Population::ComputeNovelty()
+{
+	for (auto[idx, org] : enumerate(Individuals))
+	{
+		// Clear the K buffer
+		for (auto & v : NearestKBuffer)
+			v = numeric_limits<float>::max();
+		int k_buffer_top = 0;
+
+		// Check both against the population and the registry
+		for (auto[otherIdx, other] : enumerate(Individuals))
+		{
+			if (idx == otherIdx)
+				continue;
+
+			// This is the morphology distance
+			float dist = org.GetMorphologyTag().Distance(other.GetMorphologyTag());
+
+			// Check if it's in the k nearest
+			for (auto[kidx, v] : enumerate(NearestKBuffer))
+			{
+				if (dist < v)
+				{
+					// Move all the values to the right
+					for (int i = Settings::NoveltyNearestK - 1; i < kidx; i--)
+						NearestKBuffer[i] = NearestKBuffer[i - 1];
+
+					if (kidx > k_buffer_top)
+						k_buffer_top = kidx;
+					v = dist;
+					break;
+				}
+			}
+		}
+
+		for (auto &[tag, record] : MorphologyRegistry)
+		{
+			// This is the morphology distance
+			float dist = org.GetMorphologyTag().Distance(tag);
+
+			// Check if it's in the k nearest
+			for (auto[kidx, v] : enumerate(NearestKBuffer))
+			{
+				if (dist < v)
+				{
+					// Move all the values to the right
+					for (int i = Settings::NoveltyNearestK - 1; i < kidx; i--)
+						NearestKBuffer[i] = NearestKBuffer[i - 1];
+
+					if (kidx > k_buffer_top)
+						k_buffer_top = kidx;
+					v = dist;
+					break;
+				}
+			}
+		}
+
+		// After the k nearest are found, compute novelty metric
+		// It's simply the average of the k nearest distances
+		float novelty = accumulate(NearestKBuffer.begin(), NearestKBuffer.begin() + k_buffer_top + 1, 0) / float(NearestKBuffer.size());
+		org.LastNoveltyMetric = novelty;
+
+		// If the novelty is above the threshold, add it to the registry
+		if (novelty > Settings::NoveltyThreshold)
+		{
+			// First check if it already exists
+			const auto& tag = org.GetMorphologyTag();
+			auto record = MorphologyRegistry.find(tag);
+
+			if (record == MorphologyRegistry.end())
+			{
+				MorphologyRecord mr;
+				mr.AverageFitness = org.LastFitness;
+				mr.GenerationNumber = CurrentGeneration;
+				mr.RepresentativeFitness = org.LastFitness;
+
+				MorphologyRegistry[tag] = mr;
+			}
+			else
+			{
+				// The tag is already on the registry
+				// Check if this individual is better than the representative
+				// If it is, replace the individual and the tag
+				if (org.LastFitness > record->second.RepresentativeFitness)
+				{
+					// This two tags compare equal and have the same hash
+					//  but may have different parameter's values
+					// Doing this to always keep the parameters of the representative
+					auto new_iter = MorphologyRegistry.extract(tag);
+					new_iter.key() = tag;
+					MorphologyRegistry.insert(move(new_iter));
+
+					auto & record = MorphologyRegistry[tag];
+					record.AverageFitness = 0.5f*(record.AverageFitness + org.LastFitness);
+					record.RepresentativeFitness = org.LastFitness;
+				}
+			}
+		}
+	}
+}
 
 void Population::BuildFinalPopulation()
 {
@@ -601,4 +602,82 @@ void Population::BuildFinalPopulation()
 
 	Individuals = move(final_pop);
 	BuildSpeciesMap();
+}
+
+Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int Replications)
+{
+	// Save the current population
+	vector<Individual> current_pop = move(Individuals);
+
+	// Now build the population from the registry
+	BuildFinalPopulation();
+
+	ProgressMetrics metrics;
+
+	// Compute average novelty
+	ComputeNovelty();
+	metrics.AverageNovelty = 0;
+	for (const auto& org : Individuals)
+		metrics.AverageNovelty += org.LastNoveltyMetric;
+	metrics.AverageNovelty /= Individuals.size();
+
+	// Do a few simulations to compute fitness
+	for (auto& org : Individuals)
+		org.AccumulatedFitness_MoveThisOutFromHere = org.AverageCount_MoveThisOutFromHere = 0;
+	for (int i = 0; i < Replications; i++)
+	{
+		Interface->ComputeFitness(this, World);
+
+		for (auto& org : Individuals)
+		{
+			org.AccumulatedFitness_MoveThisOutFromHere += org.LastFitness;
+			org.AverageCount_MoveThisOutFromHere++;
+		}
+	}
+
+	// Now for each species set that to be random, and do a couple of simulations
+	metrics.AverageFitnessDifference = 0;
+	for (const auto& [_, species] : SpeciesMap)
+	{
+		// First compute average fitness of the species when using the network
+		float avg_f = 0;
+		for (int org_id : species->IndividualsIDs)
+			avg_f += Individuals[org_id].AccumulatedFitness_MoveThisOutFromHere
+			/ Individuals[org_id].AverageCount_MoveThisOutFromHere;
+		avg_f /= species->IndividualsIDs.size();
+
+		// Override the use of the network for decision-making
+		for (int org_id : species->IndividualsIDs)
+			Individuals[org_id].UseNetwork = false;
+
+		// Do a few simulations
+		float avg_random_f = 0;
+		float count = 0;
+		for (int i = 0; i < Replications; i++)
+		{
+			Interface->ComputeFitness(this, World);
+
+			for (int org_id : species->IndividualsIDs)
+			{
+				avg_random_f += Individuals[org_id].LastFitness;
+				count++;
+			}
+		}
+		avg_random_f /= count;
+
+		// Accumulate difference
+		metrics.AverageFitnessDifference += avg_f - avg_random_f;
+
+		// Re-enable the network
+		for (int org_id : species->IndividualsIDs)
+			Individuals[org_id].UseNetwork = true;
+	}
+	metrics.AverageFitnessDifference /= SpeciesMap.size();
+
+	// TODO : Compute standard deviations
+
+	// After all is done, restore the current population
+	Individuals = move(current_pop);
+
+	return metrics;
 }

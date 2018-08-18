@@ -583,6 +583,10 @@ int main()
 #ifdef _DEBUG
 				cout << "    Avg Fitness (registry) : " << avg_f << " , Avg Novelty (registry) : " << avg_n << endl;
 #else
+				auto metrics = pop.ComputeProgressMetrics(&world, 10);
+				avg_f = metrics.AverageFitnessDifference;
+				avg_n = metrics.AverageNovelty;
+
 				avg_fitness.push_back(avg_f);
 				avg_novelty.push_back(avg_n);
 				species_count.push_back(pop.GetNonDominatedRegistry().size());

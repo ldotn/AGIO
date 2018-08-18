@@ -154,6 +154,13 @@ void Individual::Spawn(int ID)
 
 void Individual::DecideAndExecute(void *World, const class Population *PopulationPtr)
 {
+	if (!UseNetwork)
+	{
+		uniform_int_distribution<int> action_dist(0, Actions.size() - 1);
+		Interface->GetActionRegistry()[Actions[action_dist(RNG)]].Execute(State, PopulationPtr, this, World);
+		return;
+	}
+
     // Load sensors
     for (auto[value, idx] : zip(SensorsValues, Sensors))
         value = Interface->GetSensorRegistry()[idx].Evaluate(State, World, PopulationPtr, this);

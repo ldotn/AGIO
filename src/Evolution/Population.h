@@ -42,6 +42,17 @@ namespace agio
 		const auto& GetSpecies() const { return SpeciesMap; }
 		const auto& GetNonDominatedRegistry() const { return NonDominatedRegistry; }
 
+		// Returns several metrics that allow one to measure the progress of the evolution
+		// TODO : More comprehensive docs maybe?
+		struct ProgressMetrics
+		{
+			float AverageNovelty;
+			float NoveltyStandardDeviation;
+			float AverageFitnessDifference;
+			float FitnessDifferenceStandardDeviation;
+		};
+		ProgressMetrics ComputeProgressMetrics(void * World,int Replications);
+
 		// Variables used in mutate_add_node and mutate_add_link (neat)
 		// TODO : Refactor this so that the naming is consistent
 		int cur_node_id;
@@ -94,5 +105,8 @@ namespace agio
 		// Separated by species
 		// TODO : If the world is dynamic the old fitness values might no longer be valid or relevant
 		std::unordered_map<Individual::MorphologyTag, std::vector<Individual>> NonDominatedRegistry;
+	
+		// Computes the novelty metric for the population
+		void ComputeNovelty();
 	};
 }

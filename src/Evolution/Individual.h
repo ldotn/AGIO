@@ -106,6 +106,9 @@ namespace agio
 
 		// Mutates this individual
 		void Mutate(class Population *pop, int generation);
+
+		// Allows to override the network and just select actions randomly. Used to compute the progress metrics
+		bool UseNetwork = true;
 	private:
 		// The current id, across all individuals and all populations
 		// Used to generate a global, unique id for the individuals
