@@ -17,6 +17,7 @@ namespace agio
 	struct Species
 	{
 		std::vector<int> IndividualsIDs;
+		// TODO : Maybe refactor this, don't like the idea of using pointers like this when it's resources that only last an epoch
 		std::vector<NEAT::Innovation *> innovations;
 	};
 
@@ -68,30 +69,7 @@ namespace agio
 		std::unordered_map<Individual::MorphologyTag, Species*> SpeciesMap;
 
 		// Used to keep track of the different morphologies that were tried
-		// It's only considering the actions, sensors and parameters, not the whole components and parameters
-		// Information is lost that way, but shouldn't be necessary
-		//  and that should help to reduce dimensionality anyway
-		// This is Novelty Search basically
-		// That tag is the one of the representative individual
-		//	which is relevant because of the parameters
-	public:
-		struct MorphologyRecord
-		{
-			// TODO : GenerationNumber and AverageFitness seem useless, check that
-
-			// The generation at which this morphology first appeared
-			int GenerationNumber;
-
-			// The average fitness across organisms and generations
-			// It's a moving average across generations
-			float AverageFitness;
-			
-			// The fitness of the individual that represents this morphology
-			// Used to keep the tag of the best one
-			float RepresentativeFitness;
-		};
-	private:
-		std::unordered_map<Individual::MorphologyTag, MorphologyRecord> MorphologyRegistry;
+		std::vector<Individual::MorphologyTag> MorphologyRegistry;
 	
 		// Buffer vectors
 		std::vector<float> NearestKBuffer;
@@ -108,5 +86,12 @@ namespace agio
 	
 		// Computes the novelty metric for the population
 		void ComputeNovelty();
+
+
+
+
+
+		// Children of the current population. See NSGA-II
+		std::vector<Individual> Children;
 	};
 }

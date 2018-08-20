@@ -10,11 +10,11 @@ namespace agio
         static void LoadFromFile();
 
         // Number of nearest individuals to consider for the novelty metric
-        inline static int NoveltyNearestK = 10;
+		inline static int NoveltyNearestK = 10;
 
         // Minimum novelty of an individual to add it to the morphology registry
         // TODO : No idea what's the range of this. Maybe it can be automatically adjusted from the prev novelty?
-        inline static float NoveltyThreshold = 1.5;
+        inline static float NoveltyThreshold = 2.0;
 
 		// Probability of cloning an individual from the registry
 		inline static float RegistryCloneProb = 0.1f;
@@ -24,8 +24,9 @@ namespace agio
 
         // Probability of calling Mutate() on a child
         // TODO : Docs
-        inline static float ChildMutationProb = 0.25f;
+		inline static float ChildMutationProb = 1.0f;// 0.25f;
         inline static float ComponentMutationProb = 0.01f;
+
         // ComponentAddProbability + ComponentRemoveProbability + ComponentChangeProbability must sum 1
         inline static float ComponentAddProbability = 0.3f;
         inline static float ComponentRemoveProbability = 0.3f;

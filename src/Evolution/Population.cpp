@@ -4,6 +4,7 @@
 #include "../Core/Config.h"
 #include <numeric>
 #include <assert.h>
+#include <unordered_set>
 
 // NEAT
 #include "innovation.h"
@@ -65,434 +66,301 @@ void Population::Spawn(size_t Size)
 	ChildrenBuffer.resize(Size);
 	CurrentGeneration = 0;
 
+	// TODO :  Separate organisms by distance in the world too
 	BuildSpeciesMap();
 }
 
 void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 {
-	// Compute fitness of each individual
-	/*for (auto& org : Individuals)
-		org.Reset();
-
-	for (auto& org : Individuals)
-		org.LastFitness = Interface->ComputeFitness(&org, WorldPtr);*/
-	Interface->ComputeFitness(this, WorldPtr);
-
-	// Update the average fitness in the morphology registry
-	for (auto & [tag,s] : SpeciesMap)
+	auto evaluate_pop = [&]()
 	{
-		float avg_fitness = 0;
-		for (auto & idx : s->IndividualsIDs)
-			avg_fitness += Individuals[idx].LastFitness;
+		// Compute novelty metric
+		ComputeNovelty();
 
-		avg_fitness /= s->IndividualsIDs.size();
+		for (int i = 0; i < 10; i++)
+		{
+			// Compute fitness of each individual
+			Interface->ComputeFitness(this, WorldPtr);
 
-		MorphologyRegistry[tag].AverageFitness = 0.5f * (MorphologyRegistry[tag].AverageFitness + avg_fitness);
-	}
+			// Update the fitness and novelty accumulators
+			for (auto& org : Individuals)
+			{
+				org.AccumulatedFitness += org.LastFitness;
+				org.AccumulatedNovelty += org.LastNoveltyMetric;
+				org.Age++;
 
-	// TODO :  Separate organisms by distance in the world too
-	
-	// Compute novelty metric
-	ComputeNovelty();
-
-	// Evolve the species
-	// TODO: This part would need to be reworked if you want to share individuals between concurrent (independent) executions
-	assert(DominationBuffer.capacity() >= Individuals.size());
-	ChildrenBuffer.resize(0); // does not affect capacity
-
+				// Replace the last fitness and last novelty with the values of the accumulators
+				// TODO : Maybe make some refactor here, all this mess doesn't really looks clean 
+				org.LastFitness = org.AccumulatedFitness / org.Age;
+				org.LastNoveltyMetric = org.AccumulatedNovelty / org.Age;
+			}
+		}
+	};
 	auto dominates = [](const Individual& A, const Individual& B)
 	{
 		return (A.LastNoveltyMetric >= B.LastNoveltyMetric && A.LastFitness >= B.LastFitness) &&
 			(A.LastNoveltyMetric > B.LastNoveltyMetric || A.LastFitness > B.LastFitness);
 	};
-
-	for (auto & [tag, species] : SpeciesMap)
+	auto compute_domination_fronts = [&]()
 	{
-		// Mate within species based on NSGA-II
-		// As a first, simple implementation, sort based on the number of individuals that dominate you (more is worst)
-		// TODO : Properly implement NSGA-II and check if it's better
-		assert(species->IndividualsIDs.size() > 0);
+		unordered_map<Individual::MorphologyTag, vector<unordered_set<int>>> fronts;
 
-		DominationBuffer.resize(0);
-		for (int this_idx : species->IndividualsIDs)
+		for (auto &[tag, species] : SpeciesMap)
 		{
-			auto& org = Individuals[this_idx];
+			vector<unordered_set<int>> fronts_vec;
 
-			// Check if this individual is on the non-dominated front
-			org.LastDominationCount = 0;
-			for (int other_idx : species->IndividualsIDs)
+			unordered_set<int> current_front = {};
+			for (int this_idx : species->IndividualsIDs)
 			{
-				if (this_idx == other_idx)
-					continue;
+				auto& org = Individuals[this_idx];
 
-				const auto& other_org = Individuals[other_idx];
+				org.DominatedSet = {};
+				org.DominationCounter = 0;
+				for (int other_idx : species->IndividualsIDs)
+				{
+					if (other_idx == this_idx)
+						continue;
 
-				if (dominates(other_org,org))
-					org.LastDominationCount++;
+					auto& other_org = Individuals[other_idx];
+					if (dominates(org, other_org))
+						org.DominatedSet.insert(other_idx);
+					else if (dominates(other_org, org))
+						org.DominationCounter++;
+				}
+
+				if (org.DominationCounter == 0)
+				{
+					org.DominationRank = 0;
+					current_front.insert(this_idx);
+				}
 			}
 
-			// Transform from a count to a selection weight (not a probability because they aren't normalized)
-			// The transform is simply f(x) = 1 / (x + 1)
-			DominationBuffer.push_back(1.0f / (org.LastDominationCount + 1.0f));
+			int i = 0;
+			while (current_front.size() > 0)
+			{
+				fronts_vec.push_back(current_front);
+				unordered_set<int> next_front = {};
+
+				for (int this_idx : current_front)
+				{
+					auto& org = Individuals[this_idx];
+					for (int other_idx : org.DominatedSet)
+					{
+						auto& other_org = Individuals[other_idx];
+						other_org.DominationCounter--;
+						if (other_org.DominationCounter == 0)
+						{
+							other_org.DominationRank = i + 1;
+							next_front.insert(other_idx);
+						}
+					}
+				}
+
+				i++;
+				current_front = move(next_front);
+			}
+
+			fronts[tag] = move(fronts_vec);
 		}
 
-		// Update the non-dominated registry
-		auto registry_entry = NonDominatedRegistry.find(tag);
-		if (registry_entry == NonDominatedRegistry.end())
+		return fronts;
+	};
+	// Tournament selection (k = 2)
+	auto tournament_select = [&](const vector<int>& Parents)
+	{
+		int p0 = Parents[uniform_int_distribution<int>(0, Parents.size() - 1)(RNG)];
+		int p1 = Parents[uniform_int_distribution<int>(0, Parents.size() - 1)(RNG)];
+		while (p0 == p1)
+			p1 = Parents[uniform_int_distribution<int>(0, Parents.size() - 1)(RNG)];
+
+		// Keep the one with the lower rank (less dominated)
+		int r0 = Individuals[p0].DominationRank;
+		int r1 = Individuals[p1].DominationRank;
+		if (r0 < r1)
+			return p0;
+		else
 		{
-			// There's no record of this species, so add it
-			vector<Individual> best_individuals;
+			if (r1 < r0)
+				return p1;
+			else
+				return (uniform_int_distribution<int>(0, 1)(RNG) ? p0 : p1);
+		}
+	};
+
+	// Reset innovations
+	for (auto &[tag, species] : SpeciesMap)
+	{
+		for (auto innovation : species->innovations)
+			delete innovation;
+		species->innovations.resize(0);
+	}
+
+	if (CurrentGeneration == 0)
+	{
+		evaluate_pop();
+		auto fronts_map = compute_domination_fronts();
+
+		// Select parents based on the non dominated fronts
+		// Not using the crowding distance because novelty already cares about diversity
+		Children.resize(0);
+
+		// TODO : For now, generating the same number of children as individuals on the species
+		//   this should be changed, the species size should change based on fitness
+		for (auto & [tag, species] : SpeciesMap)
+		{
+			if (species->IndividualsIDs.size() == 1)
+			{
+				// Only one individual on the species, so just clone it
+				// TODO : Find if there's some better way to handle this
+				const auto& individual = Individuals[species->IndividualsIDs[0]];
+				Children.emplace_back(individual, Individual::Make::Clone);
+				continue;
+			}
+
+			vector<int> parents;
+			parents.reserve(species->IndividualsIDs.size());
+
+			auto& front = fronts_map[tag];
+			int i = 0;
+			while (parents.size() < species->IndividualsIDs.size())
+			{
+				for (int idx : front[i])
+				{
+					if (parents.size() == species->IndividualsIDs.size())
+						break;
+
+					parents.push_back(idx);
+				}
+
+				i++;
+			}
+
+			for (int n = 0; n < species->IndividualsIDs.size(); n++)
+			{
+				int mom_idx = tournament_select(parents);
+				int dad_idx = tournament_select(parents);
+				while (mom_idx == dad_idx)
+					dad_idx = tournament_select(parents); // TODO : I think this gets stuck if you have only 2 individuals where one is dominated by the other
+
+				Children.emplace_back(Individuals[mom_idx], Individuals[dad_idx], Children.size());
+			}
+		}
+
+		// Mutate children
+		for (auto& child : Children)
+			if (uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
+				child.Mutate(this, CurrentGeneration);
+	}
+	else
+	{
+		vector<Individual> old_pop = move(Individuals);
+		size_t children_size = Children.size();
+		Individuals = move(Children);
+
+		// Generate species map for the children
+		BuildSpeciesMap();
+
+		// Evaluate
+		evaluate_pop();
+
+		for (auto &[tag, species] : SpeciesMap)
+		{
+			if (species->IndividualsIDs.size() == 1)
+			{
+				// Only one individual on the species, so just clone it
+				// TODO : Find if there's some better way to handle this
+				const auto& individual = Individuals[species->IndividualsIDs[0]];
+				Children.emplace_back(individual, Individual::Make::Clone);
+				continue;
+			}
+		}
+
+		// Make a copy of the species map
+		decltype(SpeciesMap) next_pop_species_map;
+		for (auto &[tag, species] : SpeciesMap)
+		{
+			auto new_ptr = new Species;
+			new_ptr->IndividualsIDs = species->IndividualsIDs;
+			next_pop_species_map[tag] = new_ptr;
+
 			for (int idx : species->IndividualsIDs)
-			{
-				auto& org = Individuals[idx];
-				if (org.LastDominationCount == 0) // it's non dominated
-				{
-					org.AccumulatedFitness_MoveThisOutFromHere = org.LastFitness;
-					org.AccumulatedNovelty_MoveThisOutFromHere = org.LastNoveltyMetric;
-					org.AverageCount_MoveThisOutFromHere = 1;
-					best_individuals.emplace_back(org, Individual::Make::Clone);
-				}
-					
-			}
-
-			NonDominatedRegistry[tag] = move(best_individuals);
+				Individuals[idx].SpeciesPtr = new_ptr;
 		}
-		else
+
+		// Merge populations and generate a species map for both
+		for (auto& org : old_pop)
+			Individuals.push_back(move(org));
+		BuildSpeciesMap();
+
+		// Compute fronts
+		auto fronts_map = compute_domination_fronts();
+
+		// TODO : For now, generating the same number of children as individuals on the species
+		//   this should be changed, the species size should change based on fitness
+		for (auto &[tag, species] : next_pop_species_map)
 		{
-			// First of all, update the registry if one individual of the population is also on the registry (as a clone)
-			// The update consists on averaging fitness and novelty
-			vector<bool> is_duplicated(species->IndividualsIDs.size());
-			fill(is_duplicated.begin(), is_duplicated.end(), false);
+			if (species->IndividualsIDs.size() == 1)
+				continue;
 
-			for (auto [idx,org_idx] : enumerate(species->IndividualsIDs))
+			auto& front = fronts_map[tag];
+
+			vector<int> parents;
+			parents.reserve(species->IndividualsIDs.size());
+
+			int i = 0;
+			while (parents.size() < species->IndividualsIDs.size())
 			{
-				const auto& org = Individuals[org_idx];
-
-				if (org.LastDominationCount > 0)
-					continue;
-
-				for (auto& registry_org : registry_entry->second)
+				for (int idx : front[i])
 				{
-					if (org.GetOriginalID() == org.GetOriginalID())
-					{
-						// This individual is already on the registry, so just update the entry if it's not dominated on this population
-						// If the individual is inside the registry that means it's not dominated by anyone on the registry
-						//  and because it's also not dominated by anyone on the population, it's sure it'll be added to the registry
-						// But it already exists, so just update the values
-						is_duplicated[idx] = true;
+					if (parents.size() == species->IndividualsIDs.size())
+						break;
 
-						registry_org.AccumulatedFitness_MoveThisOutFromHere += org.LastFitness;
-						registry_org.AccumulatedNovelty_MoveThisOutFromHere += org.LastNoveltyMetric;
-						registry_org.AverageCount_MoveThisOutFromHere++;
-
-						registry_org.LastFitness = registry_org.AccumulatedFitness_MoveThisOutFromHere / registry_org.AverageCount_MoveThisOutFromHere;
-						registry_org.LastNoveltyMetric = registry_org.AccumulatedNovelty_MoveThisOutFromHere / registry_org.AverageCount_MoveThisOutFromHere;
-					}
-				}
-			}
-
-			// Update the non-dominated registry
-			vector<Individual> best_individuals;
-			vector<bool> is_dominated(registry_entry->second.size());
-			fill(is_dominated.begin(), is_dominated.end(), false);
-
-			for (auto [vector_idx,idx] : enumerate(species->IndividualsIDs))
-			{
-				if (is_duplicated[vector_idx])
-					continue; // Skip individuals that are already on the registry
-
-				// Check on the registry to know if this is dominated
-				const auto& org = Individuals[idx];
-
-				// First of all, make sure it's not dominated inside the population
-				if (org.LastDominationCount > 0)
-					continue;
-
-				// Then check domination inside the registry
-				bool dominated_by_registry = false;
-				for (auto [idx,registry_org] : enumerate(registry_entry->second))
-				{
-					if (dominates(org, registry_org))
-					{
-						// Flag that the individual on the registry is dominated
-						is_dominated[idx] = true;
-					}
-					else
-					{
-						if (dominates(registry_org, org))
-						{
-							// Dominated by someone on the registry, so it won't be added to the vector
-							dominated_by_registry = true;
-							break;
-						}
-					}
+					parents.push_back(idx);
 				}
 
-				// If it wasn't dominated by anyone on the registry, add it
-				if (!dominated_by_registry)
-					best_individuals.emplace_back(org, Individual::Make::Clone);
-
+				i++;
 			}
 
-			// Instead of removing from the vector, move the non dominated values
-			for (auto [idx, org] : enumerate(registry_entry->second))
+			for (int n = 0; n < species->IndividualsIDs.size(); n++)
 			{
-				if (!is_dominated[idx])
-				{
-					// The individual of the registry isn't dominated by anyone of the new individuals
-					// But because you may have had a duplicated one, and updated the values, this might be dominated inside the registry
-					// Need to make sure it's not before adding it
-					bool dominated_by_registry = false;
-					for (auto [idx, other_org] : enumerate(registry_entry->second))
-					{
-						if (dominates(other_org, org))
-						{
-							// Dominated by someone on the registry, so it won't be added to the vector
-							dominated_by_registry = true;
-							break;
-						}
-					}
+				int mom_idx = tournament_select(parents);
+				int dad_idx = tournament_select(parents);
+				while (mom_idx == dad_idx)
+					dad_idx = tournament_select(parents); // TODO : I think this gets stuck if you have only 2 individuals where one is dominated by the other
 
-					if(!dominated_by_registry)
-						best_individuals.push_back(move(org));
-				}
+				Children.emplace_back(Individuals[mom_idx], Individuals[dad_idx], Children.size());
 			}
-
-			// Finally store the new best individuals vector
-			assert(best_individuals.size() >= 1);
-			registry_entry->second = move(best_individuals);
 		}
 
-		// Now use the domination weights to randomly select parents and cross them
-		discrete_distribution<int> domination_dist(DominationBuffer.begin(), DominationBuffer.end());
+		// Mutate children
+		for (auto& child : Children)
+			if (uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
+				child.Mutate(this, CurrentGeneration);
 
-		assert(species->IndividualsIDs.size() > 0);
-		if (species->IndividualsIDs.size() == 1)
+		// Restore species
+		for (auto &[_, s] : SpeciesMap)
 		{
-			// Only one individual on the species, so just clone it
-			// TODO : Find if there's some better way to handle this
-			//ChildrenBuffer.push_back(Individuals[species->IndividualsIDs[0]]);
-
-			// Using the special clone ctor
-			// The last parameter is ignored, but using an enum value as a way to remember
-			const auto& individual = Individuals[species->IndividualsIDs[0]];
-			ChildrenBuffer.emplace_back(individual, Individual::Make::Clone);
+			for (auto innovation : s->innovations)
+				delete innovation;
+			delete s;
 		}
-		else
-		{
-			registry_entry = NonDominatedRegistry.find(tag);
+		SpeciesMap.clear();
+		SpeciesMap = next_pop_species_map;
 
-			for (int i = 0; i < species->IndividualsIDs.size(); i++)
-			{
-				// With some probability p clone an individual from the best individuals registry instead of mating
-				if (uniform_real_distribution<float>()(RNG) < Settings::RegistryCloneProb)
-				{
-					int idx = uniform_int_distribution<int>(0, registry_entry->second.size() - 1)(RNG);
-					ChildrenBuffer.emplace_back(registry_entry->second[idx],Individual::Make::Clone);
-				}
-				else
-				{
-					int mom_idx = domination_dist(RNG);
-					const auto & mom = Individuals[species->IndividualsIDs[mom_idx]];
+		// Remove the old pop from the individuals
+		// Children are first
+		vector<Individual> temp_vec;
+		for (int i = 0;i < children_size;i++)
+			temp_vec.push_back(move(Individuals[i]));
+		Individuals = move(temp_vec);
 
-					if (uniform_real_distribution<float>()(RNG) < Settings::RegistryParentProb)
-					{
-						int registry_idx = uniform_int_distribution<int>(0, registry_entry->second.size() - 1)(RNG);
-						const auto & dad = registry_entry->second[registry_idx];
-
-						ChildrenBuffer.emplace_back(mom, dad, ChildrenBuffer.size());
-					}
-					else
-					{
-						int dad_idx = domination_dist(RNG);
-
-						while (dad_idx == mom_idx) // Don't want someone to mate with itself
-							dad_idx = domination_dist(RNG);
-
-
-						const auto & dad = Individuals[species->IndividualsIDs[dad_idx]];
-
-						ChildrenBuffer.emplace_back(mom, dad, ChildrenBuffer.size());
-					}
-				}
-			}
-		}
-
+		ComputeNovelty();
 	}
 
 	EpochCallback(CurrentGeneration);
-
-	// Using just the simple replacement for now
-	Individuals = move(ChildrenBuffer);
-
-	BuildSpeciesMap();
-
-	// Mutate children
-	for (auto& child : Individuals)
-		if (uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
-			child.Mutate(this, CurrentGeneration);
-
-	// After mutation, the species might have changed, so this needs to be rebuilt
-	// TODO : Find a way to avoid the double call to this
-	BuildSpeciesMap();
-
 	CurrentGeneration++;
+
 	return;
-
-#if 0
-
-	// Make replacement
-	assert(ChildrenBuffer.size() == Individuals.size());
-
-	// Make a temporal copy of the individuals
-	// TODO : Find a way to avoid all this! I hate it!
-	vector<Individual> parents = move(Individuals);
-	decltype(SpeciesMap) parents_species;
-	for (auto [tag, species] : SpeciesMap)
-	{
-		auto ptr = new Species;
-		ptr->IndividualsIDs = species->IndividualsIDs;
-		parents_species[tag] = ptr;
-	}
-
-	// Make a preliminary replacement
-	Individuals = move(ChildrenBuffer);
-
-	// Do a call first so that the childs know on what species they are 
-	// TODO : I worked really hard to avoid memory allocs, and this part does a BUNCH of them
-	//	try to find a way to avoid them
-	BuildSpeciesMap();
-
-    // Mutate children
-    for (auto& child : Individuals)
-        if(uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
-            child.Mutate(this, CurrentGeneration);
-
-	// After mutation, the species might have changed, so this needs to be rebuilt
-	// TODO : Find a way to avoid the double call to this
-	BuildSpeciesMap();
-
-	// Now compute fitness for the childs
-	Interface->ComputeFitness(this, WorldPtr);
-	compute_novelty();
-
-	// Compute domination count for the childs
-	for (auto & [_, species] : SpeciesMap)
-	{
-		for (int this_idx : species->IndividualsIDs)
-		{
-			auto& org = Individuals[this_idx];
-
-			// Check if this individual is on the non-dominated front
-			org.LastDominationCount = 0;
-			for (int other_idx : species->IndividualsIDs)
-			{
-				if (this_idx == other_idx)
-					continue;
-
-				const auto& other_org = Individuals[other_idx];
-
-				if ((other_org.LastNoveltyMetric > org.LastNoveltyMetric && other_org.LastFitness > org.LastFitness) ||
-					(other_org.LastFitness == org.LastFitness && other_org.LastNoveltyMetric > org.LastNoveltyMetric) ||
-					(other_org.LastNoveltyMetric == org.LastNoveltyMetric && other_org.LastFitness > org.LastFitness))
-				{
-					org.LastDominationCount++;
-				}
-			}
-		}
-	}
-
-	// Now select final population by mixing from parents and childrens
-	// TODO : Try different options
-	// TODO : Refactor this so that's not this ugly
-	// First find matching species and take the best individuals there
-	vector<Individual> final_population;
-	for (auto & [tag, species] : SpeciesMap)
-	{
-		if (final_population.size() == Individuals.size())
-			break;
-
-		auto iter = parents_species.find(tag);
-		if (iter != parents_species.end())
-		{
-			// Matching species, so select based on domination count
-			vector<pair<bool, int>> individuals_idxs(iter->second->IndividualsIDs.size()+species->IndividualsIDs.size()); // indexes of the individuals, and a bool that says if they are a child
-			vector<float> selection_weights(iter->second->IndividualsIDs.size() + species->IndividualsIDs.size());
-
-			for (const auto& [idx, parent_idx] : enumerate(iter->second->IndividualsIDs))
-			{
-				individuals_idxs[idx] = { false, parent_idx };
-				selection_weights[idx] = 1.0f / (parents[parent_idx].LastDominationCount + 1.0f);
-			}
-				
-			for (const auto&[idx, child_idx] : enumerate(species->IndividualsIDs))
-			{
-				individuals_idxs[iter->second->IndividualsIDs.size() + idx] = { true, child_idx };
-				selection_weights[iter->second->IndividualsIDs.size() + idx] = 1.0f / (Individuals[child_idx].LastDominationCount + 1.0f);
-			}
-			
-			// Make selection
-			for (int i = 0; i < max(species->IndividualsIDs.size(), iter->second->IndividualsIDs.size()); i++)
-			{
-				// Randomly select an individual
-				Individual * ptr;
-				do
-				{
-					auto [is_child, selected_idx] = individuals_idxs[discrete_distribution<int>(selection_weights.begin(), selection_weights.end())(RNG)];
-					
-					if (is_child)
-						ptr = &Individuals[selected_idx];
-					else
-						ptr = &parents[selected_idx];
-				} while (ptr->GetGenome() == nullptr); // I could select an already moved individual, that is invalid
-
-				final_population.push_back(move(*ptr));
-
-				if (final_population.size() == Individuals.size())
-					break;
-			}
-		}
-	}
-
-	// If the population is still under the pop size, randomly select
-	while (final_population.size() < Individuals.size())
-	{
-		if (uniform_int_distribution<int>()(RNG))
-		{
-			Individual * ptr;
-			do
-			{
-				ptr = &Individuals[uniform_int_distribution<int>(0, Individuals.size())(RNG)];
-			} while (ptr->GetGenome() == nullptr); // I could select an already moved individual, that is invalid
-
-			final_population.push_back(move(*ptr));
-		}
-		else
-		{
-			Individual * ptr;
-			do
-			{
-				ptr = &parents[uniform_int_distribution<int>(0, parents.size())(RNG)];
-			} while (ptr->GetGenome() == nullptr); // I could select an already moved individual, that is invalid
-
-			final_population.push_back(move(*ptr));
-		}
-			
-	}
-
-	// After the final population vector is done, make the swap
-	Individuals = move(final_population);
-
-	// Rebuild species map one last time
-	BuildSpeciesMap();
-
-	// Delete temporal species copy
-	for (auto [_, ptr] : parents_species)
-		delete ptr;
-
-	// Finally increase generation number
-	CurrentGeneration++;
-#endif
 }
 
 void Population::ComputeNovelty()
@@ -519,7 +387,7 @@ void Population::ComputeNovelty()
 				if (dist < v)
 				{
 					// Move all the values to the right
-					for (int i = Settings::NoveltyNearestK - 1; i < kidx; i--)
+					for (int i = Settings::NoveltyNearestK - 1; i > kidx; i--)
 						NearestKBuffer[i] = NearestKBuffer[i - 1];
 
 					if (kidx > k_buffer_top)
@@ -530,7 +398,7 @@ void Population::ComputeNovelty()
 			}
 		}
 
-		for (auto &[tag, record] : MorphologyRegistry)
+		for (auto & tag : MorphologyRegistry)
 		{
 			// This is the morphology distance
 			float dist = org.GetMorphologyTag().Distance(tag);
@@ -541,7 +409,7 @@ void Population::ComputeNovelty()
 				if (dist < v)
 				{
 					// Move all the values to the right
-					for (int i = Settings::NoveltyNearestK - 1; i < kidx; i--)
+					for (int i = Settings::NoveltyNearestK - 1; i > kidx; i--)
 						NearestKBuffer[i] = NearestKBuffer[i - 1];
 
 					if (kidx > k_buffer_top)
@@ -557,41 +425,14 @@ void Population::ComputeNovelty()
 		float novelty = accumulate(NearestKBuffer.begin(), NearestKBuffer.begin() + k_buffer_top + 1, 0) / float(NearestKBuffer.size());
 		org.LastNoveltyMetric = novelty;
 
-		// If the novelty is above the threshold, add it to the registry
+		// If the novelty is above the threshold, add it to the registry if it doesn't exist already
 		if (novelty > Settings::NoveltyThreshold)
 		{
-			// First check if it already exists
 			const auto& tag = org.GetMorphologyTag();
-			auto record = MorphologyRegistry.find(tag);
-
-			if (record == MorphologyRegistry.end())
-			{
-				MorphologyRecord mr;
-				mr.AverageFitness = org.LastFitness;
-				mr.GenerationNumber = CurrentGeneration;
-				mr.RepresentativeFitness = org.LastFitness;
-
-				MorphologyRegistry[tag] = mr;
-			}
-			else
-			{
-				// The tag is already on the registry
-				// Check if this individual is better than the representative
-				// If it is, replace the individual and the tag
-				if (org.LastFitness > record->second.RepresentativeFitness)
-				{
-					// This two tags compare equal and have the same hash
-					//  but may have different parameter's values
-					// Doing this to always keep the parameters of the representative
-					auto new_iter = MorphologyRegistry.extract(tag);
-					new_iter.key() = tag;
-					MorphologyRegistry.insert(move(new_iter));
-
-					auto & record = MorphologyRegistry[tag];
-					record.AverageFitness = 0.5f*(record.AverageFitness + org.LastFitness);
-					record.RepresentativeFitness = org.LastFitness;
-				}
-			}
+			
+			// Using a vector instead of a set because iterations are much more common than insertions
+			if (find(MorphologyRegistry.begin(), MorphologyRegistry.end(), tag) == MorphologyRegistry.end())
+				MorphologyRegistry.push_back(tag);
 		}
 	}
 }
@@ -609,11 +450,12 @@ void Population::BuildFinalPopulation()
 
 Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int Replications)
 {
+	/*
 	// Save the current population
 	vector<Individual> current_pop = move(Individuals);
 
 	// Now build the population from the registry
-	BuildFinalPopulation();
+	BuildFinalPopulation();*/
 
 	ProgressMetrics metrics;
 
@@ -626,15 +468,15 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int 
 
 	// Do a few simulations to compute fitness
 	for (auto& org : Individuals)
-		org.AccumulatedFitness_MoveThisOutFromHere = org.AverageCount_MoveThisOutFromHere = 0;
+		org.AccumulatedFitness = org.Age = 0;
 	for (int i = 0; i < Replications; i++)
 	{
 		Interface->ComputeFitness(this, World);
 
 		for (auto& org : Individuals)
 		{
-			org.AccumulatedFitness_MoveThisOutFromHere += org.LastFitness;
-			org.AverageCount_MoveThisOutFromHere++;
+			org.AccumulatedFitness += org.LastFitness;
+			org.Age++;
 		}
 	}
 
@@ -645,8 +487,8 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int 
 		// First compute average fitness of the species when using the network
 		float avg_f = 0;
 		for (int org_id : species->IndividualsIDs)
-			avg_f += Individuals[org_id].AccumulatedFitness_MoveThisOutFromHere
-			/ Individuals[org_id].AverageCount_MoveThisOutFromHere;
+			avg_f += Individuals[org_id].AccumulatedFitness
+			/ Individuals[org_id].Age;
 		avg_f /= species->IndividualsIDs.size();
 
 		// Override the use of the network for decision-making
@@ -680,7 +522,7 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int 
 	// TODO : Compute standard deviations
 
 	// After all is done, restore the current population
-	Individuals = move(current_pop);
+	//Individuals = move(current_pop);
 
 	return metrics;
 }

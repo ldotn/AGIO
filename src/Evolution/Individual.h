@@ -3,6 +3,8 @@
 #include <random>
 #include "Globals.h"
 #include <atomic>
+#include <unordered_set>
+#include <memory>
 
 // Forward declaration
 namespace NEAT
@@ -89,12 +91,37 @@ namespace agio
 		// Number of individuals that dominates this one from the last evaluation
 		float LastDominationCount;
 
+		// TODO : Refactor this, it feels dirty
+		float AccumulatedFitness;
+		float AccumulatedNovelty;
+		float Age;
 
-		// TODO : Refactor! This shouldn't be here!!
-		// This is only used by the population registry of non dominated individuals and should ONLY exist there
-		float AccumulatedFitness_MoveThisOutFromHere;
-		float AccumulatedNovelty_MoveThisOutFromHere;
-		float AverageCount_MoveThisOutFromHere;
+
+
+
+
+
+
+
+
+
+
+		// TODO : Move this out of here!
+		std::unordered_set<int> DominatedSet;
+		int DominationCounter;
+		int DominationRank;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -167,8 +194,10 @@ namespace agio
 			std::vector<uint64_t> SensorsBitfield;
 			std::unordered_map<int, Parameter> Parameters;
 			
+			std::shared_ptr<NEAT::Genome> Genes;
+
 			// The innovation numbers of the genes
-			std::vector<double> GenesIDs;
+			//std::vector<double> GenesIDs;
 
 			// Checks that the actions and sensors are the same, 
 			//  and that the parameters have the same historical marker

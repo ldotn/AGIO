@@ -31,9 +31,9 @@ Individual::Individual() : RNG(chrono::high_resolution_clock::now().time_since_e
     LastDominationCount = -1;
 
 
-    AccumulatedFitness_MoveThisOutFromHere = 0;
-    AccumulatedNovelty_MoveThisOutFromHere = 0;
-    AverageCount_MoveThisOutFromHere = 0;
+    AccumulatedFitness = 0;
+    AccumulatedNovelty = 0;
+    Age = 0;
 }
 
 void Individual::Spawn(int ID)
@@ -142,9 +142,10 @@ void Individual::Spawn(int ID)
     Morphology.Parameters = Parameters;
     Morphology.NumberOfActions = Actions.size();
     Morphology.NumberOfSensors = Sensors.size();
-    Morphology.GenesIDs.resize(Genome->genes.size());
+	Morphology.Genes.reset(Genome->duplicate(Genome->genome_id));
+    /*Morphology.GenesIDs.resize(Genome->genes.size());
     for (auto[gene_id, gene] : zip(Morphology.GenesIDs, Genome->genes))
-        gene_id = gene->innovation_num;
+        gene_id = gene->innovation_num;*/
 }
 
 void Individual::DecideAndExecute(void *World, const class Population *PopulationPtr)
@@ -209,20 +210,26 @@ Individual::Individual(const Individual &Parent, Individual::Make) : Individual(
     Components = Parent.Components;
     Parameters = Parent.Parameters;
     Morphology = Parent.Morphology;
+	
     State = Interface->DuplicateState(Parent.State);
 
     Genome = Parent.Genome->duplicate(GlobalID);
     Brain = Genome->genesis(Genome->genome_id);
 
-    AccumulatedFitness_MoveThisOutFromHere = Parent.AccumulatedFitness_MoveThisOutFromHere;
-    AccumulatedNovelty_MoveThisOutFromHere = Parent.AccumulatedNovelty_MoveThisOutFromHere;
-    AverageCount_MoveThisOutFromHere = Parent.AverageCount_MoveThisOutFromHere;
+    AccumulatedFitness = Parent.AccumulatedFitness;
+    AccumulatedNovelty = Parent.AccumulatedNovelty;
+    Age = Parent.Age;
+
+	SpeciesPtr = Parent.SpeciesPtr;
 };
 
 Individual::Individual(const Individual &Mom, const Individual &Dad, int ChildID) : Individual()
 {
+	assert(Mom.SpeciesPtr == Dad.SpeciesPtr);
+	SpeciesPtr = Mom.SpeciesPtr;
+
     // TODO : Check if this is correct
-    // Because now we can have all individuals mixed with the new ones, let's use the global id as child id
+    // Because now we can have old individuals mixed with the new ones, let's use the global id as child id
     ChildID = GlobalID;
 
     // TODO : Use the other mating functions, and test which is better
@@ -272,9 +279,10 @@ Individual::Individual(const Individual &Mom, const Individual &Dad, int ChildID
     Morphology.ActionsBitfield = Mom.Morphology.ActionsBitfield;
     Morphology.SensorsBitfield = Mom.Morphology.SensorsBitfield;
     Morphology.Parameters = Parameters;
-    Morphology.GenesIDs.resize(Genome->genes.size());
+	Morphology.Genes.reset(Genome->duplicate(Genome->genome_id));
+    /*Morphology.GenesIDs.resize(Genome->genes.size());
     for (auto[gene_id, gene] : zip(Morphology.GenesIDs, Genome->genes))
-        gene_id = gene->innovation_num;
+        gene_id = gene->innovation_num;*/
 
     // Finally construct a new state
     State = Interface->MakeState(this);
@@ -324,32 +332,30 @@ bool Individual::MorphologyTag::operator==(const Individual::MorphologyTag &Othe
 
 float Individual::MorphologyTag::Distance(const Individual::MorphologyTag &Other) const
 {
-    // The distance is computed as the number of different action and sensors and the total parameter dist
     float dist = 0;
 
+	// Find number of different actions
     for (auto[bf0, bf1] : zip(ActionsBitfield, Other.ActionsBitfield))
         dist += std::bitset<sizeof(bf0)>(bf0 ^ bf1).count();
 
+	// Find number of different sensors
     for (auto[bf0, bf1] : zip(SensorsBitfield, Other.SensorsBitfield))
         dist += std::bitset<sizeof(bf0)>(bf0 ^ bf1).count();
 
-    // TODO : Find a better way to combine param and actions/sensors distance
-    for (const auto &[idx, p0] : Parameters)
+	// Find mismatching parameters
+	for (const auto &[idx, p0] : Parameters)
     {
         auto param_iter = Other.Parameters.find(idx);
 
         // Check that the parameter exists
         if (param_iter != Other.Parameters.end())
         {
-            // Normalize when computing distance by parameter range
-            /*const auto& param_def = Interface->GetParameterDefRegistry()[p0.ID];
-            dist += fabsf(p0.Value - param_iter->second.Value) / (param_def.Max - param_def.Min);*/
-            // Another option : Add one if the historical markers are different
+			// Add one if the historical markers are different
             if (p0.HistoricalMarker != param_iter->second.HistoricalMarker)
                 dist += 1;
-        } else
-            // Mismatching parameter, take it into account
-            // TODO : Find a better value than just adding one?
+        } 
+		else
+            // Mismatching parameter
             dist += 1;
     }
 
@@ -358,17 +364,18 @@ float Individual::MorphologyTag::Distance(const Individual::MorphologyTag &Other
     {
         auto param_iter = Parameters.find(idx);
         if (param_iter == Parameters.end())
-            dist += 1; // TODO : Idem as the last case
+            dist += 1;
     }
 
-    // Finally check number of mismatching genes on the genome of the control network
-    dist += abs((int) GenesIDs.size() - (int) Other.GenesIDs.size());
+	// TODO : TO USE THIS YOU MUST LOAD THE NEAT PARAMETERS !!
+	dist += Genes->compatibility(Other.Genes.get());
 
-    for (const auto &gene : GenesIDs)
+    // Finally check number of mismatching genes on the genome of the control network
+    /*for (const auto &gene : GenesIDs)
     {
         bool found = false;
 
-        for (const auto &other_gene : GenesIDs)
+        for (const auto &other_gene : Other.GenesIDs)
         {
             if (gene == other_gene)
             {
@@ -380,6 +387,23 @@ float Individual::MorphologyTag::Distance(const Individual::MorphologyTag &Other
         if (!found)
             dist += 1;
     }
+
+	for (const auto &gene : Other.GenesIDs)
+	{
+		bool found = false;
+
+		for (const auto &other_gene : GenesIDs)
+		{
+			if (gene == other_gene)
+			{
+				found = true;
+				break;
+			}
+		}
+
+		if (!found)
+			dist += 1;
+	}*/
 
 
     return dist;
@@ -515,9 +539,10 @@ void Individual::Mutate(Population *population, int generation)
                 Morphology.Parameters = Parameters;
                 Morphology.NumberOfActions = Actions.size();
                 Morphology.NumberOfSensors = Sensors.size();
-                Morphology.GenesIDs.resize(Genome->genes.size());
+				Morphology.Genes.reset(Genome->duplicate(Genome->genome_id));
+                /*Morphology.GenesIDs.resize(Genome->genes.size());
                 for (auto[gene_id, gene] : zip(Morphology.GenesIDs, Genome->genes))
-                    gene_id = gene->innovation_num;
+                    gene_id = gene->innovation_num;*/
             }
         }
     } else
@@ -587,7 +612,7 @@ void Individual::Mutate(Population *population, int generation)
                     auto &parameterDef = Interface->GetParameterDefRegistry()[idx];
                     uniform_real_distribution<float> distribution(parameterDef.Min, parameterDef.Max);
                     param.Value = distribution(RNG);
-                    param.HistoricalMarker = Parameter::CurrentMarkerID.fetch_add(1);// Create new historical marker
+                    param.HistoricalMarker = Parameter::CurrentMarkerID.fetch_add(1);// Create a new historical marker
 
                     any_mutation = true;
                 } else
@@ -602,8 +627,15 @@ void Individual::Mutate(Population *population, int generation)
     }
 
     // If it was a clone and it mutated, it's no longer a clone
-    if (any_mutation && GlobalID != OriginalID)
-        OriginalID = GlobalID;
+	if (any_mutation && GlobalID != OriginalID)
+	{
+		OriginalID = GlobalID;
+		// Also reset the accumulators, as they are no longer valid
+		AccumulatedFitness = 0;
+		AccumulatedNovelty = 0;
+		Age = 0;
+	}
+        
 }
 
 Individual::Individual(Individual &&other) noexcept
@@ -621,14 +653,15 @@ Individual::Individual(Individual &&other) noexcept
     ActivationsBuffer = move(other.ActivationsBuffer);
     RNG = other.RNG;
     Morphology = move(other.Morphology);
+
     LastDominationCount = other.LastDominationCount;
     LastFitness = other.LastFitness;
     LastNoveltyMetric = other.LastNoveltyMetric;
 
 
-    AccumulatedFitness_MoveThisOutFromHere = other.AccumulatedFitness_MoveThisOutFromHere;
-    AccumulatedNovelty_MoveThisOutFromHere = other.AccumulatedNovelty_MoveThisOutFromHere;
-    AverageCount_MoveThisOutFromHere = other.AverageCount_MoveThisOutFromHere;
+    AccumulatedFitness = other.AccumulatedFitness;
+    AccumulatedNovelty = other.AccumulatedNovelty;
+    Age = other.Age;
 
 
     // Careful with this, you don't exactly know if it's still valid

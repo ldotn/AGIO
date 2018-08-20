@@ -22,7 +22,7 @@ const float StartingLife = 300;
 const int FoodCellCount = WorldSizeX * WorldSizeY*0.1;
 const int MaxSimulationSteps = 200;
 const int PopulationSize = 100;
-const int GenerationsCount = 2000;
+const int GenerationsCount = 10000;
 const float LifeLostPerTurn = 5;
 
 minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
@@ -352,8 +352,38 @@ public:
 			}
 		);
 
+
+
+
+		// DEBUG!
+		/*ComponentRegistry.push_back
+		({
+			1,1, // Can only have one body 
+			{
+				// There's only one body to choose
+				{
+					{
+						(int)ActionsIDs::MoveForward,
+						(int)ActionsIDs::MoveBackwards,
+						(int)ActionsIDs::MoveLeft,
+						(int)ActionsIDs::MoveRight,
+						(int)ActionsIDs::EatFood
+					},
+					{ 
+						(int)SensorsIDs::CurrentLife,
+						(int)SensorsIDs::NearestFoodAngle 
+					}
+				}
+			}
+		});
+		return;*/
+
+
+
+
+
 		// Fill parameters
-		ParameterDefRegistry.resize((int)ParametersIDs::NumberOfParameters);
+		/*ParameterDefRegistry.resize((int)ParametersIDs::NumberOfParameters);
 
 		ParameterDefRegistry[(int)ParametersIDs::JumpDistance] = ParameterDefinition
 		(
@@ -361,7 +391,7 @@ public:
 			2, // Min bound
 			5, // max bound
 			(int)ParametersIDs::JumpDistance
-		);
+		);*/
 
 		// Fill components
 		ComponentRegistry.push_back
@@ -396,7 +426,7 @@ public:
 				}
 			}
 		});
-		ComponentRegistry.push_back
+		/*ComponentRegistry.push_back
 		({
 			0,2, // Jumping is optional
 			{
@@ -434,7 +464,7 @@ public:
 					}
 				}
 			}
-		});
+		});*/
 	}
 
 	virtual void * MakeState(const class Individual *) override
@@ -511,8 +541,12 @@ public:
 	}
 };
 
+#include "neat.h"
 int main()
 {
+	// TODO : REMOVE THIS! I put it here just in the off case that the reason why the population is not improving is because some parameter wasn't loaded
+	NEAT::load_neat_params("../cfg/neat_test_config.txt");
+
 	// Create base interface
 	Interface = unique_ptr<PublicInterface>(new TestInterface);
 	Interface->Init();
@@ -537,6 +571,8 @@ int main()
 	vector<float> novelty_vec_registry;
 	vector<float> avg_fitness;
 	vector<float> avg_novelty;
+	vector<float> avg_fitness_difference;
+	vector<float> avg_novelty_registry;
 	vector<float> species_count;
 	// TODO : Make the plot work in debug
 #ifndef _DEBUG
@@ -550,7 +586,7 @@ int main()
 			cout << "Generation : " << gen << endl;
 
 			// Every some generations graph the fitness & novelty of the individuals of the registry
-			if (gen % 20 == 0)
+			if (gen % 10 == 0)
 			{
 				for (auto [idx, org] : enumerate(pop.GetIndividuals()))
 				{
@@ -583,9 +619,12 @@ int main()
 #ifdef _DEBUG
 				cout << "    Avg Fitness (registry) : " << avg_f << " , Avg Novelty (registry) : " << avg_n << endl;
 #else
-				auto metrics = pop.ComputeProgressMetrics(&world, 10);
-				avg_f = metrics.AverageFitnessDifference;
-				avg_n = metrics.AverageNovelty;
+				/*auto metrics = pop.ComputeProgressMetrics(&world, 10);
+				avg_fitness_difference.push_back(metrics.AverageFitnessDifference);
+				avg_novelty_registry.push_back(metrics.AverageNovelty);
+
+				avg_f = accumulate(fitness_vec.begin(), fitness_vec.end(), 0) / fitness_vec.size();
+				avg_n = accumulate(novelty_vec.begin(), novelty_vec.end(), 0) / novelty_vec.size();
 
 				avg_fitness.push_back(avg_f);
 				avg_novelty.push_back(avg_n);
@@ -609,10 +648,39 @@ int main()
 				plt::plot(species_count, "k");
 
 				plt::subplot(7, 1, 6);
-				plt::hist(fitness_vec_registry);
+				plt::plot(avg_fitness_difference, "r");
+				//plt::hist(fitness_vec_registry);
 
 				plt::subplot(7, 1, 7);
-				plt::hist(novelty_vec_registry);
+				plt::plot(avg_novelty_registry, "g");
+				//plt::hist(novelty_vec_registry);*/
+
+				avg_f = accumulate(fitness_vec.begin(), fitness_vec.end(), 0) / fitness_vec.size();
+				avg_n = accumulate(novelty_vec.begin(), novelty_vec.end(), 0) / novelty_vec.size();
+
+				auto metrics = pop.ComputeProgressMetrics(&world, 10);
+				avg_fitness_difference.push_back(metrics.AverageFitnessDifference);
+				avg_novelty_registry.push_back(metrics.AverageNovelty);
+
+				avg_fitness.push_back(avg_f);
+				avg_novelty.push_back(avg_n);
+
+				plt::clf();
+
+				plt::subplot(5, 1, 1);
+				plt::loglog(fitness_vec, novelty_vec, "x");
+
+				plt::subplot(5, 1, 2);
+				plt::plot(avg_fitness, "r");
+
+				plt::subplot(5, 1, 3);
+				plt::plot(avg_novelty, "g");
+
+				plt::subplot(5, 1, 4);
+				plt::plot(avg_fitness_difference, "r");
+
+				plt::subplot(5, 1, 5);
+				plt::plot(avg_novelty_registry, "g");
 
 				plt::pause(0.01);
 #endif
