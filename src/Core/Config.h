@@ -22,9 +22,11 @@ namespace agio
 		// Probability of selecting an individual from the registry as parent instead of one of the current population
 		inline static float RegistryParentProb = 0.25f;
 
-        // Probability of calling Mutate() on a child
+
         // TODO : Docs
-		inline static float ChildMutationProb = 1.0f;// 0.25f;
+        inline static float TournamentSelectionProbability = 0.75f;
+        // Probability of calling Mutate() on a child
+		inline static float ChildMutationProb = 0.25f;
         inline static float ComponentMutationProb = 0.01f;
 
         // ComponentAddProbability + ComponentRemoveProbability + ComponentChangeProbability must sum 1

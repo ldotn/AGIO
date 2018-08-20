@@ -96,11 +96,13 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 			}
 		}
 	};
+
 	auto dominates = [](const Individual& A, const Individual& B)
 	{
 		return (A.LastNoveltyMetric >= B.LastNoveltyMetric && A.LastFitness >= B.LastFitness) &&
 			(A.LastNoveltyMetric > B.LastNoveltyMetric || A.LastFitness > B.LastFitness);
 	};
+
 	auto compute_domination_fronts = [&]()
 	{
 		unordered_map<Individual::MorphologyTag, vector<unordered_set<int>>> fronts;
@@ -136,7 +138,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 			}
 
 			int i = 0;
-			while (current_front.size() > 0)
+			while (!current_front.empty())
 			{
 				fronts_vec.push_back(current_front);
 				unordered_set<int> next_front = {};
@@ -165,13 +167,15 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 		return fronts;
 	};
+
 	// Tournament selection (k = 2)
 	auto tournament_select = [&](const vector<int>& Parents)
 	{
-		int p0 = Parents[uniform_int_distribution<int>(0, Parents.size() - 1)(RNG)];
-		int p1 = Parents[uniform_int_distribution<int>(0, Parents.size() - 1)(RNG)];
+        uniform_int_distribution<int> uid(0, Parents.size() - 1);
+		int p0 = Parents[uid(RNG)];
+		int p1 = Parents[uid(RNG)];
 		while (p0 == p1)
-			p1 = Parents[uniform_int_distribution<int>(0, Parents.size() - 1)(RNG)];
+			p1 = Parents[uid(RNG)];
 
 		// Keep the one with the lower rank (less dominated)
 		int r0 = Individuals[p0].DominationRank;
@@ -359,8 +363,6 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 	EpochCallback(CurrentGeneration);
 	CurrentGeneration++;
-
-	return;
 }
 
 void Population::ComputeNovelty()
@@ -457,7 +459,7 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int 
 	// Now build the population from the registry
 	BuildFinalPopulation();*/
 
-	ProgressMetrics metrics;
+	ProgressMetrics metrics{};
 
 	// Compute average novelty
 	ComputeNovelty();

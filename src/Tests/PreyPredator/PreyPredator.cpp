@@ -18,12 +18,13 @@ const int WorldSizeX = 30;
 const int WorldSizeY = 30;
 const float FoodLifeGain = 20;
 const float KillLifeGain = 30;
+const float DeathPenalty = 30;
 const float StartingLife = 300;
 const int FoodCellCount = WorldSizeX * WorldSizeY*0.1;
-const int MaxSimulationSteps = 200;
+const int MaxSimulationSteps = 50;
 const int PopulationSize = 100;
-const int GenerationsCount = 10000;
-const float LifeLostPerTurn = 5;
+const int GenerationsCount = 10;
+const float LifeLostPerTurn = 0;
 
 minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
@@ -31,6 +32,7 @@ struct OrgState
 {
 	float Life = StartingLife;
 	float2 Position;
+	float Score = 0;
 };
 
 enum class ParametersIDs
@@ -189,7 +191,8 @@ public:
 
 					if (diff.x <= 1 && diff.y <= 1)
 					{
-						state_ptr->Life += FoodLifeGain;
+						//state_ptr->Life += FoodLifeGain;
+						state_ptr->Score += FoodLifeGain;
 
 						// Remove food and create a new one
 						world_ptr->FoodPositions.erase(world_ptr->FoodPositions.begin() + idx);
@@ -231,8 +234,12 @@ public:
 
 						if (!(tag == other_tag))
 						{
-							state_ptr->Life += KillLifeGain;
-							other_state_ptr->Life = 0;
+							//state_ptr->Life += KillLifeGain;
+							state_ptr->Score += KillLifeGain;
+							//other_state_ptr->Life = 0;
+							other_state_ptr->Score -= DeathPenalty;
+							other_state_ptr->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
+							other_state_ptr->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
 							break;
 						}
 					}
@@ -483,6 +490,7 @@ public:
 		auto state_ptr = (OrgState*)State;
 
 		state_ptr->Life = StartingLife;
+		state_ptr->Score = 0;
 		state_ptr->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
 		state_ptr->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
 	}
@@ -517,22 +525,16 @@ public:
 
 		// TODO : Shuffle the evaluation order
 		LastSimulationStepCount = 0;
-		bool any_alive = true;
-		for (int i = 0; i < MaxSimulationSteps && any_alive; i++)
+		for (int i = 0; i < MaxSimulationSteps; i++)
 		{
-			any_alive = false;
 			for (auto& org : Pop->GetIndividuals())
 			{
 				auto state_ptr = (OrgState*)org.GetState();
-				if (state_ptr->Life <= 0)
-					continue;
-				any_alive = true;
 
 				org.DecideAndExecute(World, Pop);
-				state_ptr->Life -= LifeLostPerTurn;
-				
+
 				// Using as fitness the accumulated life
-				org.LastFitness += state_ptr->Life;
+				org.LastFitness = state_ptr->Score;
 				// Second option : moving average
 				//org.LastFitness = org.LastFitness*0.9f + state_ptr->Life*0.1f;
 			}

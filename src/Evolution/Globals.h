@@ -47,7 +47,7 @@ namespace agio
 			IsRequired = Required;
 			Min = MinValue;
 			Max = MaxValue;
-			FriendlyName = Name;
+			FriendlyName = move(Name);
 			UserID = ID;
 		}
 
@@ -69,8 +69,8 @@ namespace agio
 		Action() = default;
 		Action(decltype(Execute) ActionFunction, std::string Name = "")
 		{
-			Execute = ActionFunction;
-			FriendlyName = Name;
+			Execute = move(ActionFunction);
+			FriendlyName = move(Name);
 		}
 	};
 
@@ -84,8 +84,8 @@ namespace agio
 		Sensor() = default;
 		Sensor(decltype(Evaluate) SensorFunction, std::string Name = "")
 		{
-			Evaluate = SensorFunction;
-			FriendlyName = Name;
+			Evaluate = move(SensorFunction);
+			FriendlyName = move(Name);
 		}
 	};
 
