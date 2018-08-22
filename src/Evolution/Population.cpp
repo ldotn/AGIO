@@ -577,7 +577,7 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int 
 		avg_random_f /= count;
 
 		// Accumulate difference
-		metrics.AverageFitnessDifference += avg_f - avg_random_f;
+		metrics.AverageFitnessDifference += 100.0f*((avg_f - avg_random_f)/avg_random_f);
 
 		// Re-enable the network
 		for (int org_id : species->IndividualsIDs)

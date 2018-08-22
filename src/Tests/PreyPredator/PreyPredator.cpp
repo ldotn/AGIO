@@ -62,6 +62,8 @@ enum class SensorsIDs
 	NearestPartnerAngle,
 	NearestCompetidorAngle, // Angle to the nearest individual of another species
 	NearestFoodAngle,
+	NearestCompetidorDistance,
+	NearestFoodDistance,
 
 	NumberOfSensors
 };
@@ -353,6 +355,64 @@ public:
 		);
 
 
+		SensorRegistry[(int)SensorsIDs::NearestCompetidorDistance] = Sensor
+		(
+			[](void * State, void * World,const Population* Pop, const Individual * Org)
+			{
+				// TODO : Find a way to avoid the copy of the tag
+				auto tag = Org->GetMorphologyTag();
+				tag.Parameters = {};
+
+				auto world_ptr = (WorldData*)World;
+				auto state_ptr = (OrgState*)State;
+
+				float nearest_dist = numeric_limits<float>::max();
+				float2 nearest_pos;
+				for (const auto& other_org : Pop->GetIndividuals())
+				{
+					if (other_org.GetState<OrgState>()->Life <= 0)
+						continue;
+
+					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
+					if (dist < nearest_dist)
+					{
+						auto other_tag = other_org.GetMorphologyTag();
+						other_tag.Parameters = {};
+
+						if (!(tag == other_tag))
+						{
+							nearest_dist = dist;
+							nearest_pos = ((OrgState*)other_org.GetState())->Position;
+						}
+					}
+				}
+
+				return (nearest_pos - state_ptr->Position).length_sqr();
+			}
+		);
+
+		SensorRegistry[(int)SensorsIDs::NearestFoodDistance] = Sensor
+		(
+			[](void * State, void * World, const Population* Pop, const Individual * Org)
+			{
+				auto world_ptr = (WorldData*)World;
+				auto state_ptr = (OrgState*)State;
+
+				float nearest_dist = numeric_limits<float>::max();
+				float2 nearest_pos;
+				for (auto pos : world_ptr->FoodPositions)
+				{
+					float dist = (pos - state_ptr->Position).length_sqr();
+					if (dist < nearest_dist)
+					{
+						nearest_dist = dist;
+						nearest_pos = pos;
+					}
+				}
+
+				return (nearest_pos - state_ptr->Position).length_sqr();
+			}
+		);
 
 
 		// DEBUG!
@@ -401,12 +461,18 @@ public:
 				// Herbivore
 				{
 					{(int)ActionsIDs::EatFood},
-					{(int)SensorsIDs::NearestFoodAngle}
+					{
+						(int)SensorsIDs::NearestFoodAngle,
+						(int)SensorsIDs::NearestFoodDistance,
+					}
 				},
 				// Carnivore
 				{
 					{(int)ActionsIDs::KillAndEat},
-					{(int)SensorsIDs::NearestCompetidorAngle}
+					{
+						(int)SensorsIDs::NearestCompetidorAngle,
+						(int)SensorsIDs::NearestCompetidorDistance
+					}
 				}
 			}
 		});
@@ -590,7 +656,7 @@ int main()
 			{
 				for (auto [idx, org] : enumerate(pop.GetIndividuals()))
 				{
-					fitness_vec[idx] = org.LocalScore;//org.LastFitness;
+					fitness_vec[idx] = org.LastFitness;
 					novelty_vec[idx] = org.LastNoveltyMetric;
 				}
 
@@ -655,8 +721,8 @@ int main()
 				plt::plot(avg_novelty_registry, "g");
 				//plt::hist(novelty_vec_registry);*/
 
-				float avg_f = accumulate(fitness_vec.begin(), fitness_vec.end(), 0) / fitness_vec.size();
-				float avg_n = accumulate(novelty_vec.begin(), novelty_vec.end(), 0) / novelty_vec.size();
+				float avg_f = accumulate(fitness_vec.begin(), fitness_vec.end(), 0.0f) / fitness_vec.size();
+				float avg_n = accumulate(novelty_vec.begin(), novelty_vec.end(), 0.0f) / novelty_vec.size();
 
 				auto metrics = pop.ComputeProgressMetrics(&world, 10);
 				avg_fitness_difference.push_back(metrics.AverageFitnessDifference);
