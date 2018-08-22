@@ -46,6 +46,9 @@ namespace agio
 		// Prevent copying
 		Individual(const Individual&) = delete;
 
+		// Move assignment operator
+		Individual& operator=(Individual&& data);
+
 		// Clears all the resources used by the individual
 		~Individual();
 
@@ -112,6 +115,7 @@ namespace agio
 		int DominationRank;
 		int LocalScore;
 		float GenotypicDiversity;
+		int SimulationPriority;
 
 
 

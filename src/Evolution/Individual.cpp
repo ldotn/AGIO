@@ -216,6 +216,13 @@ Individual::Individual(const Individual &Parent, Individual::Make) : Individual(
     Genome = Parent.Genome->duplicate(GlobalID);
     Brain = Genome->genesis(Genome->genome_id);
 
+	DominatedSet = Parent.DominatedSet;
+	DominationCounter = Parent.DominationCounter;
+	DominationRank = Parent.DominationRank;
+	LocalScore = Parent.LocalScore;
+	GenotypicDiversity = Parent.GenotypicDiversity;
+	SimulationPriority = Parent.SimulationPriority;
+
     AccumulatedFitness = Parent.AccumulatedFitness;
     //AccumulatedNovelty = Parent.AccumulatedNovelty;
     EvaluationsCount = Parent.EvaluationsCount;
@@ -286,6 +293,12 @@ Individual::Individual(const Individual &Mom, const Individual &Dad, int ChildID
 
     // Finally construct a new state
     State = Interface->MakeState(this);
+
+	// Simulation priority is computed from the parents
+	SimulationPriority = max(Mom.SimulationPriority, Dad.SimulationPriority) + 1;
+
+	// So that the children have a value, even if it's fictional
+	LastFitness = 0.5f*(Mom.LastFitness + Dad.LastFitness);
 }
 
 bool Individual::MorphologyTag::IsCompatible(const Individual::MorphologyTag &Other) const
@@ -640,42 +653,50 @@ void Individual::Mutate(Population *population, int generation)
 
 Individual::Individual(Individual &&other) noexcept
 {
-    OriginalID = other.OriginalID;
-    GlobalID = other.GlobalID;
-    State = other.State;
-    Components = move(other.Components);
-    Parameters = move(other.Parameters);
-    Genome = other.Genome;
-    Brain = other.Brain;
-    Actions = move(other.Actions);
-    Sensors = move(other.Sensors);
-    SensorsValues = move(other.SensorsValues);
-    ActivationsBuffer = move(other.ActivationsBuffer);
-    RNG = other.RNG;
-    Morphology = move(other.Morphology);
+	*this = move(other);
+}
 
-    LastDominationCount = other.LastDominationCount;
-    LastFitness = other.LastFitness;
-    LastNoveltyMetric = other.LastNoveltyMetric;
+Individual & Individual::operator=(Individual && other)
+{
+	OriginalID = other.OriginalID;
+	GlobalID = other.GlobalID;
+	State = other.State;
+	Components = move(other.Components);
+	Parameters = move(other.Parameters);
+	Genome = other.Genome;
+	Brain = other.Brain;
+	Actions = move(other.Actions);
+	Sensors = move(other.Sensors);
+	SensorsValues = move(other.SensorsValues);
+	ActivationsBuffer = move(other.ActivationsBuffer);
+	RNG = other.RNG;
+	Morphology = move(other.Morphology);
+
+	LastDominationCount = other.LastDominationCount;
+	LastFitness = other.LastFitness;
+	LastNoveltyMetric = other.LastNoveltyMetric;
 
 
-    AccumulatedFitness = other.AccumulatedFitness;
-    //AccumulatedNovelty = other.AccumulatedNovelty;
-    EvaluationsCount = other.EvaluationsCount;
-	
+	AccumulatedFitness = other.AccumulatedFitness;
+	//AccumulatedNovelty = other.AccumulatedNovelty;
+	EvaluationsCount = other.EvaluationsCount;
+
 
 	DominatedSet = move(other.DominatedSet);
 	DominationCounter = other.DominationCounter;
 	DominationRank = other.DominationCounter;
 	LocalScore = other.LocalScore;
 	GenotypicDiversity = other.GenotypicDiversity;
+	SimulationPriority = other.SimulationPriority;
 
-    // Careful with this, you don't exactly know if it's still valid
-    SpeciesPtr = other.SpeciesPtr;
+	// Careful with this, you don't exactly know if it's still valid
+	SpeciesPtr = other.SpeciesPtr;
 
-    other.Genome = nullptr;
-    other.Brain = nullptr;
-    other.State = nullptr;
+	other.Genome = nullptr;
+	other.Brain = nullptr;
+	other.State = nullptr;
+
+	return *this;
 }
 
 Individual::~Individual()

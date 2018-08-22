@@ -5,6 +5,7 @@
 #include <numeric>
 #include <assert.h>
 #include <unordered_set>
+#include <queue>
 
 // NEAT
 #include "innovation.h"
@@ -54,10 +55,13 @@ void Population::BuildSpeciesMap()
 	}
 }
 
-void Population::Spawn(size_t Size)
+void Population::Spawn(size_t Size,int InSimulationSize)
 {
+	SimulationSize = InSimulationSize;
 	Individuals.resize(Size);
-	
+	SimulationIndividuals.resize(SimulationSize);
+	SimulationIDTable.resize(SimulationSize);
+
 	for (auto [idx, org] : enumerate(Individuals))
 		org.Spawn(idx);
 
@@ -71,93 +75,131 @@ void Population::Spawn(size_t Size)
 	BuildSpeciesMap();
 }
 
-void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
+void Population::ComputeLocalScores()
 {
-	auto compute_local_scores = [&]()
+	for (auto &[tag, species] : SpeciesMap)
 	{
-		for (auto &[tag, species] : SpeciesMap)
+		for (int idx : species->IndividualsIDs)
 		{
-			for (int idx : species->IndividualsIDs)
+			// Find the K nearest inside the species
+
+			// Clear the K buffer
+			for (auto & v : CompetitionNearestKBuffer)
 			{
-				// Find the K nearest inside the species
+				v.first = -1;
+				v.second = numeric_limits<float>::max();
+			}
+			int k_buffer_top = 0;
 
-				// Clear the K buffer
-				for (auto & v : CompetitionNearestKBuffer)
+			// Check both against the species individuals
+			for (int other_idx : species->IndividualsIDs)
+			{
+				if (idx == other_idx)
+					continue;
+
+				// This is the morphology distance
+				float dist = Individuals[idx].GetMorphologyTag().Distance(Individuals[other_idx].GetMorphologyTag());
+
+				// Check if it's in the k nearest
+				for (auto[kidx, v] : enumerate(CompetitionNearestKBuffer))
 				{
-					v.first = -1;
-					v.second = numeric_limits<float>::max();
-				}
-				int k_buffer_top = 0;
-
-				// Check both against the species individuals
-				for (int other_idx : species->IndividualsIDs)
-				{
-					if (idx == other_idx)
-						continue;
-
-					// This is the morphology distance
-					float dist = Individuals[idx].GetMorphologyTag().Distance(Individuals[other_idx].GetMorphologyTag());
-
-					// Check if it's in the k nearest
-					for (auto[kidx, v] : enumerate(CompetitionNearestKBuffer))
+					if (dist < v.second)
 					{
-						if (dist < v.second)
-						{
-							// Move all the values to the right
-							for (int i = Settings::LocalCompetitionK - 1; i > kidx; i--)
-								CompetitionNearestKBuffer[i] = CompetitionNearestKBuffer[i - 1];
+						// Move all the values to the right
+						for (int i = Settings::LocalCompetitionK - 1; i > kidx; i--)
+							CompetitionNearestKBuffer[i] = CompetitionNearestKBuffer[i - 1];
 
-							if (kidx > k_buffer_top)
-								k_buffer_top = kidx;
-							v.first = other_idx;
-							v.second = dist;
-							break;
-						}
+						if (kidx > k_buffer_top)
+							k_buffer_top = kidx;
+						v.first = other_idx;
+						v.second = dist;
+						break;
 					}
 				}
-
-				// With the k nearest found, check how many of them this individual bests and also compute genotypic diversity
-				auto & org = Individuals[idx];
-				org.LocalScore = 0;
-				org.GenotypicDiversity = 0;
-				for(int i = 0;i <= k_buffer_top;i++)
-				{
-					const auto& other_org = Individuals[CompetitionNearestKBuffer[i].first];
-					if (org.LastFitness > other_org.LastFitness)
-						org.LocalScore++;
-
-					org.GenotypicDiversity += org.GetMorphologyTag().Distance(other_org.GetMorphologyTag());
-				}
-				org.GenotypicDiversity /= k_buffer_top + 1;
 			}
-		}
-	};
-	auto evaluate_pop = [&]()
-	{
-		// Compute novelty metric
-		ComputeNovelty();
 
-		// TODO : Expose this as a parameter
-		for (int i = 0; i < 10; i++)
-		{
-			// Compute fitness of each individual
-			Interface->ComputeFitness(this, WorldPtr);
-
-			// Update the fitness and novelty accumulators
-			for (auto& org : Individuals)
+			// With the k nearest found, check how many of them this individual bests and also compute genotypic diversity
+			auto & org = Individuals[idx];
+			org.LocalScore = 0;
+			org.GenotypicDiversity = 0;
+			for (int i = 0; i <= k_buffer_top; i++)
 			{
-				org.AccumulatedFitness += org.LastFitness;
-				org.EvaluationsCount++;
+				const auto& other_org = Individuals[CompetitionNearestKBuffer[i].first];
+				if (org.LastFitness > other_org.LastFitness)
+					org.LocalScore++;
 
-				// Replace the last fitness and last novelty with the values of the accumulators
-				// TODO : Maybe make some refactor here, all this mess doesn't really looks clean 
-				org.LastFitness = org.AccumulatedFitness / org.EvaluationsCount;
+				org.GenotypicDiversity += org.GetMorphologyTag().Distance(other_org.GetMorphologyTag());
 			}
+			org.GenotypicDiversity /= k_buffer_top + 1;
 		}
-
-		// Now compute local scores
-		compute_local_scores();
+	}
+}
+void Population::SelectIndividualsForSimulation()
+{
+	// Create the queue of individuals to simulate
+	auto cmp_function = [](pair<int, int> a, pair<int, int> b)
+	{
+		return a.first < b.first;
 	};
+	priority_queue<pair<int, int>, vector<pair<int, int>>, decltype(cmp_function)> simulation_queue(cmp_function);
+
+	for (auto[idx, org] : enumerate(Individuals))
+		simulation_queue.push({ org.SimulationPriority,idx });
+
+	// Now extract from queue to fill the simulation 
+	for (auto[idx, org] : enumerate(SimulationIndividuals))
+	{
+		org = move(Individuals[simulation_queue.top().second]);
+		SimulationIDTable[idx] = simulation_queue.top().second;
+		PopulationToSimulationMap[simulation_queue.top().second] = idx;
+		simulation_queue.pop();
+	}
+}
+
+void Population::RestoreSimulatedIndividuals()
+{	
+	// Restore individuals
+	for (auto[idx, org_idx] : enumerate(SimulationIDTable))
+	{
+		Individuals[org_idx] = move(SimulationIndividuals[idx]);
+		Individuals[org_idx].SimulationPriority = 0;
+	}
+		
+}
+
+void Population::EvaluatePopulation(void * WorldPtr)
+{
+	// Compute novelty metric
+	ComputeNovelty();
+
+	SelectIndividualsForSimulation();
+
+	// TODO : Expose this as a parameter
+	for (int i = 0; i < Settings::FitnessSimulationRepetitions; i++)
+	{
+		// Compute fitness of each individual
+		Interface->ComputeFitness(this, WorldPtr);
+
+		// Update the fitness and novelty accumulators
+		for (auto& org : SimulationIndividuals)
+		{
+			org.AccumulatedFitness += org.LastFitness;
+			org.EvaluationsCount++;
+
+			// Replace the last fitness and last novelty with the values of the accumulators
+			// TODO : Maybe make some refactor here, all this mess doesn't really looks clean 
+			org.LastFitness = org.AccumulatedFitness / org.EvaluationsCount;
+		}
+	}
+	
+	RestoreSimulatedIndividuals();
+
+	// Now compute local scores
+	ComputeLocalScores();
+}
+
+void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
+{
 	auto dominates = [](const Individual& A, const Individual& B)
 	{
 		return (A.LastNoveltyMetric >= B.LastNoveltyMetric && A.LocalScore >= B.LocalScore  && A.GenotypicDiversity >= B.GenotypicDiversity) &&
@@ -259,7 +301,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 	if (CurrentGeneration == 0)
 	{
-		evaluate_pop();
+		EvaluatePopulation(WorldPtr);
 		auto fronts_map = compute_domination_fronts();
 
 		// Select parents based on the non dominated fronts
@@ -323,7 +365,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 		BuildSpeciesMap();
 
 		// Evaluate
-		evaluate_pop();
+		EvaluatePopulation(WorldPtr);
 
 		for (auto &[tag, species] : SpeciesMap)
 		{
@@ -356,7 +398,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 		// Recompute novelty and local competition scores
 		ComputeNovelty();
-		compute_local_scores();
+		ComputeLocalScores();
 
 		// Compute fronts
 		auto fronts_map = compute_domination_fronts();
@@ -525,26 +567,14 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int 
 
 	ProgressMetrics metrics;
 
+	// Evaluate population
+	EvaluatePopulation(World);
+
 	// Compute average novelty
-	ComputeNovelty();
 	metrics.AverageNovelty = 0;
 	for (const auto& org : Individuals)
 		metrics.AverageNovelty += org.LastNoveltyMetric;
 	metrics.AverageNovelty /= Individuals.size();
-
-	// Do a few simulations to compute fitness
-	for (auto& org : Individuals)
-		org.AccumulatedFitness = org.EvaluationsCount = 0;
-	for (int i = 0; i < Replications; i++)
-	{
-		Interface->ComputeFitness(this, World);
-
-		for (auto& org : Individuals)
-		{
-			org.AccumulatedFitness += org.LastFitness;
-			org.EvaluationsCount++;
-		}
-	}
 
 	// Now for each species set that to be random, and do a couple of simulations
 	metrics.AverageFitnessDifference = 0;
@@ -553,8 +583,7 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int 
 		// First compute average fitness of the species when using the network
 		float avg_f = 0;
 		for (int org_id : species->IndividualsIDs)
-			avg_f += Individuals[org_id].AccumulatedFitness
-			/ Individuals[org_id].EvaluationsCount;
+			avg_f += Individuals[org_id].LastFitness;
 		avg_f /= species->IndividualsIDs.size();
 
 		// Override the use of the network for decision-making
@@ -564,16 +593,23 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int 
 		// Do a few simulations
 		float avg_random_f = 0;
 		float count = 0;
+		SelectIndividualsForSimulation();
 		for (int i = 0; i < Replications; i++)
 		{
 			Interface->ComputeFitness(this, World);
 
 			for (int org_id : species->IndividualsIDs)
 			{
-				avg_random_f += Individuals[org_id].LastFitness;
+				// If it was selected for simulation accumulate that, otherwise accumulate the old value
+				auto iter = PopulationToSimulationMap.find(org_id);
+				if (iter != PopulationToSimulationMap.end())
+					avg_random_f += SimulationIndividuals[iter->second].LastFitness;
+				else
+					avg_random_f += Individuals[org_id].LastFitness;
 				count++;
 			}
 		}
+		RestoreSimulatedIndividuals();
 		avg_random_f /= count;
 
 		// Accumulate difference

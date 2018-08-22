@@ -29,7 +29,7 @@ namespace agio
 
 		// Creates a new population of random individuals
 		// It also separates them into species
-		void Spawn(size_t Size);
+		void Spawn(size_t Size,int SimulationSize);
 
 		// Replaces the individuals with the ones from the non dominated registry
 		void BuildFinalPopulation();
@@ -42,6 +42,8 @@ namespace agio
 		auto& GetIndividuals() { return Individuals; }
 		const auto& GetSpecies() const { return SpeciesMap; }
 		const auto& GetNonDominatedRegistry() const { return NonDominatedRegistry; }
+		const auto& GetSimulationIndividuals() const { return SimulationIndividuals; };
+		auto& GetSimulationIndividuals() { return SimulationIndividuals; };
 
 		// Returns several metrics that allow one to measure the progress of the evolution
 		// TODO : More comprehensive docs maybe?
@@ -59,6 +61,9 @@ namespace agio
 		int cur_node_id;
 		double cur_innov_num;
 	private:
+		// Number of individuals that are simulated in a single simulation step
+		int SimulationSize;
+
 		int CurrentGeneration;
 		std::vector<Individual> Individuals;
 		std::minstd_rand RNG;
@@ -83,16 +88,32 @@ namespace agio
 		// Historical record of non-dominated individuals found
 		// Separated by species
 		// TODO : If the world is dynamic the old fitness values might no longer be valid or relevant
+		// TODO :  Remove this, it's no longer used!
 		std::unordered_map<Individual::MorphologyTag, std::vector<Individual>> NonDominatedRegistry;
 	
 		// Computes the novelty metric for the population
 		void ComputeNovelty();
 
+		// Simulate the population and compute scores
+		void EvaluatePopulation(void * WorldPtr);
 
-
-
+		// Computes local scores from fitness
+		void ComputeLocalScores();
 
 		// Children of the current population. See NSGA-II
 		std::vector<Individual> Children;
+
+		// Individuals to be simulated
+		std::vector<Individual> SimulationIndividuals;
+		
+		// Table that maps IDs from the individuals selected for the simulation to IDs in the whole population
+		std::vector<int> SimulationIDTable;
+
+		// Map the goes from population ID to simulation ID
+		std::unordered_map<int, int> PopulationToSimulationMap;
+
+		// Fills the simulation individuals vector and restores them to the general population, respectively
+		void SelectIndividualsForSimulation();
+		void RestoreSimulatedIndividuals();
 	};
 }

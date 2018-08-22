@@ -21,7 +21,8 @@ const float KillLifeGain = 30;
 const float StartingLife = 300;
 const int FoodCellCount = WorldSizeX * WorldSizeY*0.1;
 const int MaxSimulationSteps = 200;
-const int PopulationSize = 100;
+const int PopulationSize = 300;
+const int SimulationSize = 100;
 const int GenerationsCount = 10000;
 const float LifeLostPerTurn = 5;
 
@@ -215,7 +216,7 @@ public:
 				
 				// Find an individual of a DIFFERENT species.
 				// The species map is not really useful here
-				for (const auto& individual : Pop->GetIndividuals())
+				for (const auto& individual : Pop->GetSimulationIndividuals())
 				{
 					if (individual.GetState<OrgState>()->Life <= 0)
 						continue;
@@ -288,7 +289,7 @@ public:
 
 				float nearest_dist = numeric_limits<float>::max();
 				float2 nearest_pos;
-				for (const auto& other_org : Pop->GetIndividuals())
+				for (const auto& other_org : Pop->GetSimulationIndividuals())
 				{
 					if (other_org.GetState<OrgState>()->Life <= 0)
 						continue;
@@ -326,7 +327,7 @@ public:
 
 				float nearest_dist = numeric_limits<float>::max();
 				float2 nearest_pos;
-				for (const auto& other_org : Pop->GetIndividuals())
+				for (const auto& other_org : Pop->GetSimulationIndividuals())
 				{
 					if (other_org.GetState<OrgState>()->Life <= 0)
 						continue;
@@ -404,10 +405,10 @@ public:
 					{(int)SensorsIDs::NearestFoodAngle}
 				},
 				// Carnivore
-				{
+				/*{
 					{(int)ActionsIDs::KillAndEat},
 					{(int)SensorsIDs::NearestCompetidorAngle}
-				}
+				}*/
 			}
 		});
 		ComponentRegistry.push_back
@@ -512,7 +513,11 @@ public:
 	// This computes fitness for the entire population
 	virtual void ComputeFitness(Population * Pop, void * World) override
 	{
-		for (auto& org : Pop->GetIndividuals())
+		// NOTE! : You can't use the species map directly here
+		//   That's because the IDs in the species map point to individuals in the whole population, but the simulated individuals have a different order
+		//   If needed, the SimulationIDTable has the simulated->population ID mapping
+
+		for (auto& org : Pop->GetSimulationIndividuals())
 			org.Reset();
 
 		// TODO : Shuffle the evaluation order
@@ -521,7 +526,7 @@ public:
 		for (int i = 0; i < MaxSimulationSteps && any_alive; i++)
 		{
 			any_alive = false;
-			for (auto& org : Pop->GetIndividuals())
+			for (auto& org : Pop->GetSimulationIndividuals())
 			{
 				auto state_ptr = (OrgState*)org.GetState();
 				if (state_ptr->Life <= 0)
@@ -562,7 +567,7 @@ int main()
 
 	// Spawn population
 	Population pop;
-	pop.Spawn(PopulationSize);
+	pop.Spawn(PopulationSize, SimulationSize);
 	
 	// Do evolution loop
 	vector<float> fitness_vec(PopulationSize);
