@@ -73,6 +73,61 @@ void Population::Spawn(size_t Size)
 
 void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 {
+	auto compute_local_scores = [&]()
+	{
+		for (auto &[tag, species] : SpeciesMap)
+		{
+			for (int idx : species->IndividualsIDs)
+			{
+				// Find the K nearest inside the species
+
+				// Clear the K buffer
+				for (auto & v : CompetitionNearestKBuffer)
+				{
+					v.first = -1;
+					v.second = numeric_limits<float>::max();
+				}
+				int k_buffer_top = 0;
+
+				// Check both against the species individuals
+				for (int other_idx : species->IndividualsIDs)
+				{
+					if (idx == other_idx)
+						continue;
+
+					// This is the morphology distance
+					float dist = Individuals[idx].GetMorphologyTag().Distance(Individuals[other_idx].GetMorphologyTag());
+
+					// Check if it's in the k nearest
+					for (auto[kidx, v] : enumerate(CompetitionNearestKBuffer))
+					{
+						if (dist < v.second)
+						{
+							// Move all the values to the right
+							for (int i = Settings::LocalCompetitionK - 1; i > kidx; i--)
+								CompetitionNearestKBuffer[i] = CompetitionNearestKBuffer[i - 1];
+
+							if (kidx > k_buffer_top)
+								k_buffer_top = kidx;
+							v.first = other_idx;
+							v.second = dist;
+							break;
+						}
+					}
+				}
+
+				// With the k nearest found, check how many of them this individual bests
+				auto & org = Individuals[idx];
+				org.LocalScore = 0;
+
+				for(int i = 0;i < k_buffer_top;i++)
+				{
+					if (org.LastFitness > Individuals[CompetitionNearestKBuffer[i].first].LastFitness)
+						org.LocalScore++;
+				}
+			}
+		}
+	};
 	auto evaluate_pop = [&]()
 	{
 		// Compute novelty metric
@@ -96,54 +151,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 		}
 
 		// Now compute local scores
-		for (auto &[tag, species] : SpeciesMap)
-		{
-			for (int idx : species->IndividualsIDs)
-			{
-				// Find the K nearest inside the species
-
-				// Clear the K buffer
-				for (auto & v : CompetitionNearestKBuffer)
-					v.second = numeric_limits<float>::max();
-				int k_buffer_top = 0;
-
-				// Check both against the species individuals
-				for (int other_idx : species->IndividualsIDs)
-				{
-					if (idx == other_idx)
-						continue;
-
-					// This is the morphology distance
-					float dist = Individuals[idx].GetMorphologyTag().Distance(Individuals[other_idx].GetMorphologyTag());
-
-					// Check if it's in the k nearest
-					for (auto [kidx, v] : enumerate(CompetitionNearestKBuffer))
-					{
-						if (dist < v.second)
-						{
-							// Move all the values to the right
-							for (int i = Settings::NoveltyNearestK - 1; i > kidx; i--)
-								NoveltyNearestKBuffer[i] = NoveltyNearestKBuffer[i - 1];
-
-							if (kidx > k_buffer_top)
-								k_buffer_top = kidx;
-							v.first = other_idx;
-							v.second = dist;
-							break;
-						}
-					}
-				}
-
-				// With the k nearest found, check how many of them this individual bests
-				auto & org = Individuals[idx];
-				org.LocalScore = 0;
-				for (auto [other_idx, _] : CompetitionNearestKBuffer)
-				{
-					if (org.LastFitness > Individuals[other_idx].LastFitness)
-						org.LocalScore++;
-				}
-			}
-		}
+		compute_local_scores();
 	};
 	auto dominates = [](const Individual& A, const Individual& B)
 	{
@@ -340,6 +348,10 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 		for (auto& org : old_pop)
 			Individuals.push_back(move(org));
 		BuildSpeciesMap();
+
+		// Recompute novelty and local competition scores
+		ComputeNovelty();
+		compute_local_scores();
 
 		// Compute fronts
 		auto fronts_map = compute_domination_fronts();

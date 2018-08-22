@@ -617,7 +617,7 @@ int main()
 				avg_f /= (float)registry_count;
 				avg_n /= (float)registry_count;*/
 #ifdef _DEBUG
-				cout << "    Avg Fitness (registry) : " << avg_f << " , Avg Novelty (registry) : " << avg_n << endl;
+				//cout << "    Avg Fitness (registry) : " << avg_f << " , Avg Novelty (registry) : " << avg_n << endl;
 #else
 				/*auto metrics = pop.ComputeProgressMetrics(&world, 10);
 				avg_fitness_difference.push_back(metrics.AverageFitnessDifference);
