@@ -590,11 +590,11 @@ int main()
 			{
 				for (auto [idx, org] : enumerate(pop.GetIndividuals()))
 				{
-					fitness_vec[idx] = org.LastFitness;
+					fitness_vec[idx] = org.LocalScore;//org.LastFitness;
 					novelty_vec[idx] = org.LastNoveltyMetric;
 				}
 
-				float avg_f = 0;
+				/*float avg_f = 0;
 				float avg_n = 0;
 
 				int registry_count = 0;
@@ -615,7 +615,7 @@ int main()
 				}
 
 				avg_f /= (float)registry_count;
-				avg_n /= (float)registry_count;
+				avg_n /= (float)registry_count;*/
 #ifdef _DEBUG
 				cout << "    Avg Fitness (registry) : " << avg_f << " , Avg Novelty (registry) : " << avg_n << endl;
 #else
@@ -655,8 +655,8 @@ int main()
 				plt::plot(avg_novelty_registry, "g");
 				//plt::hist(novelty_vec_registry);*/
 
-				avg_f = accumulate(fitness_vec.begin(), fitness_vec.end(), 0) / fitness_vec.size();
-				avg_n = accumulate(novelty_vec.begin(), novelty_vec.end(), 0) / novelty_vec.size();
+				float avg_f = accumulate(fitness_vec.begin(), fitness_vec.end(), 0) / fitness_vec.size();
+				float avg_n = accumulate(novelty_vec.begin(), novelty_vec.end(), 0) / novelty_vec.size();
 
 				auto metrics = pop.ComputeProgressMetrics(&world, 10);
 				avg_fitness_difference.push_back(metrics.AverageFitnessDifference);
@@ -668,7 +668,8 @@ int main()
 				plt::clf();
 
 				plt::subplot(5, 1, 1);
-				plt::loglog(fitness_vec, novelty_vec, "x");
+				plt::plot(fitness_vec, novelty_vec, "x");
+				//plt::loglog(fitness_vec, novelty_vec, "x");
 
 				plt::subplot(5, 1, 2);
 				plt::plot(avg_fitness, "r");

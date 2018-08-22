@@ -32,8 +32,8 @@ Individual::Individual() : RNG(chrono::high_resolution_clock::now().time_since_e
 
 
     AccumulatedFitness = 0;
-    AccumulatedNovelty = 0;
-    Age = 0;
+    //AccumulatedNovelty = 0;
+    EvaluationsCount = 0;
 }
 
 void Individual::Spawn(int ID)
@@ -217,8 +217,8 @@ Individual::Individual(const Individual &Parent, Individual::Make) : Individual(
     Brain = Genome->genesis(Genome->genome_id);
 
     AccumulatedFitness = Parent.AccumulatedFitness;
-    AccumulatedNovelty = Parent.AccumulatedNovelty;
-    Age = Parent.Age;
+    //AccumulatedNovelty = Parent.AccumulatedNovelty;
+    EvaluationsCount = Parent.EvaluationsCount;
 
 	SpeciesPtr = Parent.SpeciesPtr;
 };
@@ -632,8 +632,8 @@ void Individual::Mutate(Population *population, int generation)
 		OriginalID = GlobalID;
 		// Also reset the accumulators, as they are no longer valid
 		AccumulatedFitness = 0;
-		AccumulatedNovelty = 0;
-		Age = 0;
+		//AccumulatedNovelty = 0;
+		EvaluationsCount = 0;
 	}
         
 }
@@ -660,9 +660,14 @@ Individual::Individual(Individual &&other) noexcept
 
 
     AccumulatedFitness = other.AccumulatedFitness;
-    AccumulatedNovelty = other.AccumulatedNovelty;
-    Age = other.Age;
+    //AccumulatedNovelty = other.AccumulatedNovelty;
+    EvaluationsCount = other.EvaluationsCount;
+	
 
+	DominatedSet = move(other.DominatedSet);
+	DominationCounter = other.DominationCounter;
+	DominationRank = other.DominationCounter;
+	LocalScore = other.LocalScore;
 
     // Careful with this, you don't exactly know if it's still valid
     SpeciesPtr = other.SpeciesPtr;

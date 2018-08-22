@@ -72,7 +72,8 @@ namespace agio
 		std::vector<Individual::MorphologyTag> MorphologyRegistry;
 	
 		// Buffer vectors
-		std::vector<float> NearestKBuffer;
+		std::vector<float> NoveltyNearestKBuffer;
+		std::vector<std::pair<int,float>> CompetitionNearestKBuffer;
 		std::vector<float> DominationBuffer;
 		std::vector<Individual> ChildrenBuffer;
 

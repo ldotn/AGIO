@@ -62,7 +62,8 @@ void Population::Spawn(size_t Size)
 		org.Spawn(idx);
 
 	DominationBuffer.resize(Size);
-	NearestKBuffer.resize(Settings::NoveltyNearestK);
+	NoveltyNearestKBuffer.resize(Settings::NoveltyNearestK);
+	CompetitionNearestKBuffer.resize(Settings::LocalCompetitionK);
 	ChildrenBuffer.resize(Size);
 	CurrentGeneration = 0;
 
@@ -86,20 +87,68 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 			for (auto& org : Individuals)
 			{
 				org.AccumulatedFitness += org.LastFitness;
-				org.AccumulatedNovelty += org.LastNoveltyMetric;
-				org.Age++;
+				org.EvaluationsCount++;
 
 				// Replace the last fitness and last novelty with the values of the accumulators
 				// TODO : Maybe make some refactor here, all this mess doesn't really looks clean 
-				org.LastFitness = org.AccumulatedFitness / org.Age;
-				org.LastNoveltyMetric = org.AccumulatedNovelty / org.Age;
+				org.LastFitness = org.AccumulatedFitness / org.EvaluationsCount;
+			}
+		}
+
+		// Now compute local scores
+		for (auto &[tag, species] : SpeciesMap)
+		{
+			for (int idx : species->IndividualsIDs)
+			{
+				// Find the K nearest inside the species
+
+				// Clear the K buffer
+				for (auto & v : CompetitionNearestKBuffer)
+					v.second = numeric_limits<float>::max();
+				int k_buffer_top = 0;
+
+				// Check both against the species individuals
+				for (int other_idx : species->IndividualsIDs)
+				{
+					if (idx == other_idx)
+						continue;
+
+					// This is the morphology distance
+					float dist = Individuals[idx].GetMorphologyTag().Distance(Individuals[other_idx].GetMorphologyTag());
+
+					// Check if it's in the k nearest
+					for (auto [kidx, v] : enumerate(CompetitionNearestKBuffer))
+					{
+						if (dist < v.second)
+						{
+							// Move all the values to the right
+							for (int i = Settings::NoveltyNearestK - 1; i > kidx; i--)
+								NoveltyNearestKBuffer[i] = NoveltyNearestKBuffer[i - 1];
+
+							if (kidx > k_buffer_top)
+								k_buffer_top = kidx;
+							v.first = other_idx;
+							v.second = dist;
+							break;
+						}
+					}
+				}
+
+				// With the k nearest found, check how many of them this individual bests
+				auto & org = Individuals[idx];
+				org.LocalScore = 0;
+				for (auto [other_idx, _] : CompetitionNearestKBuffer)
+				{
+					if (org.LastFitness > Individuals[other_idx].LastFitness)
+						org.LocalScore++;
+				}
 			}
 		}
 	};
 	auto dominates = [](const Individual& A, const Individual& B)
 	{
-		return (A.LastNoveltyMetric >= B.LastNoveltyMetric && A.LastFitness >= B.LastFitness) &&
-			(A.LastNoveltyMetric > B.LastNoveltyMetric || A.LastFitness > B.LastFitness);
+		return (A.LastNoveltyMetric >= B.LastNoveltyMetric && A.LocalScore >= B.LocalScore) &&
+			(A.LastNoveltyMetric > B.LastNoveltyMetric || A.LocalScore > B.LocalScore);
 	};
 	auto compute_domination_fronts = [&]()
 	{
@@ -368,7 +417,7 @@ void Population::ComputeNovelty()
 	for (auto[idx, org] : enumerate(Individuals))
 	{
 		// Clear the K buffer
-		for (auto & v : NearestKBuffer)
+		for (auto & v : NoveltyNearestKBuffer)
 			v = numeric_limits<float>::max();
 		int k_buffer_top = 0;
 
@@ -382,13 +431,13 @@ void Population::ComputeNovelty()
 			float dist = org.GetMorphologyTag().Distance(other.GetMorphologyTag());
 
 			// Check if it's in the k nearest
-			for (auto[kidx, v] : enumerate(NearestKBuffer))
+			for (auto[kidx, v] : enumerate(NoveltyNearestKBuffer))
 			{
 				if (dist < v)
 				{
 					// Move all the values to the right
 					for (int i = Settings::NoveltyNearestK - 1; i > kidx; i--)
-						NearestKBuffer[i] = NearestKBuffer[i - 1];
+						NoveltyNearestKBuffer[i] = NoveltyNearestKBuffer[i - 1];
 
 					if (kidx > k_buffer_top)
 						k_buffer_top = kidx;
@@ -404,13 +453,13 @@ void Population::ComputeNovelty()
 			float dist = org.GetMorphologyTag().Distance(tag);
 
 			// Check if it's in the k nearest
-			for (auto[kidx, v] : enumerate(NearestKBuffer))
+			for (auto[kidx, v] : enumerate(NoveltyNearestKBuffer))
 			{
 				if (dist < v)
 				{
 					// Move all the values to the right
 					for (int i = Settings::NoveltyNearestK - 1; i > kidx; i--)
-						NearestKBuffer[i] = NearestKBuffer[i - 1];
+						NoveltyNearestKBuffer[i] = NoveltyNearestKBuffer[i - 1];
 
 					if (kidx > k_buffer_top)
 						k_buffer_top = kidx;
@@ -422,7 +471,7 @@ void Population::ComputeNovelty()
 
 		// After the k nearest are found, compute novelty metric
 		// It's simply the average of the k nearest distances
-		float novelty = accumulate(NearestKBuffer.begin(), NearestKBuffer.begin() + k_buffer_top + 1, 0) / float(NearestKBuffer.size());
+		float novelty = accumulate(NoveltyNearestKBuffer.begin(), NoveltyNearestKBuffer.begin() + k_buffer_top + 1, 0) / float(NoveltyNearestKBuffer.size());
 		org.LastNoveltyMetric = novelty;
 
 		// If the novelty is above the threshold, add it to the registry if it doesn't exist already
@@ -468,7 +517,7 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int 
 
 	// Do a few simulations to compute fitness
 	for (auto& org : Individuals)
-		org.AccumulatedFitness = org.Age = 0;
+		org.AccumulatedFitness = org.EvaluationsCount = 0;
 	for (int i = 0; i < Replications; i++)
 	{
 		Interface->ComputeFitness(this, World);
@@ -476,7 +525,7 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int 
 		for (auto& org : Individuals)
 		{
 			org.AccumulatedFitness += org.LastFitness;
-			org.Age++;
+			org.EvaluationsCount++;
 		}
 	}
 
@@ -488,7 +537,7 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int 
 		float avg_f = 0;
 		for (int org_id : species->IndividualsIDs)
 			avg_f += Individuals[org_id].AccumulatedFitness
-			/ Individuals[org_id].Age;
+			/ Individuals[org_id].EvaluationsCount;
 		avg_f /= species->IndividualsIDs.size();
 
 		// Override the use of the network for decision-making

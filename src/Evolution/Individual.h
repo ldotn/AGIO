@@ -93,8 +93,8 @@ namespace agio
 
 		// TODO : Refactor this, it feels dirty
 		float AccumulatedFitness;
-		float AccumulatedNovelty;
-		float Age;
+		//float AccumulatedNovelty;
+		float EvaluationsCount;
 
 
 
@@ -110,7 +110,7 @@ namespace agio
 		std::unordered_set<int> DominatedSet;
 		int DominationCounter;
 		int DominationRank;
-
+		int LocalScore;
 
 
 

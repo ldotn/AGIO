@@ -12,6 +12,9 @@ namespace agio
         // Number of nearest individuals to consider for the novelty metric
 		inline static int NoveltyNearestK = 10;
 
+		// Number of nearest individuals inside the species to consider for the local competition
+		inline static int LocalCompetitionK = 10;
+
         // Minimum novelty of an individual to add it to the morphology registry
         // TODO : No idea what's the range of this. Maybe it can be automatically adjusted from the prev novelty?
         inline static float NoveltyThreshold = 2.0;
