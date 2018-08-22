@@ -18,18 +18,19 @@ const int WorldSizeX = 30;
 const int WorldSizeY = 30;
 const float FoodLifeGain = 20;
 const float KillLifeGain = 30;
-const float StartingLife = 300;
-const int FoodCellCount = WorldSizeX * WorldSizeY*0.1;
-const int MaxSimulationSteps = 200;
+const float DeathPenalty = 40;
+const float StartingLife = 0;
+const int FoodCellCount = 1;//WorldSizeX * WorldSizeY*0.1;
+const int MaxSimulationSteps = 50;
 const int PopulationSize = 100;
-const int GenerationsCount = 10000;
+const int GenerationsCount = 400;
 const float LifeLostPerTurn = 5;
 
 minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
 struct OrgState
 {
-	float Life = StartingLife;
+	float Life = 0;
 	float2 Position;
 };
 
@@ -90,6 +91,7 @@ public:
 				auto state_ptr = (OrgState*)State;
 
 				state_ptr->Position.y = cycle_y(state_ptr->Position.y + 1);//clamp<int>(state_ptr->Position.y + 1, 0, WorldSizeY - 1);
+				ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::MoveBackwards] = Action
@@ -99,6 +101,7 @@ public:
 				auto state_ptr = (OrgState*)State;
 
 				state_ptr->Position.y = cycle_y(state_ptr->Position.y - 1) % WorldSizeY;//clamp<int>(state_ptr->Position.y - 1, 0, WorldSizeY - 1);
+                ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::MoveRight] = Action
@@ -108,6 +111,7 @@ public:
 				auto state_ptr = (OrgState*)State;
 
 				state_ptr->Position.x = cycle_x(state_ptr->Position.x + 1) % WorldSizeX;//clamp<int>(state_ptr->Position.x + 1, 0, WorldSizeX - 1);
+                ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::MoveLeft] = Action
@@ -117,6 +121,7 @@ public:
 				auto state_ptr = (OrgState*)State;
 
 				state_ptr->Position.x = cycle_x(state_ptr->Position.x - 1) % WorldSizeX;// clamp<int>(state_ptr->Position.x - 1, 0, WorldSizeX - 1);
+                ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);
 			}
 		);
 
@@ -217,9 +222,6 @@ public:
 				// The species map is not really useful here
 				for (const auto& individual : Pop->GetIndividuals())
 				{
-					if (individual.GetState<OrgState>()->Life <= 0)
-						continue;
-
 					auto other_state_ptr = (OrgState*)individual.GetState();
 					auto diff = abs >> (other_state_ptr->Position - state_ptr->Position);
 					if (diff.x <= 1 && diff.y <= 1)
@@ -232,7 +234,10 @@ public:
 						if (!(tag == other_tag))
 						{
 							state_ptr->Life += KillLifeGain;
-							other_state_ptr->Life = 0;
+
+							other_state_ptr->Life -= DeathPenalty;
+							other_state_ptr->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
+							other_state_ptr->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
 							break;
 						}
 					}
@@ -400,14 +405,14 @@ public:
 			{
 				// Herbivore
 				{
-					{(int)ActionsIDs::EatFood},
+					{},/*{(int)ActionsIDs::EatFood},*/
 					{(int)SensorsIDs::NearestFoodAngle}
-				},
+				}/*,
 				// Carnivore
 				{
 					{(int)ActionsIDs::KillAndEat},
 					{(int)SensorsIDs::NearestCompetidorAngle}
-				}
+				}*/
 			}
 		});
 		ComponentRegistry.push_back
@@ -421,8 +426,8 @@ public:
 						(int)ActionsIDs::MoveBackwards,
 						(int)ActionsIDs::MoveLeft,
 						(int)ActionsIDs::MoveRight,
-					},
-					{ (int)SensorsIDs::CurrentLife } 
+					}/*,
+					{ (int)SensorsIDs::CurrentLife }*/
 				}
 			}
 		});
@@ -517,22 +522,16 @@ public:
 
 		// TODO : Shuffle the evaluation order
 		LastSimulationStepCount = 0;
-		bool any_alive = true;
-		for (int i = 0; i < MaxSimulationSteps && any_alive; i++)
+		for (int i = 0; i < MaxSimulationSteps; i++)
 		{
-			any_alive = false;
 			for (auto& org : Pop->GetIndividuals())
 			{
 				auto state_ptr = (OrgState*)org.GetState();
-				if (state_ptr->Life <= 0)
-					continue;
-				any_alive = true;
 
 				org.DecideAndExecute(World, Pop);
-				state_ptr->Life -= LifeLostPerTurn;
-				
+
 				// Using as fitness the accumulated life
-				org.LastFitness += state_ptr->Life;
+				org.Fitness = state_ptr->Life;
 				// Second option : moving average
 				//org.LastFitness = org.LastFitness*0.9f + state_ptr->Life*0.1f;
 			}
@@ -572,6 +571,8 @@ int main()
 	vector<float> avg_fitness;
 	vector<float> avg_novelty;
 	vector<float> avg_fitness_difference;
+	vector<float> avg_fitness_network;
+	vector<float> avg_fitness_random;
 	vector<float> avg_novelty_registry;
 	vector<float> species_count;
 	// TODO : Make the plot work in debug
@@ -655,11 +656,13 @@ int main()
 				plt::plot(avg_novelty_registry, "g");
 				//plt::hist(novelty_vec_registry);*/
 
-				float avg_f = accumulate(fitness_vec.begin(), fitness_vec.end(), 0) / fitness_vec.size();
-				float avg_n = accumulate(novelty_vec.begin(), novelty_vec.end(), 0) / novelty_vec.size();
+				float avg_f = accumulate(fitness_vec.begin(), fitness_vec.end(), 0.0f) / fitness_vec.size();
+				float avg_n = accumulate(novelty_vec.begin(), novelty_vec.end(), 0.0f) / novelty_vec.size();
 
 				auto metrics = pop.ComputeProgressMetrics(&world, 10);
 				avg_fitness_difference.push_back(metrics.AverageFitnessDifference);
+				avg_fitness_network.push_back(metrics.AverageFitness);
+				avg_fitness_random.push_back(metrics.AverageRandomFitness);
 				avg_novelty_registry.push_back(metrics.AverageNovelty);
 
 				avg_fitness.push_back(avg_f);
@@ -678,7 +681,8 @@ int main()
 				plt::plot(avg_novelty, "g");
 
 				plt::subplot(5, 1, 4);
-				plt::plot(avg_fitness_difference, "r");
+				plt::plot(avg_fitness_network, "r");
+				plt::plot(avg_fitness_random, "b");
 
 				plt::subplot(5, 1, 5);
 				plt::plot(avg_novelty_registry, "g");
@@ -692,8 +696,8 @@ int main()
 	// Generations finished, so visualize the individuals
 #ifndef _DEBUG
 	// After evolution is done, replace the population with the ones of the registry
-	pop.BuildFinalPopulation();
-
+//	pop.BuildFinalPopulation();
+    pop.GetIndividuals().resize(5);
 	while (true)
 	{
 		for (auto& org : pop.GetIndividuals())
@@ -718,12 +722,7 @@ int main()
 
 			any_alive = false;
 			for (auto& org : pop.GetIndividuals())
-			{
-				auto state_ptr = (OrgState*)org.GetState();
-				if (state_ptr->Life >= 0)
-					org.DecideAndExecute(&world, &pop);
-				state_ptr->Life -= LifeLostPerTurn;
-			}
+				org.DecideAndExecute(&world, &pop);
 
 			// Plot food
 			plt::clf();
@@ -769,8 +768,6 @@ int main()
 				}
 
 				auto state_ptr = (OrgState*)org.GetState();
-				if (state_ptr->Life <= 0)
-					continue;
 
 				any_alive = true;
 				if (is_carnivore)

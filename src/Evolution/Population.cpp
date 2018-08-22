@@ -123,7 +123,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 				for(int i = 0;i <= k_buffer_top;i++)
 				{
 					const auto& other_org = Individuals[CompetitionNearestKBuffer[i].first];
-					if (org.LastFitness > other_org.LastFitness)
+					if (org.Fitness > other_org.Fitness)
 						org.LocalScore++;
 
 					org.GenotypicDiversity += org.GetMorphologyTag().Distance(other_org.GetMorphologyTag());
@@ -132,6 +132,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 			}
 		}
 	};
+
 	auto evaluate_pop = [&]()
 	{
 		// Compute novelty metric
@@ -146,12 +147,12 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 			// Update the fitness and novelty accumulators
 			for (auto& org : Individuals)
 			{
-				org.AccumulatedFitness += org.LastFitness;
+				org.AccumulatedFitness += org.Fitness;
 				org.EvaluationsCount++;
 
 				// Replace the last fitness and last novelty with the values of the accumulators
 				// TODO : Maybe make some refactor here, all this mess doesn't really looks clean 
-				org.LastFitness = org.AccumulatedFitness / org.EvaluationsCount;
+				org.Fitness = org.AccumulatedFitness / org.EvaluationsCount;
 			}
 		}
 
@@ -533,57 +534,53 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int 
 	metrics.AverageNovelty /= Individuals.size();
 
 	// Do a few simulations to compute fitness
-	for (auto& org : Individuals)
-		org.AccumulatedFitness = org.EvaluationsCount = 0;
+    metrics.AverageFitnessDifference = 0;
+    metrics.AverageFitness = 0;
+    metrics.AverageRandomFitness = 0;
+
+    for (auto &org : Individuals)
+		org.AccumulatedFitness = 0;
+
 	for (int i = 0; i < Replications; i++)
 	{
 		Interface->ComputeFitness(this, World);
 
-		for (auto& org : Individuals)
-		{
-			org.AccumulatedFitness += org.LastFitness;
-			org.EvaluationsCount++;
-		}
+		for (auto &org : Individuals)
+			org.AccumulatedFitness += org.Fitness;
 	}
 
-	// Now for each species set that to be random, and do a couple of simulations
-	metrics.AverageFitnessDifference = 0;
-	for (const auto& [_, species] : SpeciesMap)
-	{
-		// First compute average fitness of the species when using the network
-		float avg_f = 0;
-		for (int org_id : species->IndividualsIDs)
-			avg_f += Individuals[org_id].AccumulatedFitness
-			/ Individuals[org_id].EvaluationsCount;
-		avg_f /= species->IndividualsIDs.size();
+    for (auto &org : Individuals)
+        metrics.AverageFitness += org.Fitness / Replications;
+    metrics.AverageFitness /= Individuals.size();
 
-		// Override the use of the network for decision-making
-		for (int org_id : species->IndividualsIDs)
-			Individuals[org_id].UseNetwork = false;
+    // Now for each species set that to be random, and do a couple of simulations
+    // Override the use of the network for decision-making
+    for (const auto &[_, species] : SpeciesMap)
+        for (int org_id : species->IndividualsIDs)
+            Individuals[org_id].UseNetwork = false;
 
-		// Do a few simulations
-		float avg_random_f = 0;
-		float count = 0;
-		for (int i = 0; i < Replications; i++)
-		{
-			Interface->ComputeFitness(this, World);
+    for (auto &org : Individuals)
+        org.AccumulatedFitness = 0;
 
-			for (int org_id : species->IndividualsIDs)
-			{
-				avg_random_f += Individuals[org_id].LastFitness;
-				count++;
-			}
-		}
-		avg_random_f /= count;
+    for (int i = 0; i < Replications; i++)
+    {
+        Interface->ComputeFitness(this, World);
 
-		// Accumulate difference
-		metrics.AverageFitnessDifference += avg_f - avg_random_f;
+        for (auto &org : Individuals)
+            org.AccumulatedFitness += org.Fitness;
+    }
 
-		// Re-enable the network
-		for (int org_id : species->IndividualsIDs)
-			Individuals[org_id].UseNetwork = true;
-	}
-	metrics.AverageFitnessDifference /= SpeciesMap.size();
+    for (auto &org : Individuals)
+        metrics.AverageRandomFitness += org.Fitness / Replications;
+    metrics.AverageRandomFitness /= Individuals.size();
+
+    // Re-enable the network
+    for (const auto &[_, species] : SpeciesMap)
+        for (int org_id : species->IndividualsIDs)
+            Individuals[org_id].UseNetwork = true;
+
+    metrics.AverageFitnessDifference =
+            ((metrics.AverageFitness - metrics.AverageRandomFitness) / metrics.AverageRandomFitness) * 100;
 
 	// TODO : Compute standard deviations
 

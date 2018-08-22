@@ -5,6 +5,7 @@
 #include <atomic>
 #include <unordered_set>
 #include <memory>
+#include <unordered_map>
 
 // Forward declaration
 namespace NEAT
@@ -82,7 +83,7 @@ namespace agio
 
 		// Fitness of the last evaluation of this individual
 		// Reset sets it to 0
-		float LastFitness;
+		float Fitness;
 
 		// Novelty metric associated to the last evaluation
 		// Reset sets it to 0

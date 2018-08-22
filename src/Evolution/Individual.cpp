@@ -24,7 +24,7 @@ Individual::Individual() : RNG(chrono::high_resolution_clock::now().time_since_e
     State = nullptr;
     Genome = nullptr;
     Brain = nullptr;
-    LastFitness = 0;
+    Fitness = 0;
     LastNoveltyMetric = 0;
     OriginalID = GlobalID = CurrentGlobalID.fetch_add(1);
     SpeciesPtr = nullptr;
@@ -191,7 +191,7 @@ void Individual::Reset()
 {
     Interface->ResetState(State);
     if (Brain) Brain->flush();
-    LastFitness = 0;
+    Fitness = 0;
     LastNoveltyMetric = 0;
     LastDominationCount = -1;
 }
@@ -200,7 +200,7 @@ Individual::Individual(const Individual &Parent, Individual::Make) : Individual(
 {
     OriginalID = Parent.OriginalID;
     LastDominationCount = Parent.LastDominationCount;
-    LastFitness = Parent.LastFitness;
+    Fitness = Parent.Fitness;
     LastNoveltyMetric = Parent.LastNoveltyMetric;
 
     Actions = Parent.Actions;
@@ -234,7 +234,7 @@ Individual::Individual(const Individual &Mom, const Individual &Dad, int ChildID
 
     // TODO : Use the other mating functions, and test which is better
     // We don't do inter-species mating
-    Genome = Mom.Genome->mate_multipoint_avg(Dad.Genome, ChildID, Mom.LastFitness, Dad.LastFitness, false);
+    Genome = Mom.Genome->mate_multipoint_avg(Dad.Genome, ChildID, Mom.Fitness, Dad.Fitness, false);
     Brain = Genome->genesis(ChildID);
 
     // This vectors are the same for both parents
@@ -368,7 +368,7 @@ float Individual::MorphologyTag::Distance(const Individual::MorphologyTag &Other
     }
 
 	// TODO : TO USE THIS YOU MUST LOAD THE NEAT PARAMETERS !!
-	dist += Genes->compatibility(Other.Genes.get());
+	//dist += Genes->compatibility(Other.Genes.get());
 
     // Finally check number of mismatching genes on the genome of the control network
     /*for (const auto &gene : GenesIDs)
@@ -655,7 +655,7 @@ Individual::Individual(Individual &&other) noexcept
     Morphology = move(other.Morphology);
 
     LastDominationCount = other.LastDominationCount;
-    LastFitness = other.LastFitness;
+    Fitness = other.Fitness;
     LastNoveltyMetric = other.LastNoveltyMetric;
 
 

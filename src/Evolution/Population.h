@@ -50,6 +50,8 @@ namespace agio
 			float AverageNovelty;
 			float NoveltyStandardDeviation;
 			float AverageFitnessDifference;
+			float AverageFitness;
+			float AverageRandomFitness;
 			float FitnessDifferenceStandardDeviation;
 		};
 		ProgressMetrics ComputeProgressMetrics(void * World,int Replications);
