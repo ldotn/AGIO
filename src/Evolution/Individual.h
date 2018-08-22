@@ -111,6 +111,7 @@ namespace agio
 		int DominationCounter;
 		int DominationRank;
 		int LocalScore;
+		float GenotypicDiversity;
 
 
 

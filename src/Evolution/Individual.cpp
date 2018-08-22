@@ -668,6 +668,7 @@ Individual::Individual(Individual &&other) noexcept
 	DominationCounter = other.DominationCounter;
 	DominationRank = other.DominationCounter;
 	LocalScore = other.LocalScore;
+	GenotypicDiversity = other.GenotypicDiversity;
 
     // Careful with this, you don't exactly know if it's still valid
     SpeciesPtr = other.SpeciesPtr;

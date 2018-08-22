@@ -116,15 +116,19 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 					}
 				}
 
-				// With the k nearest found, check how many of them this individual bests
+				// With the k nearest found, check how many of them this individual bests and also compute genotypic diversity
 				auto & org = Individuals[idx];
 				org.LocalScore = 0;
-
-				for(int i = 0;i < k_buffer_top;i++)
+				org.GenotypicDiversity = 0;
+				for(int i = 0;i <= k_buffer_top;i++)
 				{
-					if (org.LastFitness > Individuals[CompetitionNearestKBuffer[i].first].LastFitness)
+					const auto& other_org = Individuals[CompetitionNearestKBuffer[i].first];
+					if (org.LastFitness > other_org.LastFitness)
 						org.LocalScore++;
+
+					org.GenotypicDiversity += org.GetMorphologyTag().Distance(other_org.GetMorphologyTag());
 				}
+				org.GenotypicDiversity /= k_buffer_top + 1;
 			}
 		}
 	};
@@ -133,6 +137,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 		// Compute novelty metric
 		ComputeNovelty();
 
+		// TODO : Expose this as a parameter
 		for (int i = 0; i < 10; i++)
 		{
 			// Compute fitness of each individual
@@ -155,8 +160,8 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 	};
 	auto dominates = [](const Individual& A, const Individual& B)
 	{
-		return (A.LastNoveltyMetric >= B.LastNoveltyMetric && A.LocalScore >= B.LocalScore) &&
-			(A.LastNoveltyMetric > B.LastNoveltyMetric || A.LocalScore > B.LocalScore);
+		return (A.LastNoveltyMetric >= B.LastNoveltyMetric && A.LocalScore >= B.LocalScore  && A.GenotypicDiversity >= B.GenotypicDiversity) &&
+			(A.LastNoveltyMetric > B.LastNoveltyMetric || A.LocalScore > B.LocalScore || A.GenotypicDiversity > B.GenotypicDiversity);
 	};
 	auto compute_domination_fronts = [&]()
 	{
