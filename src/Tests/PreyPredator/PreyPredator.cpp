@@ -6,6 +6,7 @@
 #include <random>
 #include <matplotlibcpp.h>
 #include <enumerate.h>
+#include <queue>
 
 namespace plt = matplotlibcpp;
 using namespace std;
@@ -14,16 +15,16 @@ using namespace fpp;
 
 // TODO : Refactor, this could be spread on a couple files. 
 //   Need to see if that's actually better though
-const int WorldSizeX = 30;
-const int WorldSizeY = 30;
+const int WorldSizeX = 50;
+const int WorldSizeY = 50;
 const float FoodLifeGain = 20;
 const float KillLifeGain = 30;
 const float DeathPenalty = 40;
 const float StartingLife = 0;
-const int FoodCellCount = 1;//WorldSizeX * WorldSizeY*0.1;
-const int MaxSimulationSteps = 50;
+const int FoodCellCount = WorldSizeX * WorldSizeY*0.05;
+const int MaxSimulationSteps = 200;
 const int PopulationSize = 100;
-const int GenerationsCount = 400;
+const int GenerationsCount = 250;
 const float LifeLostPerTurn = 5;
 
 minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
@@ -32,6 +33,8 @@ struct OrgState
 {
 	float Life = 0;
 	float2 Position;
+
+	bool IsCarnivore;
 };
 
 enum class ParametersIDs
@@ -91,7 +94,11 @@ public:
 				auto state_ptr = (OrgState*)State;
 
 				state_ptr->Position.y = cycle_y(state_ptr->Position.y + 1);//clamp<int>(state_ptr->Position.y + 1, 0, WorldSizeY - 1);
-				ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);
+				
+				if (state_ptr->IsCarnivore)
+					ActionRegistry[(int)ActionsIDs::KillAndEat].Execute(State, Pop, Org, World);
+				else
+					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::MoveBackwards] = Action
@@ -101,7 +108,11 @@ public:
 				auto state_ptr = (OrgState*)State;
 
 				state_ptr->Position.y = cycle_y(state_ptr->Position.y - 1) % WorldSizeY;//clamp<int>(state_ptr->Position.y - 1, 0, WorldSizeY - 1);
-                ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);
+
+				if (state_ptr->IsCarnivore)
+					ActionRegistry[(int)ActionsIDs::KillAndEat].Execute(State, Pop, Org, World);
+				else
+					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::MoveRight] = Action
@@ -111,7 +122,11 @@ public:
 				auto state_ptr = (OrgState*)State;
 
 				state_ptr->Position.x = cycle_x(state_ptr->Position.x + 1) % WorldSizeX;//clamp<int>(state_ptr->Position.x + 1, 0, WorldSizeX - 1);
-                ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);
+
+				if (state_ptr->IsCarnivore)
+					ActionRegistry[(int)ActionsIDs::KillAndEat].Execute(State, Pop, Org, World);
+				else
+					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::MoveLeft] = Action
@@ -121,7 +136,11 @@ public:
 				auto state_ptr = (OrgState*)State;
 
 				state_ptr->Position.x = cycle_x(state_ptr->Position.x - 1) % WorldSizeX;// clamp<int>(state_ptr->Position.x - 1, 0, WorldSizeX - 1);
-                ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);
+
+				if (state_ptr->IsCarnivore)
+					ActionRegistry[(int)ActionsIDs::KillAndEat].Execute(State, Pop, Org, World);
+				else
+					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);
 			}
 		);
 
@@ -295,8 +314,8 @@ public:
 				float2 nearest_pos;
 				for (const auto& other_org : Pop->GetIndividuals())
 				{
-					if (other_org.GetState<OrgState>()->Life <= 0)
-						continue;
+					//if (other_org.GetState<OrgState>()->Life <= 0)
+						//continue;
 
 					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
 					if (dist < nearest_dist)
@@ -333,8 +352,8 @@ public:
 				float2 nearest_pos;
 				for (const auto& other_org : Pop->GetIndividuals())
 				{
-					if (other_org.GetState<OrgState>()->Life <= 0)
-						continue;
+					//if (other_org.GetState<OrgState>()->Life <= 0)
+						//continue;
 
 					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
 					if (dist < nearest_dist)
@@ -407,12 +426,12 @@ public:
 				{
 					{},/*{(int)ActionsIDs::EatFood},*/
 					{(int)SensorsIDs::NearestFoodAngle}
-				}/*,
+				},
 				// Carnivore
 				{
-					{(int)ActionsIDs::KillAndEat},
+					{},/*{(int)ActionsIDs::KillAndEat},*/
 					{(int)SensorsIDs::NearestCompetidorAngle}
-				}*/
+				}
 			}
 		});
 		ComponentRegistry.push_back
@@ -472,13 +491,24 @@ public:
 		});*/
 	}
 
-	virtual void * MakeState(const class Individual *) override
+	virtual void * MakeState(const Individual * org) override
 	{
 		auto state = new OrgState;
 
 		state->Life = StartingLife;
 		state->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
 		state->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
+
+		for (auto[gid, cid] : org->GetComponents())
+		{
+			if (gid == 0) // mouth group
+			{
+				if (cid == 0) // herbivore
+					state->IsCarnivore = false;
+				else if (cid == 1)
+					state->IsCarnivore = true;
+			}
+		}
 
 		return state;
 	}
@@ -607,7 +637,7 @@ int main()
 					{
 						avg_f += org.LastFitness;
 						avg_n += org.LastNoveltyMetric;
-						
+
 						fitness_vec_registry.push_back(org.LastFitness);
 						novelty_vec_registry.push_back(org.LastNoveltyMetric);
 
@@ -656,38 +686,38 @@ int main()
 				plt::plot(avg_novelty_registry, "g");
 				//plt::hist(novelty_vec_registry);*/
 
-				float avg_f = accumulate(fitness_vec.begin(), fitness_vec.end(), 0.0f) / fitness_vec.size();
-				float avg_n = accumulate(novelty_vec.begin(), novelty_vec.end(), 0.0f) / novelty_vec.size();
+float avg_f = accumulate(fitness_vec.begin(), fitness_vec.end(), 0.0f) / fitness_vec.size();
+float avg_n = accumulate(novelty_vec.begin(), novelty_vec.end(), 0.0f) / novelty_vec.size();
 
-				auto metrics = pop.ComputeProgressMetrics(&world, 10);
-				avg_fitness_difference.push_back(metrics.AverageFitnessDifference);
-				avg_fitness_network.push_back(metrics.AverageFitness);
-				avg_fitness_random.push_back(metrics.AverageRandomFitness);
-				avg_novelty_registry.push_back(metrics.AverageNovelty);
+auto metrics = pop.ComputeProgressMetrics(&world, 10);
+avg_fitness_difference.push_back(metrics.AverageFitnessDifference);
+avg_fitness_network.push_back(metrics.AverageFitness);
+avg_fitness_random.push_back(metrics.AverageRandomFitness);
+avg_novelty_registry.push_back(metrics.AverageNovelty);
 
-				avg_fitness.push_back(avg_f);
-				avg_novelty.push_back(avg_n);
+avg_fitness.push_back(avg_f);
+avg_novelty.push_back(avg_n);
 
-				plt::clf();
+plt::clf();
 
-				plt::subplot(5, 1, 1);
-				plt::plot(fitness_vec, novelty_vec, "x");
-				//plt::loglog(fitness_vec, novelty_vec, "x");
+plt::subplot(5, 1, 1);
+plt::plot(fitness_vec, novelty_vec, "x");
+//plt::loglog(fitness_vec, novelty_vec, "x");
 
-				plt::subplot(5, 1, 2);
-				plt::plot(avg_fitness, "r");
+plt::subplot(5, 1, 2);
+plt::plot(avg_fitness, "r");
 
-				plt::subplot(5, 1, 3);
-				plt::plot(avg_novelty, "g");
+plt::subplot(5, 1, 3);
+plt::plot(avg_novelty, "g");
 
-				plt::subplot(5, 1, 4);
-				plt::plot(avg_fitness_network, "r");
-				plt::plot(avg_fitness_random, "b");
+plt::subplot(5, 1, 4);
+plt::plot(avg_fitness_network, "r");
+plt::plot(avg_fitness_random, "b");
 
-				plt::subplot(5, 1, 5);
-				plt::plot(avg_novelty_registry, "g");
+plt::subplot(5, 1, 5);
+plt::plot(avg_novelty_registry, "g");
 
-				plt::pause(0.01);
+plt::pause(0.01);
 #endif
 			}
 		});
@@ -697,7 +727,45 @@ int main()
 #ifndef _DEBUG
 	// After evolution is done, replace the population with the ones of the registry
 //	pop.BuildFinalPopulation();
-    pop.GetIndividuals().resize(5);
+
+	// Find the best 5 prey and predator
+	{
+		auto comparator = [](pair<int, float> a, pair<int, float> b) { return a.second > b.second; };
+		priority_queue<pair<int, float>, vector<pair<int, float>>, decltype(comparator)> prey_queue(comparator), predator_queue(comparator);
+
+		for (auto[idx, org] : enumerate(pop.GetIndividuals()))
+		{
+			if (org.GetState<OrgState>()->IsCarnivore)
+			{
+				predator_queue.push({ idx, org.Fitness });
+				if (predator_queue.size() == 6)
+					predator_queue.pop();
+			}
+			else
+			{
+				prey_queue.push({ idx, org.Fitness });
+				if (prey_queue.size() == 6)
+					prey_queue.pop();
+			}
+		}
+
+		vector<Individual> tmp;
+		while (predator_queue.size() > 0)
+		{
+			tmp.push_back(move(pop.GetIndividuals()[predator_queue.top().first]));
+			predator_queue.pop();
+		}
+
+		while (prey_queue.size() > 0)
+		{
+			tmp.push_back(move(pop.GetIndividuals()[prey_queue.top().first]));
+			prey_queue.pop();
+		}
+
+		pop.GetIndividuals() = move(tmp);
+	}
+
+    //pop.GetIndividuals().resize(5);
 	while (true)
 	{
 		for (auto& org : pop.GetIndividuals())
@@ -749,7 +817,7 @@ int main()
 			plt::plot(org_x, org_y, string("x") + string("C") + to_string(species_idx));
 			}*/
 
-			// Plot herbivores on green and carnivores on black
+			// Plot herbivores on blue and carnivores on black
 			vector<int> herbivores_x, herbivores_y;
 			vector<int> carnivores_x, carnivores_y;
 			herbivores_x.reserve(PopulationSize);
@@ -759,18 +827,10 @@ int main()
 
 			for (const auto& org : pop.GetIndividuals())
 			{
-				bool is_carnivore = false;
-				for (const auto& comp : org.GetComponents())
-				{
-					// Group 0 is the "mouth", component 1 of that group is carnivores mouth
-					if (comp.GroupID == 0 && comp.ComponentID == 1)
-						is_carnivore = true;
-				}
-
 				auto state_ptr = (OrgState*)org.GetState();
 
 				any_alive = true;
-				if (is_carnivore)
+				if (state_ptr->IsCarnivore)
 				{
 					carnivores_x.push_back(state_ptr->Position.x);
 					carnivores_y.push_back(state_ptr->Position.y);

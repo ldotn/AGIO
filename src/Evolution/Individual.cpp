@@ -368,7 +368,7 @@ float Individual::MorphologyTag::Distance(const Individual::MorphologyTag &Other
     }
 
 	// TODO : TO USE THIS YOU MUST LOAD THE NEAT PARAMETERS !!
-	//dist += Genes->compatibility(Other.Genes.get());
+	dist += logf(Genes->compatibility(Other.Genes.get()) + 1.0f);
 
     // Finally check number of mismatching genes on the genome of the control network
     /*for (const auto &gene : GenesIDs)
