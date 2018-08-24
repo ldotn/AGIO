@@ -29,10 +29,9 @@ namespace agio
 
 		// Creates a new population of random individuals
 		// It also separates them into species
-		void Spawn(size_t Size);
-
-		// Replaces the individuals with the ones from the non dominated registry
-		void BuildFinalPopulation();
+		// The size of the population is equal to SimulationSize*PopulationSizeMultiplier
+		// The simulation size is the number of individuals that are simulated at the same time
+		void Spawn(int PopulationSizeMultiplier, int SimulationSize);
 
 		// Computes a single evolutive step
 		// The callback is called just before replacement
@@ -41,7 +40,6 @@ namespace agio
 		const auto& GetIndividuals() const { return Individuals; }
 		auto& GetIndividuals() { return Individuals; }
 		const auto& GetSpecies() const { return SpeciesMap; }
-		const auto& GetNonDominatedRegistry() const { return NonDominatedRegistry; }
 
 		// Returns several metrics that allow one to measure the progress of the evolution
 		// TODO : More comprehensive docs maybe?
@@ -54,7 +52,7 @@ namespace agio
 			float AverageRandomFitness;
 			float FitnessDifferenceStandardDeviation;
 		};
-		ProgressMetrics ComputeProgressMetrics(void * World,int Replications);
+		ProgressMetrics ComputeProgressMetrics(void * World);
 
 		// Variables used in mutate_add_node and mutate_add_link (neat)
 		// TODO : Refactor this so that the naming is consistent
@@ -81,20 +79,18 @@ namespace agio
 
 		// Separates the individuals in species based on the actions and sensors
 		void BuildSpeciesMap();
-
-		// Historical record of non-dominated individuals found
-		// Separated by species
-		// TODO : If the world is dynamic the old fitness values might no longer be valid or relevant
-		std::unordered_map<Individual::MorphologyTag, std::vector<Individual>> NonDominatedRegistry;
 	
 		// Computes the novelty metric for the population
 		void ComputeNovelty();
 
-
-
-
+		// Number of individuals simulated at the same time. 
+		// The entire population is simulated, but on batches of SimulationSize
+		int SimulationSize;
 
 		// Children of the current population. See NSGA-II
 		std::vector<Individual> Children;
+
+		// Evaluates the population
+		void EvaluatePopulation(void * WorldPtr);
 	};
 }

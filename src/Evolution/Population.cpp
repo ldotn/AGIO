@@ -54,22 +54,57 @@ void Population::BuildSpeciesMap()
 	}
 }
 
-void Population::Spawn(size_t Size)
+void Population::Spawn(int SizeMult,int SimSize)
 {
-	Individuals.resize(Size);
+	int pop_size = SizeMult * SimSize;
+
+	SimulationSize = SimSize;
+	Individuals.resize(pop_size);
 	
 	for (auto [idx, org] : enumerate(Individuals))
 		org.Spawn(idx);
 
-	DominationBuffer.resize(Size);
+	DominationBuffer.resize(pop_size);
 	NoveltyNearestKBuffer.resize(Settings::NoveltyNearestK);
 	CompetitionNearestKBuffer.resize(Settings::LocalCompetitionK);
-	ChildrenBuffer.resize(Size);
+	ChildrenBuffer.resize(pop_size);
 	CurrentGeneration = 0;
 
 	// TODO :  Separate organisms by distance in the world too
 	BuildSpeciesMap();
 }
+
+void Population::EvaluatePopulation(void * WorldPtr)
+{
+	for (auto& org : Individuals)
+		org.AccumulatedFitness = 0;
+
+	// Simulate in batches of SimulationSize
+	for (int j = 0; j < Individuals.size() / SimulationSize; j++)
+	{
+		// TODO : Optimize this, you could pass the current batch id and make the individuals aware of their index in the vector
+		for (auto[idx, org] : enumerate(Individuals))
+		{
+			if (idx >= j * SimulationSize && idx < (j + 1)*SimulationSize)
+				org.InSimulation = true;
+			else
+				org.InSimulation = false;
+		}
+
+		for (int i = 0; i < Settings::SimulationReplications; i++)
+		{
+			// Compute fitness of each individual
+			Interface->ComputeFitness(this, WorldPtr);
+
+			// Update the fitness and novelty accumulators
+			for (auto& org : Individuals)
+				org.AccumulatedFitness += org.Fitness;
+		}
+	}
+
+	for (auto& org : Individuals)
+		org.Fitness = org.AccumulatedFitness / (float)Settings::SimulationReplications;
+};
 
 void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 {
@@ -133,32 +168,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 		}
 	};
 
-	auto evaluate_pop = [&]()
-	{
-		// Compute novelty metric
-		ComputeNovelty();
 
-		// TODO : Expose this as a parameter
-		for (int i = 0; i < 10; i++)
-		{
-			// Compute fitness of each individual
-			Interface->ComputeFitness(this, WorldPtr);
-
-			// Update the fitness and novelty accumulators
-			for (auto& org : Individuals)
-			{
-				org.AccumulatedFitness += org.Fitness;
-				org.EvaluationsCount++;
-
-				// Replace the last fitness and last novelty with the values of the accumulators
-				// TODO : Maybe make some refactor here, all this mess doesn't really looks clean 
-				org.Fitness = org.AccumulatedFitness / org.EvaluationsCount;
-			}
-		}
-
-		// Now compute local scores
-		compute_local_scores();
-	};
 	auto dominates = [](const Individual& A, const Individual& B)
 	{
 		return (A.LastNoveltyMetric >= B.LastNoveltyMetric && A.LocalScore >= B.LocalScore  && A.GenotypicDiversity >= B.GenotypicDiversity) &&
@@ -260,7 +270,9 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 	if (CurrentGeneration == 0)
 	{
-		evaluate_pop();
+		ComputeNovelty();
+		EvaluatePopulation(WorldPtr);
+		compute_local_scores();
 		auto fronts_map = compute_domination_fronts();
 
 		// Select parents based on the non dominated fronts
@@ -324,7 +336,9 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 		BuildSpeciesMap();
 
 		// Evaluate
-		evaluate_pop();
+		ComputeNovelty();
+		EvaluatePopulation(WorldPtr);
+		compute_local_scores();
 
 		for (auto &[tag, species] : SpeciesMap)
 		{
@@ -504,26 +518,8 @@ void Population::ComputeNovelty()
 	}
 }
 
-void Population::BuildFinalPopulation()
+Population::ProgressMetrics Population::ComputeProgressMetrics(void * World)
 {
-	vector<Individual> final_pop;
-	for (const auto& [_, individuals] : NonDominatedRegistry)
-		for (const auto& org : individuals)
-			final_pop.emplace_back(org, Individual::Make::Clone);
-
-	Individuals = move(final_pop);
-	BuildSpeciesMap();
-}
-
-Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int Replications)
-{
-	/*
-	// Save the current population
-	vector<Individual> current_pop = move(Individuals);
-
-	// Now build the population from the registry
-	BuildFinalPopulation();*/
-
 	ProgressMetrics metrics;
 
 	// Compute average novelty
@@ -538,19 +534,10 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int 
     metrics.AverageFitness = 0;
     metrics.AverageRandomFitness = 0;
 
-    for (auto &org : Individuals)
-		org.AccumulatedFitness = 0;
-
-	for (int i = 0; i < Replications; i++)
-	{
-		Interface->ComputeFitness(this, World);
-
-		for (auto &org : Individuals)
-			org.AccumulatedFitness += org.Fitness;
-	}
+	EvaluatePopulation(World);
 
     for (auto &org : Individuals)
-        metrics.AverageFitness += org.Fitness / Replications;
+        metrics.AverageFitness += org.Fitness;
     metrics.AverageFitness /= Individuals.size();
 
     // Now for each species set that to be random, and do a couple of simulations
@@ -559,19 +546,10 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int 
         for (int org_id : species->IndividualsIDs)
             Individuals[org_id].UseNetwork = false;
 
-    for (auto &org : Individuals)
-        org.AccumulatedFitness = 0;
-
-    for (int i = 0; i < Replications; i++)
-    {
-        Interface->ComputeFitness(this, World);
-
-        for (auto &org : Individuals)
-            org.AccumulatedFitness += org.Fitness;
-    }
+	EvaluatePopulation(World);
 
     for (auto &org : Individuals)
-        metrics.AverageRandomFitness += org.Fitness / Replications;
+        metrics.AverageRandomFitness += org.Fitness;
     metrics.AverageRandomFitness /= Individuals.size();
 
     // Re-enable the network
@@ -583,9 +561,6 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int 
             ((metrics.AverageFitness - metrics.AverageRandomFitness) / metrics.AverageRandomFitness) * 100;
 
 	// TODO : Compute standard deviations
-
-	// After all is done, restore the current population
-	//Individuals = move(current_pop);
 
 	return metrics;
 }

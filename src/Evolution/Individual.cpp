@@ -33,7 +33,6 @@ Individual::Individual() : RNG(chrono::high_resolution_clock::now().time_since_e
 
     AccumulatedFitness = 0;
     //AccumulatedNovelty = 0;
-    EvaluationsCount = 0;
 }
 
 void Individual::Spawn(int ID)
@@ -218,7 +217,7 @@ Individual::Individual(const Individual &Parent, Individual::Make) : Individual(
 
     AccumulatedFitness = Parent.AccumulatedFitness;
     //AccumulatedNovelty = Parent.AccumulatedNovelty;
-    EvaluationsCount = Parent.EvaluationsCount;
+    //EvaluationsCount = Parent.EvaluationsCount;
 
 	SpeciesPtr = Parent.SpeciesPtr;
 };
@@ -633,7 +632,7 @@ void Individual::Mutate(Population *population, int generation)
 		// Also reset the accumulators, as they are no longer valid
 		AccumulatedFitness = 0;
 		//AccumulatedNovelty = 0;
-		EvaluationsCount = 0;
+		//EvaluationsCount = 0;
 	}
         
 }
@@ -661,7 +660,7 @@ Individual::Individual(Individual &&other) noexcept
 
     AccumulatedFitness = other.AccumulatedFitness;
     //AccumulatedNovelty = other.AccumulatedNovelty;
-    EvaluationsCount = other.EvaluationsCount;
+    //EvaluationsCount = other.EvaluationsCount;
 	
 
 	DominatedSet = move(other.DominatedSet);

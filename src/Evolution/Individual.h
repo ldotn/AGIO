@@ -95,7 +95,7 @@ namespace agio
 		// TODO : Refactor this, it feels dirty
 		float AccumulatedFitness;
 		//float AccumulatedNovelty;
-		float EvaluationsCount;
+		//float EvaluationsCount;
 
 
 
@@ -113,7 +113,7 @@ namespace agio
 		int DominationRank;
 		int LocalScore;
 		float GenotypicDiversity;
-
+		bool InSimulation;
 
 
 

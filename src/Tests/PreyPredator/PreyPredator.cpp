@@ -17,13 +17,14 @@ using namespace fpp;
 //   Need to see if that's actually better though
 const int WorldSizeX = 50;
 const int WorldSizeY = 50;
-const float FoodLifeGain = 20;
-const float KillLifeGain = 30;
+const float FoodScoreGain = 20;
+const float KillScoreGain = 30;
 const float DeathPenalty = 40;
-const float StartingLife = 0;
 const int FoodCellCount = WorldSizeX * WorldSizeY*0.05;
 const int MaxSimulationSteps = 200;
-const int PopulationSize = 100;
+const int SimulationSize = 75; // Population is simulated in batches
+const int PopSizeMultiplier = 3; // Population size is a multiple of the simulation size
+const int PopulationSize = PopSizeMultiplier * SimulationSize;
 const int GenerationsCount = 250;
 const float LifeLostPerTurn = 5;
 
@@ -31,7 +32,7 @@ minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count())
 
 struct OrgState
 {
-	float Life = 0;
+	float Score = 0;
 	float2 Position;
 
 	bool IsCarnivore;
@@ -107,7 +108,7 @@ public:
 			{
 				auto state_ptr = (OrgState*)State;
 
-				state_ptr->Position.y = cycle_y(state_ptr->Position.y - 1) % WorldSizeY;//clamp<int>(state_ptr->Position.y - 1, 0, WorldSizeY - 1);
+				state_ptr->Position.y = cycle_y(state_ptr->Position.y - 1);//clamp<int>(state_ptr->Position.y - 1, 0, WorldSizeY - 1);
 
 				if (state_ptr->IsCarnivore)
 					ActionRegistry[(int)ActionsIDs::KillAndEat].Execute(State, Pop, Org, World);
@@ -121,7 +122,7 @@ public:
 			{
 				auto state_ptr = (OrgState*)State;
 
-				state_ptr->Position.x = cycle_x(state_ptr->Position.x + 1) % WorldSizeX;//clamp<int>(state_ptr->Position.x + 1, 0, WorldSizeX - 1);
+				state_ptr->Position.x = cycle_x(state_ptr->Position.x + 1);//clamp<int>(state_ptr->Position.x + 1, 0, WorldSizeX - 1);
 
 				if (state_ptr->IsCarnivore)
 					ActionRegistry[(int)ActionsIDs::KillAndEat].Execute(State, Pop, Org, World);
@@ -135,7 +136,7 @@ public:
 			{
 				auto state_ptr = (OrgState*)State;
 
-				state_ptr->Position.x = cycle_x(state_ptr->Position.x - 1) % WorldSizeX;// clamp<int>(state_ptr->Position.x - 1, 0, WorldSizeX - 1);
+				state_ptr->Position.x = cycle_x(state_ptr->Position.x - 1);// clamp<int>(state_ptr->Position.x - 1, 0, WorldSizeX - 1);
 
 				if (state_ptr->IsCarnivore)
 					ActionRegistry[(int)ActionsIDs::KillAndEat].Execute(State, Pop, Org, World);
@@ -213,12 +214,10 @@ public:
 
 					if (diff.x <= 1 && diff.y <= 1)
 					{
-						state_ptr->Life += FoodLifeGain;
+						state_ptr->Score += FoodScoreGain;
 
-						// Remove food and create a new one
-						world_ptr->FoodPositions.erase(world_ptr->FoodPositions.begin() + idx);
-						float2 food_pos(uniform_real_distribution<float>(0, WorldSizeX)(RNG), uniform_real_distribution<float>(0, WorldSizeY)(RNG));
-						world_ptr->FoodPositions.push_back(food_pos);
+						// Just move the food to a different position. Achieves the same effect as removing it
+						world_ptr->FoodPositions[idx] = { uniform_real_distribution<float>(0, WorldSizeX)(RNG), uniform_real_distribution<float>(0, WorldSizeY)(RNG) };
 						break;
 					}
 				}
@@ -241,6 +240,12 @@ public:
 				// The species map is not really useful here
 				for (const auto& individual : Pop->GetIndividuals())
 				{
+					// Ignore individuals that aren't being simulated right now
+					// Also, don't do all the other stuff against yourself. 
+					// You already know you don't want to kill yoursefl
+					if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
+						continue;
+
 					auto other_state_ptr = (OrgState*)individual.GetState();
 					auto diff = abs >> (other_state_ptr->Position - state_ptr->Position);
 					if (diff.x <= 1 && diff.y <= 1)
@@ -252,9 +257,9 @@ public:
 
 						if (!(tag == other_tag))
 						{
-							state_ptr->Life += KillLifeGain;
+							state_ptr->Score += KillScoreGain;
 
-							other_state_ptr->Life -= DeathPenalty;
+							other_state_ptr->Score -= DeathPenalty;
 							other_state_ptr->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
 							other_state_ptr->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
 							break;
@@ -271,7 +276,7 @@ public:
 		(
 			[](void * State, void * World, const Population* Pop, const Individual * Org)
 			{
-				return ((OrgState*)State)->Life;
+				return ((OrgState*)State)->Score;
 			}
 		);
 		SensorRegistry[(int)SensorsIDs::NearestFoodAngle] = Sensor
@@ -314,8 +319,10 @@ public:
 				float2 nearest_pos;
 				for (const auto& other_org : Pop->GetIndividuals())
 				{
-					//if (other_org.GetState<OrgState>()->Life <= 0)
-						//continue;
+					// Ignore individuals that aren't being simulated right now
+					// Also, don't do all the other stuff against yourself. 
+					if (!other_org.InSimulation || other_org.GetGlobalID() == Org->GetGlobalID())
+						continue;
 
 					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
 					if (dist < nearest_dist)
@@ -352,8 +359,10 @@ public:
 				float2 nearest_pos;
 				for (const auto& other_org : Pop->GetIndividuals())
 				{
-					//if (other_org.GetState<OrgState>()->Life <= 0)
-						//continue;
+					// Ignore individuals that aren't being simulated right now
+					// Also, don't do all the other stuff against yourself. 
+					if (!other_org.InSimulation || other_org.GetGlobalID() == Org->GetGlobalID())
+						continue;
 
 					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
 					if (dist < nearest_dist)
@@ -495,7 +504,7 @@ public:
 	{
 		auto state = new OrgState;
 
-		state->Life = StartingLife;
+		state->Score = 0;
 		state->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
 		state->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
 
@@ -517,7 +526,7 @@ public:
 	{
 		auto state_ptr = (OrgState*)State;
 
-		state_ptr->Life = StartingLife;
+		state_ptr->Score = 0;
 		state_ptr->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
 		state_ptr->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
 	}
@@ -550,20 +559,19 @@ public:
 		for (auto& org : Pop->GetIndividuals())
 			org.Reset();
 
-		// TODO : Shuffle the evaluation order
 		LastSimulationStepCount = 0;
 		for (int i = 0; i < MaxSimulationSteps; i++)
 		{
 			for (auto& org : Pop->GetIndividuals())
 			{
+				if (!org.InSimulation)
+					continue;
+
 				auto state_ptr = (OrgState*)org.GetState();
 
 				org.DecideAndExecute(World, Pop);
 
-				// Using as fitness the accumulated life
-				org.Fitness = state_ptr->Life;
-				// Second option : moving average
-				//org.LastFitness = org.LastFitness*0.9f + state_ptr->Life*0.1f;
+				org.Fitness = state_ptr->Score;
 			}
 			LastSimulationStepCount++;
 		}
@@ -591,7 +599,7 @@ int main()
 
 	// Spawn population
 	Population pop;
-	pop.Spawn(PopulationSize);
+	pop.Spawn(PopSizeMultiplier,SimulationSize);
 	
 	// Do evolution loop
 	vector<float> fitness_vec(PopulationSize);
@@ -686,38 +694,38 @@ int main()
 				plt::plot(avg_novelty_registry, "g");
 				//plt::hist(novelty_vec_registry);*/
 
-float avg_f = accumulate(fitness_vec.begin(), fitness_vec.end(), 0.0f) / fitness_vec.size();
-float avg_n = accumulate(novelty_vec.begin(), novelty_vec.end(), 0.0f) / novelty_vec.size();
+				float avg_f = accumulate(fitness_vec.begin(), fitness_vec.end(), 0.0f) / fitness_vec.size();
+				float avg_n = accumulate(novelty_vec.begin(), novelty_vec.end(), 0.0f) / novelty_vec.size();
 
-auto metrics = pop.ComputeProgressMetrics(&world, 10);
-avg_fitness_difference.push_back(metrics.AverageFitnessDifference);
-avg_fitness_network.push_back(metrics.AverageFitness);
-avg_fitness_random.push_back(metrics.AverageRandomFitness);
-avg_novelty_registry.push_back(metrics.AverageNovelty);
+				auto metrics = pop.ComputeProgressMetrics(&world);
+				avg_fitness_difference.push_back(metrics.AverageFitnessDifference);
+				avg_fitness_network.push_back(metrics.AverageFitness);
+				avg_fitness_random.push_back(metrics.AverageRandomFitness);
+				avg_novelty_registry.push_back(metrics.AverageNovelty);
 
-avg_fitness.push_back(avg_f);
-avg_novelty.push_back(avg_n);
+				avg_fitness.push_back(avg_f);
+				avg_novelty.push_back(avg_n);
 
-plt::clf();
+				plt::clf();
 
-plt::subplot(5, 1, 1);
-plt::plot(fitness_vec, novelty_vec, "x");
-//plt::loglog(fitness_vec, novelty_vec, "x");
+				plt::subplot(5, 1, 1);
+				plt::plot(fitness_vec, novelty_vec, "x");
+				//plt::loglog(fitness_vec, novelty_vec, "x");
 
-plt::subplot(5, 1, 2);
-plt::plot(avg_fitness, "r");
+				plt::subplot(5, 1, 2);
+				plt::plot(avg_fitness, "r");
 
-plt::subplot(5, 1, 3);
-plt::plot(avg_novelty, "g");
+				plt::subplot(5, 1, 3);
+				plt::plot(avg_novelty, "g");
 
-plt::subplot(5, 1, 4);
-plt::plot(avg_fitness_network, "r");
-plt::plot(avg_fitness_random, "b");
+				plt::subplot(5, 1, 4);
+				plt::plot(avg_fitness_network, "r");
+				plt::plot(avg_fitness_random, "b");
 
-plt::subplot(5, 1, 5);
-plt::plot(avg_novelty_registry, "g");
+				plt::subplot(5, 1, 5);
+				plt::plot(avg_novelty_registry, "g");
 
-plt::pause(0.01);
+				plt::pause(0.01);
 #endif
 			}
 		});
@@ -727,7 +735,7 @@ plt::pause(0.01);
 #ifndef _DEBUG
 	// After evolution is done, replace the population with the ones of the registry
 //	pop.BuildFinalPopulation();
-
+	//another interesting option would be to select 5 random individuals from the non dominated front, maybe for each species
 	// Find the best 5 prey and predator
 	{
 		auto comparator = [](pair<int, float> a, pair<int, float> b) { return a.second > b.second; };
