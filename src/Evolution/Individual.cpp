@@ -297,10 +297,21 @@ bool Individual::MorphologyTag::IsCompatible(const Individual::MorphologyTag &Ot
         return false;
 
     // Check bitfields
-    for (auto[bf0, bf1] : zip(ActionsBitfield, Other.ActionsBitfield))
+	// Optimization : Partial unroll. You usually have less than 64 actions or sensors
+	if (ActionsBitfield[0] != Other.ActionsBitfield[0])
+		return false;
+	for (int i = 1; i < ActionsBitfield.size(); i++)
+		if (ActionsBitfield[i] != Other.ActionsBitfield[i]) return false;
+
+	if (SensorsBitfield[0] != Other.SensorsBitfield[0])
+		return false;
+	for (int i = 1; i < SensorsBitfield.size(); i++)
+		if (SensorsBitfield[i] != Other.SensorsBitfield[i]) return false;
+
+    /*for (auto[bf0, bf1] : zip(ActionsBitfield, Other.ActionsBitfield))
         if (bf0 != bf1) return false;
     for (auto[bf0, bf1] : zip(SensorsBitfield, Other.SensorsBitfield))
-        if (bf0 != bf1) return false;
+        if (bf0 != bf1) return false;*/
 
     // Everything is equal, so they are compatible
     return true;
@@ -312,6 +323,7 @@ bool Individual::MorphologyTag::operator==(const Individual::MorphologyTag &Othe
     if (!IsCompatible(Other))
         return false;
 
+	/*
     // They are compatible, so check that the parameters line up
     if (Parameters.size() != Other.Parameters.size())
         return false;
@@ -324,7 +336,7 @@ bool Individual::MorphologyTag::operator==(const Individual::MorphologyTag &Othe
         // TODO : Maybe instead of this one should use a distance threshold
         if (param_iter == Other.Parameters.end() || param.HistoricalMarker != param_iter->second.HistoricalMarker)
             return false;
-    }
+    }*/
 
     return true;
 }

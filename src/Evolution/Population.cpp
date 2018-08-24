@@ -35,8 +35,8 @@ void Population::BuildSpeciesMap()
 	// put every individual into his corresponding species
 	for (auto [idx, org] : enumerate(Individuals))
 	{
-		auto tag = org.GetMorphologyTag(); // make a copy
-		tag.Parameters = {}; // remove parameters
+		auto& tag = org.GetMorphologyTag(); // make a copy
+		//tag.Parameters = {}; // remove parameters
 
 
 		Species* species_ptr = nullptr;

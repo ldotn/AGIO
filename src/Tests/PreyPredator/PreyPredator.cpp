@@ -232,9 +232,8 @@ public:
 			{
 				auto state_ptr = (OrgState*)State;
 
-				// TODO : Find a way to avoid the copy of the tag
-				auto tag = Org->GetMorphologyTag();
-				tag.Parameters = {};
+
+				const auto& tag = Org->GetMorphologyTag();
 				
 				// Find an individual of a DIFFERENT species.
 				// The species map is not really useful here
@@ -242,7 +241,7 @@ public:
 				{
 					// Ignore individuals that aren't being simulated right now
 					// Also, don't do all the other stuff against yourself. 
-					// You already know you don't want to kill yoursefl
+					// You already know you don't want to kill yourself
 					if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
 						continue;
 
@@ -250,10 +249,8 @@ public:
 					auto diff = abs >> (other_state_ptr->Position - state_ptr->Position);
 					if (diff.x <= 1 && diff.y <= 1)
 					{
-						// Check if they are from different species by comparing tags without parameters
-						// TODO : Find a way to avoid the copy of the tag
-						auto other_tag = individual.GetMorphologyTag();
-						other_tag.Parameters = {};
+						// Check if they are from different species by comparing tags
+						const auto& other_tag = individual.GetMorphologyTag();
 
 						if (!(tag == other_tag))
 						{
@@ -308,9 +305,8 @@ public:
 		(
 			[](void * State, void * World,const Population* Pop, const Individual * Org)
 			{
-				// TODO : Find a way to avoid the copy of the tag
-				auto tag = Org->GetMorphologyTag();
-				tag.Parameters = {};
+				// TODO : USE THE SPECIES MAP HERE!
+				const auto & tag = Org->GetMorphologyTag();
 
 				auto world_ptr = (WorldData*)World;
 				auto state_ptr = (OrgState*)State;
@@ -327,8 +323,7 @@ public:
 					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
 					if (dist < nearest_dist)
 					{
-						auto other_tag = other_org.GetMorphologyTag();
-						other_tag.Parameters = {};
+						const auto & other_tag = other_org.GetMorphologyTag();
 
 						if (tag == other_tag)
 						{
@@ -348,9 +343,7 @@ public:
 		(
 			[](void * State, void * World,const Population* Pop, const Individual * Org)
 			{
-				// TODO : Find a way to avoid the copy of the tag
-				auto tag = Org->GetMorphologyTag();
-				tag.Parameters = {};
+				const auto& tag = Org->GetMorphologyTag();
 
 				auto world_ptr = (WorldData*)World;
 				auto state_ptr = (OrgState*)State;
@@ -367,8 +360,7 @@ public:
 					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
 					if (dist < nearest_dist)
 					{
-						auto other_tag = other_org.GetMorphologyTag();
-						other_tag.Parameters = {};
+						const auto& other_tag = other_org.GetMorphologyTag();
 
 						if (!(tag == other_tag))
 						{
@@ -508,6 +500,7 @@ public:
 		state->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
 		state->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
 
+		// TODO : If the org mutates this becomes invalid...
 		for (auto[gid, cid] : org->GetComponents())
 		{
 			if (gid == 0) // mouth group
@@ -769,6 +762,9 @@ int main()
 			tmp.push_back(move(pop.GetIndividuals()[prey_queue.top().first]));
 			prey_queue.pop();
 		}
+
+		for (auto& org : tmp)
+			org.InSimulation = true;
 
 		pop.GetIndividuals() = move(tmp);
 	}

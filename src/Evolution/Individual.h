@@ -128,7 +128,7 @@ namespace agio
 
 
 		// Pointer to the current species where the individual belongs
-		class Species * SpeciesPtr;
+		struct Species * SpeciesPtr;
 
 		// Serializes the individual to a file
 		void DumpToFile(const std::string& FilePath);
@@ -201,8 +201,8 @@ namespace agio
 			// The innovation numbers of the genes
 			//std::vector<double> GenesIDs;
 
-			// Checks that the actions and sensors are the same, 
-			//  and that the parameters have the same historical marker
+			// Checks that the actions and sensors are the same
+			// IGNORES PARAMETERS!
 			bool operator==(const MorphologyTag &) const;
 
 			// Takes the parameters into account and genes
