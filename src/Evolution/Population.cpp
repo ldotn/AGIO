@@ -117,12 +117,12 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 				}
 
 				// With the k nearest found, check how many of them this individual bests and also compute genotypic diversity
-				auto & org = Individuals[idx];
+				Individual &org = Individuals[idx];
 				org.LocalScore = 0;
 				org.GenotypicDiversity = 0;
-				for(int i = 0;i <= k_buffer_top;i++)
+				for(int i = 0; i <= k_buffer_top; i++)
 				{
-					const auto& other_org = Individuals[CompetitionNearestKBuffer[i].first];
+					Individual& other_org = Individuals[CompetitionNearestKBuffer[i].first];
 					if (org.Fitness > other_org.Fitness)
 						org.LocalScore++;
 
@@ -159,11 +159,13 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 		// Now compute local scores
 		compute_local_scores();
 	};
+
 	auto dominates = [](const Individual& A, const Individual& B)
 	{
 		return (A.LastNoveltyMetric >= B.LastNoveltyMetric && A.LocalScore >= B.LocalScore  && A.GenotypicDiversity >= B.GenotypicDiversity) &&
 			(A.LastNoveltyMetric > B.LastNoveltyMetric || A.LocalScore > B.LocalScore || A.GenotypicDiversity > B.GenotypicDiversity);
 	};
+
 	auto compute_domination_fronts = [&]()
 	{
 		unordered_map<Individual::MorphologyTag, vector<unordered_set<int>>> fronts;
@@ -228,6 +230,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 		return fronts;
 	};
+
 	// Tournament selection (k = 2)
 	auto tournament_select = [&](const vector<int>& Parents)
 	{
@@ -426,8 +429,6 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 	EpochCallback(CurrentGeneration);
 	CurrentGeneration++;
-
-	return;
 }
 
 void Population::ComputeNovelty()

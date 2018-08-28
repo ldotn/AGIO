@@ -14,6 +14,7 @@ include_directories(${CMAKE_SOURCE_DIR}/NEAT/include)
 file(GLOB neat_sources NEAT/src/*.cpp)
 list(FILTER neat_sources EXCLUDE REGEX ".*neatmain.cpp$")
 list(FILTER neat_sources EXCLUDE REGEX ".*experiments.cpp$")
+
 set(project_sources 
 	src/Tests/test.cpp
 	src/Tests/neat_test.cpp
@@ -21,8 +22,8 @@ set(project_sources
 	src/Evolution/Individual.cpp
 	src/Evolution/Population.cpp
 	src/Tests/PreyPredator/PreyPredator.cpp
-	${neat_sources}
-)
+	src/Tests/Prey/Prey.cpp
+	${neat_sources})
 
 add_executable(agio ${project_sources} )
 

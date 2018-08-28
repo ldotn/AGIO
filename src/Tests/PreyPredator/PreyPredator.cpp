@@ -1,3 +1,4 @@
+#if 0
 #include "../../Evolution/Population.h"
 #include "../../Evolution/Globals.h"
 #include <assert.h>
@@ -851,3 +852,5 @@ plt::pause(0.01);
 	}
 #endif
 }
+
+#endif
