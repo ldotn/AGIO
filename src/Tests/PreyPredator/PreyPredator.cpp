@@ -523,13 +523,13 @@ public:
 					{},/*{(int)ActionsIDs::EatFood},*/
 					{
 						(int)SensorsIDs::NearestFoodAngle,
-/*						(int)SensorsIDs::NearestCompetidorAngle,
+						(int)SensorsIDs::NearestCompetidorAngle,
 						(int)SensorsIDs::NearestCompetidorDistance,
 						(int)SensorsIDs::NearestPartnerAngle,
 						(int)SensorsIDs::NearestPartnerDistance,
 
 						(int)SensorsIDs::CurrentPosX,
-						(int)SensorsIDs::CurrentPosY,*/
+						(int)SensorsIDs::CurrentPosY,
 					}
 				},
 				// Carnivore
@@ -537,12 +537,12 @@ public:
 					{},/*{(int)ActionsIDs::KillAndEat},*/
 					{
 						(int)SensorsIDs::NearestCompetidorAngle,
-/*						(int)SensorsIDs::NearestCompetidorDistance,
+						(int)SensorsIDs::NearestCompetidorDistance,
 						(int)SensorsIDs::NearestPartnerAngle,
 						(int)SensorsIDs::NearestPartnerDistance,
 
 						(int)SensorsIDs::CurrentPosX,
-						(int)SensorsIDs::CurrentPosY,*/
+						(int)SensorsIDs::CurrentPosY,
 					}
 				}
 			}
