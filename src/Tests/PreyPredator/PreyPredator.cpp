@@ -113,10 +113,10 @@ public:
 
 				state_ptr->Position.y = cycle_y(state_ptr->Position.y + 1);//clamp<int>(state_ptr->Position.y + 1, 0, WorldSizeY - 1);
 				
-				if (state_ptr->IsCarnivore)
+				/*if (state_ptr->IsCarnivore)
 					ActionRegistry[(int)ActionsIDs::KillAndEat].Execute(State, Pop, Org, World);
 				else
-					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);
+					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);*/
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::MoveBackwards] = Action
@@ -127,10 +127,10 @@ public:
 
 				state_ptr->Position.y = cycle_y(state_ptr->Position.y - 1);//clamp<int>(state_ptr->Position.y - 1, 0, WorldSizeY - 1);
 
-				if (state_ptr->IsCarnivore)
+				/*if (state_ptr->IsCarnivore)
 					ActionRegistry[(int)ActionsIDs::KillAndEat].Execute(State, Pop, Org, World);
 				else
-					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);
+					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);*/
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::MoveRight] = Action
@@ -141,10 +141,10 @@ public:
 
 				state_ptr->Position.x = cycle_x(state_ptr->Position.x + 1);//clamp<int>(state_ptr->Position.x + 1, 0, WorldSizeX - 1);
 
-				if (state_ptr->IsCarnivore)
+				/*if (state_ptr->IsCarnivore)
 					ActionRegistry[(int)ActionsIDs::KillAndEat].Execute(State, Pop, Org, World);
 				else
-					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);
+					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);*/
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::MoveLeft] = Action
@@ -155,10 +155,10 @@ public:
 
 				state_ptr->Position.x = cycle_x(state_ptr->Position.x - 1);// clamp<int>(state_ptr->Position.x - 1, 0, WorldSizeX - 1);
 
-				if (state_ptr->IsCarnivore)
+				/*if (state_ptr->IsCarnivore)
 					ActionRegistry[(int)ActionsIDs::KillAndEat].Execute(State, Pop, Org, World);
 				else
-					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);
+					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);*/
 			}
 		);
 
@@ -710,42 +710,43 @@ public:
 			{
 				// Herbivore
 				{
-					{},/*{(int)ActionsIDs::EatFood},*/
+					{(int)ActionsIDs::EatFood},
 					{
-						/*(int)SensorsIDs::NearestFoodAngle,
-						(int)SensorsIDs::NearestCompetidorAngle,
-						(int)SensorsIDs::NearestCompetidorDistance,
-						(int)SensorsIDs::NearestPartnerAngle,
-						(int)SensorsIDs::NearestPartnerDistance,*/
-						(int)SensorsIDs::NearestFoodX,
-						(int)SensorsIDs::NearestFoodY,
-						(int)SensorsIDs::NearestCompetidorX,
-						(int)SensorsIDs::NearestCompetidorY,
-						(int)SensorsIDs::NearestPartnerX,
-						(int)SensorsIDs::NearestPartnerY,
-
-						(int)SensorsIDs::CurrentPosX,
-						(int)SensorsIDs::CurrentPosY,
-					}
-				},
-				// Carnivore
-				{
-					{},/*{(int)ActionsIDs::KillAndEat},*/
-					{
+						(int)SensorsIDs::NearestFoodAngle,
 						/*(int)SensorsIDs::NearestCompetidorAngle,
 						(int)SensorsIDs::NearestCompetidorDistance,
 						(int)SensorsIDs::NearestPartnerAngle,
 						(int)SensorsIDs::NearestPartnerDistance,*/
 
-						(int)SensorsIDs::NearestFoodX,
+						/*(int)SensorsIDs::NearestFoodX,
 						(int)SensorsIDs::NearestFoodY,
 						(int)SensorsIDs::NearestCompetidorX,
 						(int)SensorsIDs::NearestCompetidorY,
 						(int)SensorsIDs::NearestPartnerX,
-						(int)SensorsIDs::NearestPartnerY,
+						(int)SensorsIDs::NearestPartnerY,*/
 
-						(int)SensorsIDs::CurrentPosX,
-						(int)SensorsIDs::CurrentPosY,
+						/*(int)SensorsIDs::CurrentPosX,
+						(int)SensorsIDs::CurrentPosY,*/
+					}
+				},
+				// Carnivore
+				{
+					{(int)ActionsIDs::KillAndEat},
+					{
+						(int)SensorsIDs::NearestCompetidorAngle,
+						/*(int)SensorsIDs::NearestCompetidorDistance,
+						(int)SensorsIDs::NearestPartnerAngle,
+						(int)SensorsIDs::NearestPartnerDistance,*/
+
+						/*(int)SensorsIDs::NearestFoodX,
+						(int)SensorsIDs::NearestFoodY,
+						(int)SensorsIDs::NearestCompetidorX,
+						(int)SensorsIDs::NearestCompetidorY,
+						(int)SensorsIDs::NearestPartnerX,
+						(int)SensorsIDs::NearestPartnerY,*/
+
+						/*(int)SensorsIDs::CurrentPosX,
+						(int)SensorsIDs::CurrentPosY,*/
 					}
 				}
 			}
@@ -931,6 +932,10 @@ int main()
 		pop.Epoch(&world, [&](int gen)
 		{
 			cout << "Generation : " << gen << endl;
+			cout << "    Species Size [" << pop.GetSpecies().size() << "] : ";
+			for (const auto&[_, species] : pop.GetSpecies())
+				cout << species->IndividualsIDs.size() << " , ";
+			cout << endl;
 
 			// Every some generations graph the fitness & novelty of the individuals of the registry
 			if (gen % 10 == 0)
