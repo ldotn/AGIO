@@ -192,8 +192,8 @@ namespace agio
 			int NumberOfActions;
 			int NumberOfSensors;
 
-			std::vector<uint64_t> ActionsBitfield;
-			std::vector<uint64_t> SensorsBitfield;
+			std::vector<uint32_t> ActionsBitfield;
+			std::vector<uint32_t> SensorsBitfield;
 			std::unordered_map<int, Parameter> Parameters;
 			
 			std::shared_ptr<NEAT::Genome> Genes;

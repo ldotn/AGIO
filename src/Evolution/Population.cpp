@@ -124,7 +124,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 				}
 				int k_buffer_top = 0;
 
-				// Check both against the species individuals
+				// Check against the species individuals
 				for (int other_idx : species->IndividualsIDs)
 				{
 					if (idx == other_idx)

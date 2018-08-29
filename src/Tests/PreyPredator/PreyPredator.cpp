@@ -67,6 +67,10 @@ enum class SensorsIDs
 	NearestPartnerAngle,
 	NearestCompetidorAngle, // Angle to the nearest individual of another species
 	NearestFoodAngle,
+	NearestPartnerDistance,
+	NearestCompetidorDistance,
+	CurrentPosX,
+	CurrentPosY,
 
 	NumberOfSensors
 };
@@ -85,8 +89,13 @@ public:
 
 		// Basic movement
 		// The world is circular, doing this so that % works with negative numbers
-		auto cycle_x = [](int x) { return ((x % WorldSizeX) + WorldSizeX) % WorldSizeX; };
-		auto cycle_y = [](int y) { return ((y % WorldSizeY) + WorldSizeY) % WorldSizeY; };
+		//auto cycle_x = [](int x) { return ((x % WorldSizeX) + WorldSizeX) % WorldSizeX; };
+		//auto cycle_y = [](int y) { return ((y % WorldSizeY) + WorldSizeY) % WorldSizeY; };
+
+		// Test : Instead of a circular world, make them bounce on walls
+		auto cycle_x = [](int x) { return x < WorldSizeX ? (x > 0 ? x : 2) : WorldSizeX - 2; };
+		auto cycle_y = [](int y) { return y < WorldSizeY ? (y > 0 ? y : 2) : WorldSizeY - 2; };
+
 
 		ActionRegistry[(int)ActionsIDs::MoveForward] = Action
 		(
@@ -276,6 +285,21 @@ public:
 				return ((OrgState*)State)->Score;
 			}
 		);
+		// Normalized position
+		SensorRegistry[(int)SensorsIDs::CurrentPosX] = Sensor
+		(
+			[](void * State, void * World, const Population* Pop, const Individual * Org)
+			{
+				return((OrgState*)State)->Position.x / (float)WorldSizeX;
+			}
+		);
+		SensorRegistry[(int)SensorsIDs::CurrentPosY] = Sensor
+		(
+			[](void * State, void * World, const Population* Pop, const Individual * Org)
+			{
+				return ((OrgState*)State)->Position.y / (float)WorldSizeY;
+			}
+		);
 		SensorRegistry[(int)SensorsIDs::NearestFoodAngle] = Sensor
 		(
 			[](void * State, void * World, const Population* Pop, const Individual * Org)
@@ -376,7 +400,78 @@ public:
 				return (nearest_pos - state_ptr->Position).normalize().y;
 			}
 		);
+		SensorRegistry[(int)SensorsIDs::NearestPartnerDistance] = Sensor
+		(
+			[](void * State, void * World,const Population* Pop, const Individual * Org)
+			{
+				// TODO : USE THE SPECIES MAP HERE!
+				const auto & tag = Org->GetMorphologyTag();
 
+				auto world_ptr = (WorldData*)World;
+				auto state_ptr = (OrgState*)State;
+
+				float nearest_dist = numeric_limits<float>::max();
+				float2 nearest_pos;
+				for (const auto& other_org : Pop->GetIndividuals())
+				{
+					// Ignore individuals that aren't being simulated right now
+					// Also, don't do all the other stuff against yourself. 
+					if (!other_org.InSimulation || other_org.GetGlobalID() == Org->GetGlobalID())
+						continue;
+
+					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
+					if (dist < nearest_dist)
+					{
+						const auto & other_tag = other_org.GetMorphologyTag();
+
+						if (tag == other_tag)
+						{
+							nearest_dist = dist;
+							nearest_pos = ((OrgState*)other_org.GetState())->Position;
+						}
+					}
+				}
+
+				return (nearest_pos - state_ptr->Position).length_sqr();
+			}
+		);
+		SensorRegistry[(int)SensorsIDs::NearestCompetidorDistance] = Sensor
+		(
+			[](void * State, void * World,const Population* Pop, const Individual * Org)
+			{
+				const auto& tag = Org->GetMorphologyTag();
+
+				auto world_ptr = (WorldData*)World;
+				auto state_ptr = (OrgState*)State;
+
+				float nearest_dist = numeric_limits<float>::max();
+				float2 nearest_pos;
+				for (const auto& other_org : Pop->GetIndividuals())
+				{
+					// Ignore individuals that aren't being simulated right now
+					// Also, don't do all the other stuff against yourself. 
+					if (!other_org.InSimulation || other_org.GetGlobalID() == Org->GetGlobalID())
+						continue;
+
+					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
+					if (dist < nearest_dist)
+					{
+						const auto& other_tag = other_org.GetMorphologyTag();
+
+						if (!(tag == other_tag))
+						{
+							nearest_dist = dist;
+							nearest_pos = ((OrgState*)other_org.GetState())->Position;
+						}
+					}
+				}
+
+				// Compute "angle", taking as 0 = looking forward ([0,1])
+				// The idea is
+				//	angle = normalize(V - Pos) . [0,1]
+				return (nearest_pos - state_ptr->Position).length_sqr();
+			}
+		);
 
 
 
@@ -426,12 +521,29 @@ public:
 				// Herbivore
 				{
 					{},/*{(int)ActionsIDs::EatFood},*/
-					{(int)SensorsIDs::NearestFoodAngle}
+					{
+						(int)SensorsIDs::NearestFoodAngle,
+/*						(int)SensorsIDs::NearestCompetidorAngle,
+						(int)SensorsIDs::NearestCompetidorDistance,
+						(int)SensorsIDs::NearestPartnerAngle,
+						(int)SensorsIDs::NearestPartnerDistance,
+
+						(int)SensorsIDs::CurrentPosX,
+						(int)SensorsIDs::CurrentPosY,*/
+					}
 				},
 				// Carnivore
 				{
 					{},/*{(int)ActionsIDs::KillAndEat},*/
-					{(int)SensorsIDs::NearestCompetidorAngle}
+					{
+						(int)SensorsIDs::NearestCompetidorAngle,
+/*						(int)SensorsIDs::NearestCompetidorDistance,
+						(int)SensorsIDs::NearestPartnerAngle,
+						(int)SensorsIDs::NearestPartnerDistance,
+
+						(int)SensorsIDs::CurrentPosX,
+						(int)SensorsIDs::CurrentPosY,*/
+					}
 				}
 			}
 		});
@@ -726,6 +838,14 @@ int main()
 
 	// Generations finished, so visualize the individuals
 #ifndef _DEBUG
+	{
+		char c;
+		cout << "Show simulation (y/n) ? ";
+		cin >> c;
+		if (c == 'n')
+			return 0;
+	}
+
 	// After evolution is done, replace the population with the ones of the registry
 //	pop.BuildFinalPopulation();
 	//another interesting option would be to select 5 random individuals from the non dominated front, maybe for each species

@@ -126,17 +126,17 @@ void Individual::Spawn(int ID)
     State = Interface->MakeState(this);
 
     // Fill bitfields
-    Morphology.ActionsBitfield.resize((Interface->GetActionRegistry().size() - 1) / 64 + 1);
+    Morphology.ActionsBitfield.resize((Interface->GetActionRegistry().size() - 1) / 32 + 1);
     fill(Morphology.ActionsBitfield.begin(), Morphology.ActionsBitfield.end(), 0);
     for (auto action : Actions)
         // I'm hoping that the compiler is smart enough to change the / and % to ands and shift
-        Morphology.ActionsBitfield[action / 64ull] |= 1ull << (action % 64ull);
+        Morphology.ActionsBitfield[action / 32] |= 1 << (action % 32);
 
-    Morphology.SensorsBitfield.resize((Interface->GetSensorRegistry().size() - 1) / 64 + 1);
+    Morphology.SensorsBitfield.resize((Interface->GetSensorRegistry().size() - 1) / 32 + 1);
     fill(Morphology.SensorsBitfield.begin(), Morphology.SensorsBitfield.end(), 0);
     for (auto sensor : Sensors)
         // I'm hoping that the compiler is smart enough to change the / and % to ands and shift
-        Morphology.SensorsBitfield[sensor / 64ull] |= 1ull << (sensor % 64ull);
+        Morphology.SensorsBitfield[sensor / 32] |= 1 << (sensor % 32);
 
     Morphology.Parameters = Parameters;
     Morphology.NumberOfActions = Actions.size();
@@ -297,7 +297,7 @@ bool Individual::MorphologyTag::IsCompatible(const Individual::MorphologyTag &Ot
         return false;
 
     // Check bitfields
-	// Optimization : Partial unroll. You usually have less than 64 actions or sensors
+	// Optimization : Partial unroll. You usually have less than 32 actions or sensors
 	if (ActionsBitfield[0] != Other.ActionsBitfield[0])
 		return false;
 	for (int i = 1; i < ActionsBitfield.size(); i++)
@@ -535,17 +535,17 @@ void Individual::Mutate(Population *population, int generation)
                 Brain = Genome->genesis(Genome->genome_id);
 
                 // Fill bitfields
-                Morphology.ActionsBitfield.resize((Interface->GetActionRegistry().size() - 1) / 64 + 1);
+                Morphology.ActionsBitfield.resize((Interface->GetActionRegistry().size() - 1) / 32 + 1);
                 fill(Morphology.ActionsBitfield.begin(), Morphology.ActionsBitfield.end(), 0);
                 for (auto action : Actions)
                     // I'm hoping that the compiler is smart enough to change the / and % to ands and shift
-                    Morphology.ActionsBitfield[action / 64ull] |= 1ull << (action % 64ull);
+                    Morphology.ActionsBitfield[action / 32] |= 1 << (action % 32);
 
-                Morphology.SensorsBitfield.resize((Interface->GetSensorRegistry().size() - 1) / 64 + 1);
+                Morphology.SensorsBitfield.resize((Interface->GetSensorRegistry().size() - 1) / 32 + 1);
                 fill(Morphology.SensorsBitfield.begin(), Morphology.SensorsBitfield.end(), 0);
                 for (auto sensor : Sensors)
                     // I'm hoping that the compiler is smart enough to change the / and % to ands and shift
-                    Morphology.SensorsBitfield[sensor / 64ull] |= 1ull << (sensor % 64ull);
+                    Morphology.SensorsBitfield[sensor / 32] |= 1 << (sensor % 32);
 
                 Morphology.Parameters = Parameters;
                 Morphology.NumberOfActions = Actions.size();
