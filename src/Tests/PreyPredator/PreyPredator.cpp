@@ -712,7 +712,7 @@ public:
 				{
 					{(int)ActionsIDs::EatFood},
 					{
-						//(int)SensorsIDs::NearestFoodAngle,
+						(int)SensorsIDs::NearestFoodAngle,
 
 						/*(int)SensorsIDs::NearestFoodAngle,
 						(int)SensorsIDs::NearestCompetidorAngle,
@@ -720,7 +720,7 @@ public:
 						(int)SensorsIDs::NearestPartnerAngle,
 						(int)SensorsIDs::NearestPartnerDistance,*/
 
-						(int)SensorsIDs::NearestFoodX,
+						/*(int)SensorsIDs::NearestFoodX,
 						(int)SensorsIDs::NearestFoodY,
 						(int)SensorsIDs::NearestCompetidorX,
 						(int)SensorsIDs::NearestCompetidorY,
@@ -728,21 +728,21 @@ public:
 						(int)SensorsIDs::NearestPartnerY,
 
 						(int)SensorsIDs::CurrentPosX,
-						(int)SensorsIDs::CurrentPosY,
+						(int)SensorsIDs::CurrentPosY,*/
 					}
 				},
 				// Carnivore
 				{
 					{(int)ActionsIDs::KillAndEat},
 					{
-						//(int)SensorsIDs::NearestCompetidorAngle,
+						(int)SensorsIDs::NearestCompetidorAngle,
 
 						/*(int)SensorsIDs::NearestCompetidorAngle,
 						(int)SensorsIDs::NearestCompetidorDistance,
 						(int)SensorsIDs::NearestPartnerAngle,
 						(int)SensorsIDs::NearestPartnerDistance,*/
 
-						(int)SensorsIDs::NearestFoodX,
+						/*(int)SensorsIDs::NearestFoodX,
 						(int)SensorsIDs::NearestFoodY,
 						(int)SensorsIDs::NearestCompetidorX,
 						(int)SensorsIDs::NearestCompetidorY,
@@ -750,7 +750,7 @@ public:
 						(int)SensorsIDs::NearestPartnerY,
 
 						(int)SensorsIDs::CurrentPosX,
-						(int)SensorsIDs::CurrentPosY,
+						(int)SensorsIDs::CurrentPosY,*/
 					}
 				}
 			}
