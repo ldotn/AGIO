@@ -45,12 +45,15 @@ namespace agio
 		// TODO : More comprehensive docs maybe?
 		struct ProgressMetrics
 		{
+			ProgressMetrics() { memset(this, 0, sizeof(ProgressMetrics)); }
 			float AverageNovelty;
 			float NoveltyStandardDeviation;
 			float AverageFitnessDifference;
 			float AverageFitness;
 			float AverageRandomFitness;
 			float FitnessDifferenceStandardDeviation;
+			float MaxFitnessDifference;
+			float MinFitnessDifference;
 		};
 		ProgressMetrics ComputeProgressMetrics(void * World);
 

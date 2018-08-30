@@ -5,6 +5,7 @@
 #include <numeric>
 #include <assert.h>
 #include <unordered_set>
+#include <queue>
 
 // NEAT
 #include "innovation.h"
@@ -171,6 +172,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 	auto dominates = [](const Individual& A, const Individual& B)
 	{
+		//return A.LocalScore > B.LocalScore;
 		return (A.LastNoveltyMetric >= B.LastNoveltyMetric && A.LocalScore >= B.LocalScore  && A.GenotypicDiversity >= B.GenotypicDiversity) &&
 			(A.LastNoveltyMetric > B.LastNoveltyMetric || A.LocalScore > B.LocalScore || A.GenotypicDiversity > B.GenotypicDiversity);
 	};
@@ -539,13 +541,37 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World)
 
 	// Now for each species set that to be random, and do a couple of simulations
 	metrics.AverageFitnessDifference = 0;
+	metrics.MaxFitnessDifference = -numeric_limits<float>::max();
+	metrics.MinFitnessDifference = numeric_limits<float>::max();
 	for (const auto&[_, species] : SpeciesMap)
 	{
 		// First compute average fitness of the species when using the network
+		// Only consider the 5 best
+
 		float avg_f = 0;
+		priority_queue<float> fitness_queue;
+
+		// TODO : Move this to the config file
+		const int QueueSize = 5;
+
 		for (int org_id : species->IndividualsIDs)
-			avg_f += Individuals[org_id].Fitness;
-		avg_f /= species->IndividualsIDs.size();
+		{
+			fitness_queue.push(-Individuals[org_id].Fitness); // using - because the priority queue is from high to low
+			while (fitness_queue.size() > QueueSize)
+				fitness_queue.pop();
+		}
+
+		float queue_size = fitness_queue.size();
+		assert(queue_size == QueueSize);
+		while (!fitness_queue.empty())
+		{
+			avg_f += -fitness_queue.top();
+			fitness_queue.pop();
+		}
+		avg_f /= queue_size;
+
+			//avg_f += Individuals[org_id].Fitness;
+		//avg_f /= species->IndividualsIDs.size();
 
 		// Override the use of the network for decision-making
 		for (int org_id : species->IndividualsIDs)
@@ -554,21 +580,43 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World)
 		// Do a few simulations
 		float avg_random_f = 0;
 		float count = 0;
+		for (int org_id : species->IndividualsIDs)
+			Individuals[org_id].AccumulatedFitness = 0;
+		
 		for (int i = 0; i < Settings::SimulationReplications; i++)
 		{
 			Interface->ComputeFitness(this, World);
 
 			for (int org_id : species->IndividualsIDs)
-			{
-				avg_random_f += Individuals[org_id].Fitness;
-				count++;
-			}
+				Individuals[org_id].AccumulatedFitness += Individuals[org_id].Fitness / (float)Settings::SimulationReplications;
 		}
-		avg_random_f /= count;
+
+		for (int org_id : species->IndividualsIDs)
+		{
+			fitness_queue.push(-Individuals[org_id].AccumulatedFitness); // using - because the priority queue is from high to low
+			while (fitness_queue.size() > QueueSize)
+				fitness_queue.pop();
+		}
+
+		queue_size = fitness_queue.size();
+		assert(queue_size == QueueSize);
+		while (!fitness_queue.empty())
+		{
+			avg_random_f += -fitness_queue.top();
+			fitness_queue.pop();
+		}
+		avg_random_f /= queue_size;
+
 
 		// Accumulate difference
 		const float epsilon = 1e-6;
-		metrics.AverageFitnessDifference += 100.0f * (avg_f - avg_random_f) / (fabsf(avg_random_f) + epsilon);
+		metrics.AverageFitnessDifference += avg_f - avg_random_f;
+		metrics.MaxFitnessDifference = max(metrics.MaxFitnessDifference, avg_f - avg_random_f);
+		metrics.MinFitnessDifference = min(metrics.MinFitnessDifference, avg_f - avg_random_f);
+
+		//metrics.AverageFitnessDifference += 100.0f * (avg_f - avg_random_f) / (fabsf(avg_random_f) + 1.0f);
+		//metrics.MaxFitnessDifference = max(metrics.MaxFitnessDifference, 100.0f * (avg_f - avg_random_f) / (fabsf(avg_random_f) + 1.0f));
+		//metrics.MinFitnessDifference = min(metrics.MinFitnessDifference, 100.0f * (avg_f - avg_random_f) / (fabsf(avg_random_f) + 1.0f));
 
 		// Re-enable the network
 		for (int org_id : species->IndividualsIDs)

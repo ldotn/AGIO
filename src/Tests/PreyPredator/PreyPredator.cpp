@@ -15,12 +15,12 @@ using namespace fpp;
 
 // TODO : Refactor, this could be spread on a couple files. 
 //   Need to see if that's actually better though
-const int WorldSizeX = 50;
-const int WorldSizeY = 50;
+const int WorldSizeX = 100;
+const int WorldSizeY = 100;
 const float FoodScoreGain = 20;
 const float KillScoreGain = 30;
 const float DeathPenalty = 40;
-const int FoodCellCount = WorldSizeX * WorldSizeY*0.05;
+const int FoodCellCount = WorldSizeX * WorldSizeY*0.01;
 const int MaxSimulationSteps = 200;
 const int SimulationSize = 75; // Population is simulated in batches
 const int PopSizeMultiplier = 3; // Population size is a multiple of the simulation size
@@ -353,7 +353,7 @@ public:
 					}
 				}
 
-				return (nearest_pos - state_ptr->Position).length_sqr();
+				return nearest_dist;
 			}
 		);
 		SensorRegistry[(int)SensorsIDs::NearestPartnerAngle] = Sensor
@@ -463,7 +463,7 @@ public:
 					}
 				}
 
-				return (nearest_pos - state_ptr->Position).length_sqr();
+				return nearest_dist;
 			}
 		);
 		SensorRegistry[(int)SensorsIDs::NearestCompetidorDistance] = Sensor
@@ -497,10 +497,7 @@ public:
 					}
 				}
 
-				// Compute "angle", taking as 0 = looking forward ([0,1])
-				// The idea is
-				//	angle = normalize(V - Pos) . [0,1]
-				return (nearest_pos - state_ptr->Position).length_sqr();
+				return nearest_dist;
 			}
 		);
 
@@ -736,12 +733,14 @@ public:
 					{(int)ActionsIDs::EatFood},
 					{
 						(int)SensorsIDs::NearestFoodAngle,
-						(int)SensorsIDs::NearestCompetidorAngle,
+						(int)SensorsIDs::NearestFoodDistance,
+
+						/*(int)SensorsIDs::NearestCompetidorAngle,
 						(int)SensorsIDs::NearestPartnerAngle,
 
 						(int)SensorsIDs::NearestCompetidorDistance,
 						(int)SensorsIDs::NearestFoodDistance,
-						(int)SensorsIDs::NearestPartnerDistance,
+						(int)SensorsIDs::NearestPartnerDistance,*/
 
 						/*(int)SensorsIDs::NearestFoodAngle,
 						(int)SensorsIDs::NearestCompetidorAngle,
@@ -761,16 +760,19 @@ public:
 					}
 				},
 				// Carnivore
+#if 1
 				{
 					{(int)ActionsIDs::KillAndEat},
 					{
 						(int)SensorsIDs::NearestCompetidorAngle,
-						(int)SensorsIDs::NearestFoodAngle,
+						(int)SensorsIDs::NearestCompetidorDistance,
+
+						/*(int)SensorsIDs::NearestFoodAngle,
 						(int)SensorsIDs::NearestPartnerAngle,
 
 						(int)SensorsIDs::NearestCompetidorDistance,
 						(int)SensorsIDs::NearestFoodDistance,
-						(int)SensorsIDs::NearestPartnerDistance,
+						(int)SensorsIDs::NearestPartnerDistance,*/
 
 						/*(int)SensorsIDs::NearestCompetidorAngle,
 						(int)SensorsIDs::NearestCompetidorDistance,
@@ -788,6 +790,7 @@ public:
 						(int)SensorsIDs::CurrentPosY,*/
 					}
 				}
+#endif
 			}
 		});
 		ComponentRegistry.push_back
@@ -950,8 +953,11 @@ int main()
 	pop.Spawn(PopSizeMultiplier,SimulationSize);
 	
 	// Do evolution loop
-	vector<float> fitness_vec(PopulationSize);
-	vector<float> novelty_vec(PopulationSize);
+	vector<float> fitness_vec;
+	vector<float> novelty_vec;
+	vector<float> fitness_vec_carnivore;
+	vector<float> novelty_vec_carnivore;
+
 	vector<float> fitness_vec_registry;
 	vector<float> novelty_vec_registry;
 	vector<float> avg_fitness;
@@ -961,6 +967,9 @@ int main()
 	vector<float> avg_fitness_random;
 	vector<float> avg_novelty_registry;
 	vector<float> species_count;
+	vector<float> min_fitness_difference;
+	vector<float> max_fitness_difference;
+
 	// TODO : Make the plot work in debug
 #ifndef _DEBUG
 	plt::ion();
@@ -976,13 +985,31 @@ int main()
 				cout << species->IndividualsIDs.size() << " , ";
 			cout << endl;
 
+#ifdef _DEBUG
+			auto metrics = pop.ComputeProgressMetrics(&world);
+			cout << metrics.AverageFitnessDifference << endl;
+			return;
+#endif
 			// Every some generations graph the fitness & novelty of the individuals of the registry
 			if (gen % 10 == 0)
 			{
+				fitness_vec.resize(0);
+				novelty_vec.resize(0);
+				fitness_vec_carnivore.resize(0);
+				novelty_vec_carnivore.resize(0);
+
 				for (auto [idx, org] : enumerate(pop.GetIndividuals()))
 				{
-					fitness_vec[idx] = org.LocalScore;//org.LastFitness;
-					novelty_vec[idx] = org.LastNoveltyMetric;
+					if (org.GetState<OrgState>()->IsCarnivore)
+					{
+						fitness_vec_carnivore.push_back(org.Fitness);
+						novelty_vec_carnivore.push_back(org.LastNoveltyMetric);
+					}
+					else
+					{
+						fitness_vec.push_back(org.Fitness);
+						novelty_vec.push_back(org.LastNoveltyMetric);
+					}
 				}
 
 				/*float avg_f = 0;
@@ -1055,28 +1082,34 @@ int main()
 				avg_fitness_random.push_back(metrics.AverageRandomFitness);
 				avg_novelty_registry.push_back(metrics.AverageNovelty);
 
+				min_fitness_difference.push_back(metrics.MinFitnessDifference);
+				max_fitness_difference.push_back(metrics.MaxFitnessDifference);
+
 				avg_fitness.push_back(avg_f);
 				avg_novelty.push_back(avg_n);
 
+				cout << metrics.AverageFitnessDifference << endl;
+
 				plt::clf();
 
-				plt::subplot(5, 1, 1);
-				plt::plot(fitness_vec, novelty_vec, "x");
+				plt::subplot(4, 1, 1);
+				plt::plot(fitness_vec, novelty_vec, "xb");
+				plt::plot(fitness_vec_carnivore, novelty_vec_carnivore, "xk");
 				//plt::loglog(fitness_vec, novelty_vec, "x");
 
-				plt::subplot(5, 1, 2);
+				plt::subplot(4, 1, 2);
 				plt::plot(avg_fitness, "r");
 
-				plt::subplot(5, 1, 3);
+				plt::subplot(4, 1, 3);
 				plt::plot(avg_novelty, "g");
 
-				plt::subplot(5, 1, 4);
+				plt::subplot(4, 1, 4);
 				plt::plot(avg_fitness_difference, "r");
-				//plt::plot(avg_fitness_network, "r");
-				//plt::plot(avg_fitness_random, "b");
+				//plt::plot(min_fitness_difference, "k");
+				//plt::plot(max_fitness_difference, "b");
 
-				plt::subplot(5, 1, 5);
-				plt::plot(avg_novelty_registry, "g");
+				//plt::subplot(5, 1, 5);
+				//plt::plot(avg_novelty_registry, "g");
 
 				plt::pause(0.01);
 #endif
