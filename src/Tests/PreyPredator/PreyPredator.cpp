@@ -69,6 +69,7 @@ enum class SensorsIDs
 	NearestFoodAngle,
 	NearestPartnerDistance,
 	NearestCompetidorDistance,
+	NearestFoodDistance,
 
 	NearestPartnerX,
 	NearestPartnerY,
@@ -331,6 +332,28 @@ public:
 				// The idea is
 				//	angle = normalize(V - Pos) . [0,1]
 				return (nearest_pos - state_ptr->Position).normalize().y;
+			}
+		);
+		SensorRegistry[(int)SensorsIDs::NearestFoodDistance] = Sensor
+		(
+			[](void * State, void * World, const Population* Pop, const Individual * Org)
+			{
+				auto world_ptr = (WorldData*)World;
+				auto state_ptr = (OrgState*)State;
+
+				float nearest_dist = numeric_limits<float>::max();
+				float2 nearest_pos;
+				for (auto pos : world_ptr->FoodPositions)
+				{
+					float dist = (pos - state_ptr->Position).length_sqr();
+					if (dist < nearest_dist)
+					{
+						nearest_dist = dist;
+						nearest_pos = pos;
+					}
+				}
+
+				return (nearest_pos - state_ptr->Position).length_sqr();
 			}
 		);
 		SensorRegistry[(int)SensorsIDs::NearestPartnerAngle] = Sensor
@@ -716,6 +739,10 @@ public:
 						(int)SensorsIDs::NearestCompetidorAngle,
 						(int)SensorsIDs::NearestPartnerAngle,
 
+						(int)SensorsIDs::NearestCompetidorDistance,
+						(int)SensorsIDs::NearestFoodDistance,
+						(int)SensorsIDs::NearestPartnerDistance,
+
 						/*(int)SensorsIDs::NearestFoodAngle,
 						(int)SensorsIDs::NearestCompetidorAngle,
 						(int)SensorsIDs::NearestCompetidorDistance,
@@ -740,6 +767,10 @@ public:
 						(int)SensorsIDs::NearestCompetidorAngle,
 						(int)SensorsIDs::NearestFoodAngle,
 						(int)SensorsIDs::NearestPartnerAngle,
+
+						(int)SensorsIDs::NearestCompetidorDistance,
+						(int)SensorsIDs::NearestFoodDistance,
+						(int)SensorsIDs::NearestPartnerDistance,
 
 						/*(int)SensorsIDs::NearestCompetidorAngle,
 						(int)SensorsIDs::NearestCompetidorDistance,
