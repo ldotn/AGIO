@@ -319,6 +319,9 @@ bool Individual::MorphologyTag::IsCompatible(const Individual::MorphologyTag &Ot
 
 bool Individual::MorphologyTag::operator==(const Individual::MorphologyTag &Other) const
 {
+	// TODO : Maybe instead of considering action and sensors one should just consider the components
+	//    it would avoid problems with components that provide the same actions & sensors but work differently
+
     // Check first if the are compatible
     if (!IsCompatible(Other))
         return false;

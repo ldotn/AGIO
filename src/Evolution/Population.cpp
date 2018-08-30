@@ -518,6 +518,69 @@ void Population::ComputeNovelty()
 	}
 }
 
+
+Population::ProgressMetrics Population::ComputeProgressMetrics(void * World)
+{
+	ProgressMetrics metrics;
+
+	// Compute average novelty
+	ComputeNovelty();
+	metrics.AverageNovelty = 0;
+	for (const auto& org : Individuals)
+		metrics.AverageNovelty += org.LastNoveltyMetric;
+	metrics.AverageNovelty /= Individuals.size();
+
+	// Do a few simulations to compute fitness
+	EvaluatePopulation(World);
+
+	for (auto &org : Individuals)
+		metrics.AverageFitness += org.Fitness;
+	metrics.AverageFitness /= Individuals.size();
+
+	// Now for each species set that to be random, and do a couple of simulations
+	metrics.AverageFitnessDifference = 0;
+	for (const auto&[_, species] : SpeciesMap)
+	{
+		// First compute average fitness of the species when using the network
+		float avg_f = 0;
+		for (int org_id : species->IndividualsIDs)
+			avg_f += Individuals[org_id].Fitness;
+		avg_f /= species->IndividualsIDs.size();
+
+		// Override the use of the network for decision-making
+		for (int org_id : species->IndividualsIDs)
+			Individuals[org_id].UseNetwork = false;
+
+		// Do a few simulations
+		float avg_random_f = 0;
+		float count = 0;
+		for (int i = 0; i < Settings::SimulationReplications; i++)
+		{
+			Interface->ComputeFitness(this, World);
+
+			for (int org_id : species->IndividualsIDs)
+			{
+				avg_random_f += Individuals[org_id].Fitness;
+				count++;
+			}
+		}
+		avg_random_f /= count;
+
+		// Accumulate difference
+		const float epsilon = 1e-6;
+		metrics.AverageFitnessDifference += 100.0f * (avg_f - avg_random_f) / (fabsf(avg_random_f) + epsilon);
+
+		// Re-enable the network
+		for (int org_id : species->IndividualsIDs)
+			Individuals[org_id].UseNetwork = true;
+	}
+	metrics.AverageFitnessDifference /= SpeciesMap.size();
+
+	return metrics;
+}
+
+
+#if 0
 Population::ProgressMetrics Population::ComputeProgressMetrics(void * World)
 {
 	ProgressMetrics metrics;
@@ -564,3 +627,4 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World)
 
 	return metrics;
 }
+#endif
