@@ -713,6 +713,8 @@ public:
 					{(int)ActionsIDs::EatFood},
 					{
 						(int)SensorsIDs::NearestFoodAngle,
+						(int)SensorsIDs::NearestCompetidorAngle,
+						(int)SensorsIDs::NearestPartnerAngle,
 
 						/*(int)SensorsIDs::NearestFoodAngle,
 						(int)SensorsIDs::NearestCompetidorAngle,
@@ -736,6 +738,8 @@ public:
 					{(int)ActionsIDs::KillAndEat},
 					{
 						(int)SensorsIDs::NearestCompetidorAngle,
+						(int)SensorsIDs::NearestFoodAngle,
+						(int)SensorsIDs::NearestPartnerAngle,
 
 						/*(int)SensorsIDs::NearestCompetidorAngle,
 						(int)SensorsIDs::NearestCompetidorDistance,
