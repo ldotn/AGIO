@@ -21,10 +21,10 @@ using namespace fpp;
 const int WorldSizeX = 100;
 const int WorldSizeY = 100;
 const float FoodScoreGain = 20;
-const int FoodCellCount = WorldSizeX * WorldSizeY * 0.001;
-const int MaxSimulationSteps = 200;
-const int PopulationSize = 100;
-const int GenerationsCount = 250;
+const int FoodCellCount = WorldSizeX * WorldSizeY * 0.01;
+const int MaxSimulationSteps = 250;
+const int PopulationSize = 200;
+const int GenerationsCount = 350;
 
 minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
@@ -291,6 +291,15 @@ public:
              }
          });
 
+		mouth_group.Components.push_back
+		({
+			 {(int)ActionsIDs::EatFood},
+			 {
+				 (int)SensorsIDs::NearestFoodDistanceX,
+				 (int)SensorsIDs::NearestFoodDistanceY
+			 }
+		 });
+
         ComponentRegistry.push_back(mouth_group);
 
 		ComponentRegistry.push_back
@@ -475,7 +484,7 @@ int main()
                 float avg_f = accumulate(fitness_vec.begin(), fitness_vec.end(), 0.0f) / fitness_vec.size();
                 float avg_n = accumulate(novelty_vec.begin(), novelty_vec.end(), 0.0f) / novelty_vec.size();
 
-                auto metrics = pop.ComputeProgressMetrics(&world, 10);
+                Population::ProgressMetrics metrics = pop.ComputeProgressMetrics(&world, 10);
                 avg_fitness_difference.push_back(metrics.AverageFitnessDifference);
                 avg_fitness_network.push_back(metrics.AverageFitness);
                 avg_fitness_random.push_back(metrics.AverageRandomFitness);

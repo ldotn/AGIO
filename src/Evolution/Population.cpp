@@ -162,8 +162,9 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 	auto dominates = [](const Individual& A, const Individual& B)
 	{
-		return (A.LastNoveltyMetric >= B.LastNoveltyMetric && A.LocalScore >= B.LocalScore  && A.GenotypicDiversity >= B.GenotypicDiversity) &&
-			(A.LastNoveltyMetric > B.LastNoveltyMetric || A.LocalScore > B.LocalScore || A.GenotypicDiversity > B.GenotypicDiversity);
+	    return A.LocalScore > B.LocalScore;
+//		return (A.LastNoveltyMetric >= B.LastNoveltyMetric && A.LocalScore >= B.LocalScore  && A.GenotypicDiversity >= B.GenotypicDiversity) &&
+//			(A.LastNoveltyMetric > B.LastNoveltyMetric || A.LocalScore > B.LocalScore || A.GenotypicDiversity > B.GenotypicDiversity);
 	};
 
 	auto compute_domination_fronts = [&]()
