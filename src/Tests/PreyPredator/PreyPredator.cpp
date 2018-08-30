@@ -113,10 +113,10 @@ public:
 
 				state_ptr->Position.y = cycle_y(state_ptr->Position.y + 1);//clamp<int>(state_ptr->Position.y + 1, 0, WorldSizeY - 1);
 				
-				if (state_ptr->IsCarnivore)
+				/*if (state_ptr->IsCarnivore)
 					ActionRegistry[(int)ActionsIDs::KillAndEat].Execute(State, Pop, Org, World);
 				else
-					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);
+					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);*/
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::MoveBackwards] = Action
@@ -127,10 +127,10 @@ public:
 
 				state_ptr->Position.y = cycle_y(state_ptr->Position.y - 1);//clamp<int>(state_ptr->Position.y - 1, 0, WorldSizeY - 1);
 
-				if (state_ptr->IsCarnivore)
+				/*if (state_ptr->IsCarnivore)
 					ActionRegistry[(int)ActionsIDs::KillAndEat].Execute(State, Pop, Org, World);
 				else
-					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);
+					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);*/
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::MoveRight] = Action
@@ -141,10 +141,10 @@ public:
 
 				state_ptr->Position.x = cycle_x(state_ptr->Position.x + 1);//clamp<int>(state_ptr->Position.x + 1, 0, WorldSizeX - 1);
 
-				if (state_ptr->IsCarnivore)
+				/*if (state_ptr->IsCarnivore)
 					ActionRegistry[(int)ActionsIDs::KillAndEat].Execute(State, Pop, Org, World);
 				else
-					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);
+					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);*/
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::MoveLeft] = Action
@@ -155,10 +155,10 @@ public:
 
 				state_ptr->Position.x = cycle_x(state_ptr->Position.x - 1);// clamp<int>(state_ptr->Position.x - 1, 0, WorldSizeX - 1);
 
-				if (state_ptr->IsCarnivore)
+				/*if (state_ptr->IsCarnivore)
 					ActionRegistry[(int)ActionsIDs::KillAndEat].Execute(State, Pop, Org, World);
 				else
-					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);
+					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);*/
 			}
 		);
 
@@ -710,16 +710,17 @@ public:
 			{
 				// Herbivore
 				{
-					{},//{(int)ActionsIDs::EatFood},
+					{(int)ActionsIDs::EatFood},
 					{
-						(int)SensorsIDs::NearestFoodAngle,
+						//(int)SensorsIDs::NearestFoodAngle,
+
 						/*(int)SensorsIDs::NearestFoodAngle,
 						(int)SensorsIDs::NearestCompetidorAngle,
 						(int)SensorsIDs::NearestCompetidorDistance,
 						(int)SensorsIDs::NearestPartnerAngle,
 						(int)SensorsIDs::NearestPartnerDistance,*/
 
-						/*(int)SensorsIDs::NearestFoodX,
+						(int)SensorsIDs::NearestFoodX,
 						(int)SensorsIDs::NearestFoodY,
 						(int)SensorsIDs::NearestCompetidorX,
 						(int)SensorsIDs::NearestCompetidorY,
@@ -727,20 +728,21 @@ public:
 						(int)SensorsIDs::NearestPartnerY,
 
 						(int)SensorsIDs::CurrentPosX,
-						(int)SensorsIDs::CurrentPosY,*/
+						(int)SensorsIDs::CurrentPosY,
 					}
 				},
 				// Carnivore
 				{
-					{},//{(int)ActionsIDs::KillAndEat},
+					{(int)ActionsIDs::KillAndEat},
 					{
-						(int)SensorsIDs::NearestCompetidorAngle,
+						//(int)SensorsIDs::NearestCompetidorAngle,
+
 						/*(int)SensorsIDs::NearestCompetidorAngle,
 						(int)SensorsIDs::NearestCompetidorDistance,
 						(int)SensorsIDs::NearestPartnerAngle,
 						(int)SensorsIDs::NearestPartnerDistance,*/
 
-						/*(int)SensorsIDs::NearestFoodX,
+						(int)SensorsIDs::NearestFoodX,
 						(int)SensorsIDs::NearestFoodY,
 						(int)SensorsIDs::NearestCompetidorX,
 						(int)SensorsIDs::NearestCompetidorY,
@@ -748,7 +750,7 @@ public:
 						(int)SensorsIDs::NearestPartnerY,
 
 						(int)SensorsIDs::CurrentPosX,
-						(int)SensorsIDs::CurrentPosY,*/
+						(int)SensorsIDs::CurrentPosY,
 					}
 				}
 			}
