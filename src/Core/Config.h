@@ -30,7 +30,7 @@ namespace agio
 
         // Probability of calling Mutate() on a child
         // TODO : Docs
-		inline static float ChildMutationProb = 1.0f;// 0.25f;
+		inline static float ChildMutationProb = 0.25f;
         inline static float ComponentMutationProb = 0.00f;
 
         // ComponentAddProbability + ComponentRemoveProbability + ComponentChangeProbability must sum 1

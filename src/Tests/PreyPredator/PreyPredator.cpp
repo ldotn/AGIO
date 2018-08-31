@@ -953,8 +953,8 @@ int main()
 	pop.Spawn(PopSizeMultiplier,SimulationSize);
 	
 	// Do evolution loop
-	vector<float> fitness_vec;
-	vector<float> novelty_vec;
+	vector<float> fitness_vec_hervibore;
+	vector<float> novelty_vec_hervibore;
 	vector<float> fitness_vec_carnivore;
 	vector<float> novelty_vec_carnivore;
 
@@ -962,6 +962,9 @@ int main()
 	vector<float> novelty_vec_registry;
 	vector<float> avg_fitness;
 	vector<float> avg_novelty;
+	vector<float> avg_fitness_carnivore;
+	vector<float> avg_novelty_carnivore;
+
 	vector<float> avg_fitness_difference;
 	vector<float> avg_fitness_network;
 	vector<float> avg_fitness_random;
@@ -993,8 +996,8 @@ int main()
 			// Every some generations graph the fitness & novelty of the individuals of the registry
 			if (gen % 10 == 0)
 			{
-				fitness_vec.resize(0);
-				novelty_vec.resize(0);
+				fitness_vec_hervibore.resize(0);
+				novelty_vec_hervibore.resize(0);
 				fitness_vec_carnivore.resize(0);
 				novelty_vec_carnivore.resize(0);
 
@@ -1007,8 +1010,8 @@ int main()
 					}
 					else
 					{
-						fitness_vec.push_back(org.Fitness);
-						novelty_vec.push_back(org.LastNoveltyMetric);
+						fitness_vec_hervibore.push_back(org.Fitness);
+						novelty_vec_hervibore.push_back(org.LastNoveltyMetric);
 					}
 				}
 
@@ -1073,9 +1076,6 @@ int main()
 				plt::plot(avg_novelty_registry, "g");
 				//plt::hist(novelty_vec_registry);*/
 
-				float avg_f = accumulate(fitness_vec.begin(), fitness_vec.end(), 0.0f) / fitness_vec.size();
-				float avg_n = accumulate(novelty_vec.begin(), novelty_vec.end(), 0.0f) / novelty_vec.size();
-
 				auto metrics = pop.ComputeProgressMetrics(&world);
 				avg_fitness_difference.push_back(metrics.AverageFitnessDifference);
 				avg_fitness_network.push_back(metrics.AverageFitness);
@@ -1085,23 +1085,31 @@ int main()
 				min_fitness_difference.push_back(metrics.MinFitnessDifference);
 				max_fitness_difference.push_back(metrics.MaxFitnessDifference);
 
-				avg_fitness.push_back(avg_f);
-				avg_novelty.push_back(avg_n);
+				float avg_f_hervibore = accumulate(fitness_vec_hervibore.begin(), fitness_vec_hervibore.end(), 0.0f) / fitness_vec_hervibore.size();
+				float avg_n_hervibore = accumulate(novelty_vec_hervibore.begin(), novelty_vec_hervibore.end(), 0.0f) / novelty_vec_hervibore.size();
+				float avg_f_carnivore = accumulate(fitness_vec_carnivore.begin(), fitness_vec_carnivore.end(), 0.0f) / fitness_vec_carnivore.size();
+				float avg_n_carnivore = accumulate(novelty_vec_carnivore.begin(), novelty_vec_carnivore.end(), 0.0f) / novelty_vec_carnivore.size();
+				avg_fitness.push_back(avg_f_hervibore);
+				avg_novelty.push_back(avg_n_hervibore);
+				avg_fitness_carnivore.push_back(avg_f_carnivore);
+				avg_novelty_carnivore.push_back(avg_n_carnivore);
 
 				cout << metrics.AverageFitnessDifference << endl;
 
 				plt::clf();
 
 				plt::subplot(4, 1, 1);
-				plt::plot(fitness_vec, novelty_vec, "xb");
+				plt::plot(fitness_vec_hervibore, novelty_vec_hervibore, "xb");
 				plt::plot(fitness_vec_carnivore, novelty_vec_carnivore, "xk");
 				//plt::loglog(fitness_vec, novelty_vec, "x");
 
 				plt::subplot(4, 1, 2);
-				plt::plot(avg_fitness, "r");
+				plt::plot(avg_fitness, "b");
+				plt::plot(avg_fitness_carnivore, "k");
 
 				plt::subplot(4, 1, 3);
-				plt::plot(avg_novelty, "g");
+				plt::plot(avg_novelty, "b");
+				plt::plot(avg_novelty_carnivore, "k");
 
 				plt::subplot(4, 1, 4);
 				plt::plot(avg_fitness_difference, "r");

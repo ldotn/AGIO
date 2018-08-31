@@ -275,7 +275,6 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 		ComputeNovelty();
 		EvaluatePopulation(WorldPtr);
 		compute_local_scores();
-		auto fronts_map = compute_domination_fronts();
 
 		// Select parents based on the non dominated fronts
 		// Not using the crowding distance because novelty already cares about diversity
@@ -294,39 +293,22 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 				continue;
 			}
 
-			vector<int> parents;
-			parents.reserve(species->IndividualsIDs.size());
-
-			auto& front = fronts_map[tag];
-			int i = 0;
-			while (parents.size() < species->IndividualsIDs.size())
-			{
-				for (int idx : front[i])
-				{
-					if (parents.size() == species->IndividualsIDs.size())
-						break;
-
-					parents.push_back(idx);
-				}
-
-				i++;
-			}
+			// On the first generation generate everyone can be a parent
 
 			for (int n = 0; n < species->IndividualsIDs.size(); n++)
 			{
-				int mom_idx = tournament_select(parents);
-				int dad_idx = tournament_select(parents);
+				int mom_idx = tournament_select(species->IndividualsIDs);
+				int dad_idx = tournament_select(species->IndividualsIDs);
 				while (mom_idx == dad_idx)
-					dad_idx = tournament_select(parents); // TODO : I think this gets stuck if you have only 2 individuals where one is dominated by the other
+					dad_idx = tournament_select(species->IndividualsIDs); // TODO : I think this gets stuck if you have only 2 individuals where one is dominated by the other
 
 				Children.emplace_back(Individuals[mom_idx], Individuals[dad_idx], Children.size());
+
+				// Mutate
+				if (uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
+					Children.back().Mutate(this, CurrentGeneration);
 			}
 		}
-
-		// Mutate children
-		for (auto& child : Children)
-			if (uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
-				child.Mutate(this, CurrentGeneration);
 	}
 	else
 	{
@@ -380,22 +362,28 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 		// TODO : For now, generating the same number of children as individuals on the species
 		//   this should be changed, the species size should change based on fitness
-		for (auto &[tag, species] : next_pop_species_map)
+		for (auto &[tag, species] : SpeciesMap) // the population at this point is a mixture of the children and parents
 		{
-			if (species->IndividualsIDs.size() == 1)
+			// Search for this species in the map of what the next population would be
+			auto next_iter = next_pop_species_map.find(tag);
+
+			if (next_iter == next_pop_species_map.end() || 
+				species->IndividualsIDs.size() == 1 ||
+				next_iter->second->IndividualsIDs.size() == 1)
 				continue;
 
 			auto& front = fronts_map[tag];
 
 			vector<int> parents;
-			parents.reserve(species->IndividualsIDs.size());
+			int number_of_children = next_iter->second->IndividualsIDs.size();
+			parents.reserve(number_of_children);
 
 			int i = 0;
-			while (parents.size() < species->IndividualsIDs.size())
+			while (parents.size() < number_of_children)
 			{
 				for (int idx : front[i])
 				{
-					if (parents.size() == species->IndividualsIDs.size())
+					if (parents.size() == number_of_children)
 						break;
 
 					parents.push_back(idx);
@@ -404,7 +392,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 				i++;
 			}
 
-			for (int n = 0; n < species->IndividualsIDs.size(); n++)
+			for (int n = 0; n < number_of_children; n++)
 			{
 				int mom_idx = tournament_select(parents);
 				int dad_idx = tournament_select(parents);
@@ -412,13 +400,12 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 					dad_idx = tournament_select(parents); // TODO : I think this gets stuck if you have only 2 individuals where one is dominated by the other
 
 				Children.emplace_back(Individuals[mom_idx], Individuals[dad_idx], Children.size());
+				
+				// Mutate
+				if (uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
+					Children.back().Mutate(this, CurrentGeneration);
 			}
 		}
-
-		// Mutate children
-		for (auto& child : Children)
-			if (uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
-				child.Mutate(this, CurrentGeneration);
 
 		// Restore species
 		for (auto &[_, s] : SpeciesMap)
