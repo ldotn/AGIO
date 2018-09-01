@@ -15,18 +15,20 @@ using namespace fpp;
 
 // TODO : Refactor, this could be spread on a couple files. 
 //   Need to see if that's actually better though
-const int WorldSizeX = 100;
-const int WorldSizeY = 100;
+const int WorldSizeX = 50;
+const int WorldSizeY = 50;
 const float FoodScoreGain = 20;
 const float KillScoreGain = 30;
 const float DeathPenalty = 40;
-const int FoodCellCount = WorldSizeX * WorldSizeY*0.01;
+const int FoodCellCount = WorldSizeX * WorldSizeY*0.05;
 const int MaxSimulationSteps = 200;
-const int SimulationSize = 75; // Population is simulated in batches
-const int PopSizeMultiplier = 3; // Population size is a multiple of the simulation size
+const int SimulationSize = 10; // Population is simulated in batches
+const int PopSizeMultiplier = 20; // Population size is a multiple of the simulation size
 const int PopulationSize = PopSizeMultiplier * SimulationSize;
 const int GenerationsCount = 250;
 const float LifeLostPerTurn = 5;
+const float BorderPenalty = 80; // penalty when trying to go out of bounds
+const float WastedActionPenalty = 5; // penalty when doing an action that has no valid target (like eating and there's no food close)
 
 minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
@@ -112,6 +114,9 @@ public:
 			{
 				auto state_ptr = (OrgState*)State;
 
+				if (state_ptr->Position.y >= WorldSizeY - 1)
+					state_ptr->Score -= BorderPenalty;
+
 				state_ptr->Position.y = cycle_y(state_ptr->Position.y + 1);//clamp<int>(state_ptr->Position.y + 1, 0, WorldSizeY - 1);
 				
 				/*if (state_ptr->IsCarnivore)
@@ -125,6 +130,9 @@ public:
 			[&](void * State, const Population * Pop,Individual * Org, void * World) 
 			{
 				auto state_ptr = (OrgState*)State;
+
+				if (state_ptr->Position.y <= 1)
+					state_ptr->Score -= BorderPenalty;
 
 				state_ptr->Position.y = cycle_y(state_ptr->Position.y - 1);//clamp<int>(state_ptr->Position.y - 1, 0, WorldSizeY - 1);
 
@@ -140,6 +148,9 @@ public:
 			{
 				auto state_ptr = (OrgState*)State;
 
+				if (state_ptr->Position.x >= WorldSizeX)
+					state_ptr->Score -= BorderPenalty;
+
 				state_ptr->Position.x = cycle_x(state_ptr->Position.x + 1);//clamp<int>(state_ptr->Position.x + 1, 0, WorldSizeX - 1);
 
 				/*if (state_ptr->IsCarnivore)
@@ -153,6 +164,9 @@ public:
 			[&](void * State, const Population * Pop,Individual * Org, void * World) 
 			{
 				auto state_ptr = (OrgState*)State;
+
+				if (state_ptr->Position.x <= 1)
+					state_ptr->Score -= BorderPenalty;
 
 				state_ptr->Position.x = cycle_x(state_ptr->Position.x - 1);// clamp<int>(state_ptr->Position.x - 1, 0, WorldSizeX - 1);
 
@@ -226,6 +240,7 @@ public:
 				auto world_ptr = (WorldData*)World;
 				auto state_ptr = (OrgState*)State;
 
+				bool any_eaten = false;
 				for (auto [idx,pos] : enumerate(world_ptr->FoodPositions))
 				{
 					auto diff = abs >> (pos - state_ptr->Position);
@@ -236,9 +251,13 @@ public:
 
 						// Just move the food to a different position. Achieves the same effect as removing it
 						world_ptr->FoodPositions[idx] = { uniform_real_distribution<float>(0, WorldSizeX)(RNG), uniform_real_distribution<float>(0, WorldSizeY)(RNG) };
+						any_eaten = true;
 						break;
 					}
 				}
+
+				if (!any_eaten)
+					state_ptr->Score -= WastedActionPenalty;
 			}
 		);
 
@@ -255,6 +274,7 @@ public:
 				
 				// Find an individual of a DIFFERENT species.
 				// The species map is not really useful here
+				bool any_eaten = false;
 				for (const auto& individual : Pop->GetIndividuals())
 				{
 					// Ignore individuals that aren't being simulated right now
@@ -277,10 +297,14 @@ public:
 							other_state_ptr->Score -= DeathPenalty;
 							other_state_ptr->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
 							other_state_ptr->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
+							any_eaten = true;
 							break;
 						}
 					}
 				}
+
+				if (!any_eaten)
+					state_ptr->Score -= WastedActionPenalty;
 			}
 		);
 		
@@ -735,12 +759,12 @@ public:
 						(int)SensorsIDs::NearestFoodAngle,
 						(int)SensorsIDs::NearestFoodDistance,
 
-						/*(int)SensorsIDs::NearestCompetidorAngle,
-						(int)SensorsIDs::NearestPartnerAngle,
+						//(int)SensorsIDs::NearestCompetidorAngle,
+						//(int)SensorsIDs::NearestPartnerAngle,
 
-						(int)SensorsIDs::NearestCompetidorDistance,
-						(int)SensorsIDs::NearestFoodDistance,
-						(int)SensorsIDs::NearestPartnerDistance,*/
+						//(int)SensorsIDs::NearestCompetidorDistance,
+						//(int)SensorsIDs::NearestFoodDistance,
+						//(int)SensorsIDs::NearestPartnerDistance,
 
 						/*(int)SensorsIDs::NearestFoodAngle,
 						(int)SensorsIDs::NearestCompetidorAngle,
@@ -753,10 +777,10 @@ public:
 						(int)SensorsIDs::NearestCompetidorX,
 						(int)SensorsIDs::NearestCompetidorY,
 						(int)SensorsIDs::NearestPartnerX,
-						(int)SensorsIDs::NearestPartnerY,
+						(int)SensorsIDs::NearestPartnerY,*/
 
 						(int)SensorsIDs::CurrentPosX,
-						(int)SensorsIDs::CurrentPosY,*/
+						(int)SensorsIDs::CurrentPosY,
 					}
 				},
 				// Carnivore
@@ -767,12 +791,12 @@ public:
 						(int)SensorsIDs::NearestCompetidorAngle,
 						(int)SensorsIDs::NearestCompetidorDistance,
 
-						/*(int)SensorsIDs::NearestFoodAngle,
-						(int)SensorsIDs::NearestPartnerAngle,
+						//(int)SensorsIDs::NearestFoodAngle,
+						//(int)SensorsIDs::NearestPartnerAngle,
 
-						(int)SensorsIDs::NearestCompetidorDistance,
-						(int)SensorsIDs::NearestFoodDistance,
-						(int)SensorsIDs::NearestPartnerDistance,*/
+						//(int)SensorsIDs::NearestCompetidorDistance,
+						//(int)SensorsIDs::NearestFoodDistance,
+						//(int)SensorsIDs::NearestPartnerDistance,
 
 						/*(int)SensorsIDs::NearestCompetidorAngle,
 						(int)SensorsIDs::NearestCompetidorDistance,
@@ -784,10 +808,10 @@ public:
 						(int)SensorsIDs::NearestCompetidorX,
 						(int)SensorsIDs::NearestCompetidorY,
 						(int)SensorsIDs::NearestPartnerX,
-						(int)SensorsIDs::NearestPartnerY,
+						(int)SensorsIDs::NearestPartnerY,*/
 
 						(int)SensorsIDs::CurrentPosX,
-						(int)SensorsIDs::CurrentPosY,*/
+						(int)SensorsIDs::CurrentPosY,
 					}
 				}
 #endif
@@ -994,7 +1018,7 @@ int main()
 			return;
 #endif
 			// Every some generations graph the fitness & novelty of the individuals of the registry
-			if (gen % 10 == 0)
+			if (true)//(gen % 10 == 0)
 			{
 				fitness_vec_hervibore.resize(0);
 				novelty_vec_hervibore.resize(0);
@@ -1076,43 +1100,49 @@ int main()
 				plt::plot(avg_novelty_registry, "g");
 				//plt::hist(novelty_vec_registry);*/
 
-				auto metrics = pop.ComputeProgressMetrics(&world);
-				avg_fitness_difference.push_back(metrics.AverageFitnessDifference);
+				//auto metrics = pop.ComputeProgressMetrics(&world);
+				/*avg_fitness_difference.push_back(metrics.AverageFitnessDifference);
 				avg_fitness_network.push_back(metrics.AverageFitness);
 				avg_fitness_random.push_back(metrics.AverageRandomFitness);
 				avg_novelty_registry.push_back(metrics.AverageNovelty);
 
 				min_fitness_difference.push_back(metrics.MinFitnessDifference);
-				max_fitness_difference.push_back(metrics.MaxFitnessDifference);
+				max_fitness_difference.push_back(metrics.MaxFitnessDifference);*/
 
-				float avg_f_hervibore = accumulate(fitness_vec_hervibore.begin(), fitness_vec_hervibore.end(), 0.0f) / fitness_vec_hervibore.size();
-				float avg_n_hervibore = accumulate(novelty_vec_hervibore.begin(), novelty_vec_hervibore.end(), 0.0f) / novelty_vec_hervibore.size();
-				float avg_f_carnivore = accumulate(fitness_vec_carnivore.begin(), fitness_vec_carnivore.end(), 0.0f) / fitness_vec_carnivore.size();
-				float avg_n_carnivore = accumulate(novelty_vec_carnivore.begin(), novelty_vec_carnivore.end(), 0.0f) / novelty_vec_carnivore.size();
+				plt::clf();
+
+				plt::subplot(3, 1, 1);
+				plt::plot(fitness_vec_hervibore, novelty_vec_hervibore, "xb");
+				plt::plot(fitness_vec_carnivore, novelty_vec_carnivore, "xk");
+				//plt::loglog(fitness_vec, novelty_vec, "x");
+
+				// Only average the best 5
+				sort(fitness_vec_hervibore.begin(), fitness_vec_hervibore.end(), [](float a, float b) { return a > b; });
+				sort(fitness_vec_carnivore.begin(), fitness_vec_carnivore.end(), [](float a, float b) { return a > b; });
+
+				float avg_f_hervibore = accumulate(fitness_vec_hervibore.begin(), fitness_vec_hervibore.begin() + min<int>(fitness_vec_hervibore.size(), 5), 0.0f) / 5.0f;
+				float avg_n_hervibore = accumulate(novelty_vec_hervibore.begin(), novelty_vec_hervibore.begin() + min<int>(novelty_vec_hervibore.size(), 5), 0.0f) / 5.0f;
+				float avg_f_carnivore = accumulate(fitness_vec_carnivore.begin(), fitness_vec_carnivore.begin() + min<int>(fitness_vec_carnivore.size(), 5), 0.0f) / 5.0f;
+				float avg_n_carnivore = accumulate(novelty_vec_carnivore.begin(), novelty_vec_carnivore.begin() + min<int>(novelty_vec_carnivore.size(), 5), 0.0f) / 5.0f;
 				avg_fitness.push_back(avg_f_hervibore);
 				avg_novelty.push_back(avg_n_hervibore);
 				avg_fitness_carnivore.push_back(avg_f_carnivore);
 				avg_novelty_carnivore.push_back(avg_n_carnivore);
 
-				cout << metrics.AverageFitnessDifference << endl;
 
-				plt::clf();
+				//cout << metrics.AverageFitnessDifference << endl;
 
-				plt::subplot(4, 1, 1);
-				plt::plot(fitness_vec_hervibore, novelty_vec_hervibore, "xb");
-				plt::plot(fitness_vec_carnivore, novelty_vec_carnivore, "xk");
-				//plt::loglog(fitness_vec, novelty_vec, "x");
 
-				plt::subplot(4, 1, 2);
+				plt::subplot(3, 1, 2);
 				plt::plot(avg_fitness, "b");
 				plt::plot(avg_fitness_carnivore, "k");
 
-				plt::subplot(4, 1, 3);
+				plt::subplot(3, 1, 3);
 				plt::plot(avg_novelty, "b");
 				plt::plot(avg_novelty_carnivore, "k");
 
-				plt::subplot(4, 1, 4);
-				plt::plot(avg_fitness_difference, "r");
+				//plt::subplot(4, 1, 4);
+				//plt::plot(avg_fitness_difference, "r");
 				//plt::plot(min_fitness_difference, "k");
 				//plt::plot(max_fitness_difference, "b");
 
@@ -1134,7 +1164,7 @@ int main()
 		if (c == 'n')
 			return 0;
 	}
-
+	pop.EvaluatePopulation(&world);
 	// After evolution is done, replace the population with the ones of the registry
 //	pop.BuildFinalPopulation();
 	//another interesting option would be to select 5 random individuals from the non dominated front, maybe for each species

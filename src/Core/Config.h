@@ -26,7 +26,7 @@ namespace agio
 		inline static float RegistryParentProb = 0.25f;
 
 		// Number of replications to do when simulating
-		inline static int SimulationReplications = 5;
+		inline static int SimulationReplications = 10;
 
         // Probability of calling Mutate() on a child
         // TODO : Docs

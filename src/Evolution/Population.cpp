@@ -9,6 +9,8 @@
 
 // NEAT
 #include "innovation.h"
+#include "genome.h"
+#include "../NEAT/include/population.h"
 
 using namespace std;
 using namespace agio;
@@ -71,8 +73,101 @@ void Population::Spawn(int SizeMult,int SimSize)
 	ChildrenBuffer.resize(pop_size);
 	CurrentGeneration = 0;
 
+	// Build species
+	for (auto[idx, org] : enumerate(Individuals))
+	{
+		auto& tag = org.GetMorphologyTag();
+
+		Species* species_ptr = nullptr;
+		auto iter = SpeciesMap.find(tag);
+		if (iter == SpeciesMap.end())
+		{
+			species_ptr = new Species;
+			SpeciesMap[tag] = species_ptr;
+		}
+		else
+			species_ptr = iter->second;
+
+		species_ptr->IndividualsIDs.push_back(idx);
+		org.SpeciesPtr = species_ptr;
+	}
+
+	for (auto &[tag, s] : SpeciesMap)
+	{
+		auto start_genome = new NEAT::Genome(tag.NumberOfSensors, tag.NumberOfActions, 0, 0);
+		s->NetworksPopulation = new NEAT::Population(start_genome, s->IndividualsIDs.size());
+
+		// Replace the genomes
+		for (auto[idx, org_idx] : enumerate(s->IndividualsIDs))
+		{
+			// Using % because when neat does "delta encoding" it drops the pop size to half
+			// Not needed here, I just copied and pasted
+			auto target_genome = s->NetworksPopulation->organisms[idx % s->NetworksPopulation->organisms.size()]->gnome;
+
+			Individuals[org_idx].Genome = target_genome->duplicate(target_genome->genome_id);
+			Individuals[org_idx].Brain = Individuals[org_idx].Genome->genesis(target_genome->genome_id);
+			Individuals[org_idx].Morphology.Genes.reset(target_genome->duplicate(target_genome->genome_id));
+		}
+	}
+
 	// TODO :  Separate organisms by distance in the world too
-	BuildSpeciesMap();
+//	BuildSpeciesMap();
+}
+
+void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
+{
+	// First version : The species are fixed and created at the start. Also no parameters
+
+	// Evaluate the entire population
+	EvaluatePopulation(WorldPtr);
+
+	// Call the callback
+	ComputeNovelty(); // <- Just to see how it's changing
+	EpochCallback(CurrentGeneration);
+
+	// Advance generation
+	CurrentGeneration++;
+
+	// Now do the epoch
+	for (auto & [tag, s] : SpeciesMap)
+	{
+		// First update the fitness values for neat
+		auto& pop = s->NetworksPopulation;
+		for (auto& neat_org : pop->organisms)
+		{
+			// Find the organism in the individuals that has this brain
+			for (int org_idx : s->IndividualsIDs)
+			{
+				const auto& org = Individuals[org_idx];
+				if (org.Genome->genome_id == neat_org->gnome->genome_id) 
+				{
+					neat_org->fitness = org.Fitness; // Here you could add some contribution of the novelty
+					
+					// Remapping because NEAT appears to only work with positive fitness
+					neat_org->fitness = log2(exp2(0.1*neat_org->fitness) + 1.0) + 1.0;
+					
+					break;
+				}
+			}
+		}
+	
+		// With the fitness updated call the neat epoch
+		pop->epoch(CurrentGeneration);
+
+		// Now replace the individuals with the new brains genomes
+		for (auto [idx, org_idx] : enumerate(s->IndividualsIDs))
+		{
+			delete Individuals[org_idx].Genome;
+			delete Individuals[org_idx].Brain;
+
+			// Using % because when neat does "delta encoding" it drops the pop size to half
+			auto target_genome = pop->organisms[idx % pop->organisms.size()]->gnome;
+
+			Individuals[org_idx].Genome = target_genome->duplicate(target_genome->genome_id);
+			Individuals[org_idx].Brain = Individuals[org_idx].Genome->genesis(target_genome->genome_id);
+			Individuals[org_idx].Morphology.Genes.reset(target_genome->duplicate(target_genome->genome_id));
+		}
+	}
 }
 
 void Population::EvaluatePopulation(void * WorldPtr)
@@ -106,7 +201,7 @@ void Population::EvaluatePopulation(void * WorldPtr)
 	for (auto& org : Individuals)
 		org.Fitness = org.AccumulatedFitness / (float)Settings::SimulationReplications;
 };
-
+#if 0
 void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 {
 	auto compute_local_scores = [&]()
@@ -432,7 +527,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 	return;
 }
-
+#endif
 void Population::ComputeNovelty()
 {
 	for (auto[idx, org] : enumerate(Individuals))
@@ -510,6 +605,9 @@ void Population::ComputeNovelty()
 
 Population::ProgressMetrics Population::ComputeProgressMetrics(void * World)
 {
+	// TODO : For some reason this function is affecting the results of neat!
+	return {};
+
 	ProgressMetrics metrics;
 
 	// Compute average novelty
@@ -521,6 +619,10 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World)
 
 	// Do a few simulations to compute fitness
 	EvaluatePopulation(World);
+
+	// Backup the evaluated fitness value
+	for (auto &org : Individuals)
+		org.BackupFitness = org.Fitness;
 
 	for (auto &org : Individuals)
 		metrics.AverageFitness += org.Fitness;
@@ -610,6 +712,10 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World)
 			Individuals[org_id].UseNetwork = true;
 	}
 	metrics.AverageFitnessDifference /= SpeciesMap.size();
+
+	// Restore the old fitness values
+	for (auto &org : Individuals)
+		org.Fitness = org.BackupFitness;
 
 	return metrics;
 }

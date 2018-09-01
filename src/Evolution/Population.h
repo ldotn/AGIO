@@ -9,6 +9,7 @@
 namespace NEAT
 {
 	class Innovation;
+	class Population;
 }
 
 namespace agio
@@ -19,6 +20,9 @@ namespace agio
 		std::vector<int> IndividualsIDs;
 		// TODO : Maybe refactor this, don't like the idea of using pointers like this when it's resources that only last an epoch
 		std::vector<NEAT::Innovation *> innovations;
+
+		// Each species has a NEAT population that represents the brains
+		NEAT::Population * NetworksPopulation;
 	};
 
 	class Population
@@ -61,6 +65,9 @@ namespace agio
 		// TODO : Refactor this so that the naming is consistent
 		int cur_node_id;
 		double cur_innov_num;
+
+		// Evaluates the population
+		void EvaluatePopulation(void * WorldPtr);
 	private:
 		int CurrentGeneration;
 		std::vector<Individual> Individuals;
@@ -93,7 +100,6 @@ namespace agio
 		// Children of the current population. See NSGA-II
 		std::vector<Individual> Children;
 
-		// Evaluates the population
-		void EvaluatePopulation(void * WorldPtr);
+
 	};
 }

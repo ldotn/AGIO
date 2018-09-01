@@ -81,6 +81,17 @@ namespace agio
 		int GetGlobalID() const { return GlobalID; }
 		int GetOriginalID() const { return OriginalID; }
 
+
+		// The genome and the neural network it generates
+		// Used to control de individual
+		// Forward declaration
+		NEAT::Genome * Genome;
+		NEAT::Network * Brain;
+		
+
+
+
+
 		// Fitness of the last evaluation of this individual
 		// Reset sets it to 0
 		float Fitness;
@@ -114,7 +125,7 @@ namespace agio
 		int LocalScore;
 		float GenotypicDiversity;
 		bool InSimulation;
-
+		float BackupFitness;
 
 
 
@@ -161,11 +172,7 @@ namespace agio
 		// The map takes as keys the user id
 		std::unordered_map<int,Parameter> Parameters;
 
-		// The genome and the neural network it generates
-		// Used to control de individual
-		// Forward declaration
-		NEAT::Genome * Genome;
-		NEAT::Network * Brain;
+
 
 		// On individual creation, this lists are filled from the components
 		// They make the action decision faster,
@@ -211,7 +218,7 @@ namespace agio
 			// Compares actions and sensors to see if two individuals can mate
 			bool IsCompatible(const MorphologyTag &) const;
 		};
-	private:
+	//private:
 		MorphologyTag Morphology;
 	};
 }
