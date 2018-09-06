@@ -81,6 +81,8 @@ void Individual::Spawn(int ID)
             p.ID = pidx;
             p.Value = 0.5f * (param.Min + param.Max);
             p.HistoricalMarker = Parameter::CurrentMarkerID;
+			p.Min = param.Min;
+			p.Max = param.Max;
 
             // Small shift
             float shift = normal_distribution<float>(0, Settings::ParameterMutationSpread)(RNG);
@@ -621,20 +623,21 @@ void Individual::Mutate(Population *population, int generation)
         {
             if (uniform_real_distribution<float>()(RNG) <= Settings::ParameterMutationProb)
             {
+				any_mutation = true;
+
                 if (uniform_real_distribution<float>()(RNG) <= Settings::ParameterDestructiveMutationProb)
                 {
-                    auto &parameterDef = Interface->GetParameterDefRegistry()[idx];
-                    uniform_real_distribution<float> distribution(parameterDef.Min, parameterDef.Max);
+                    uniform_real_distribution<float> distribution(param.Min, param.Max);
                     param.Value = distribution(RNG);
                     param.HistoricalMarker = Parameter::CurrentMarkerID.fetch_add(1);// Create a new historical marker
-
-                    any_mutation = true;
-                } else
+                } 
+				else
                 {
-                    normal_distribution<float> distribution(param.Value, Settings::ParameterMutationSpread);
-                    param.Value = distribution(RNG);
+					float shift = normal_distribution<float>(0, Settings::ParameterMutationSpread)(RNG);
+					param.Value += shift * abs(param.Max - param.Min);
 
-                    any_mutation = true;
+					// Clamp values
+					param.Value = clamp(param.Value, param.Min, param.Max);
                 }
             }
         }

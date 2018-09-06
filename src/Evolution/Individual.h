@@ -6,18 +6,19 @@
 #include <unordered_set>
 #include <memory>
 #include <unordered_map>
+#include "genome.h"
 
 // Forward declaration
-namespace NEAT
+/*namespace NEAT
 {
 	class Genome;
 	class Network;
-}
+}*/
 
 namespace agio
 {
 	// Represents an instantiation of a specific parameter
-	struct Parameter
+	/*struct Parameter
 	{
 		int ID;
 		float Value;
@@ -25,7 +26,7 @@ namespace agio
 							  
 		// Used to create the historical markers IDs
 		inline static std::atomic<int> CurrentMarkerID = 0;
-	};
+	};*/
 
 	// Represents an individual in the population
 	class Individual
@@ -80,6 +81,10 @@ namespace agio
 		const auto& GetMorphologyTag() const { return Morphology;  }
 		int GetGlobalID() const { return GlobalID; }
 		int GetOriginalID() const { return OriginalID; }
+
+		// Instantiation of the parameters
+		// The map takes as keys the user id
+		std::unordered_map<int, Parameter> Parameters;
 
 
 		// The genome and the neural network it generates
@@ -167,10 +172,6 @@ namespace agio
 			int ComponentID;
 		};
 		std::vector<ComponentRef> Components;
-
-		// Instantiation of the parameters
-		// The map takes as keys the user id
-		std::unordered_map<int,Parameter> Parameters;
 
 
 

@@ -100,13 +100,19 @@ void Population::Spawn(int SizeMult,int SimSize)
 		// Replace the genomes
 		for (auto[idx, org_idx] : enumerate(s->IndividualsIDs))
 		{
+			auto& org = Individuals[org_idx];
+
 			// Using % because when neat does "delta encoding" it drops the pop size to half
 			// Not needed here, I just copied and pasted
 			auto target_genome = s->NetworksPopulation->organisms[idx % s->NetworksPopulation->organisms.size()]->gnome;
 
-			Individuals[org_idx].Genome = target_genome->duplicate(target_genome->genome_id);
-			Individuals[org_idx].Brain = Individuals[org_idx].Genome->genesis(target_genome->genome_id);
-			Individuals[org_idx].Morphology.Genes.reset(target_genome->duplicate(target_genome->genome_id));
+			org.Genome = target_genome->duplicate(target_genome->genome_id);
+			org.Brain = org.Genome->genesis(target_genome->genome_id);
+			org.Morphology.Genes.reset(target_genome->duplicate(target_genome->genome_id));
+
+			// Set morphological parameters of the genome
+			// Make a copy
+			org.Genome->MorphParams = org.GetParameters();
 		}
 	}
 
@@ -127,10 +133,61 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 	// Advance generation
 	CurrentGeneration++;
-
+	
 	// Now do the epoch
 	for (auto & [tag, s] : SpeciesMap)
 	{
+		// Compute local scores
+		for (int idx : s->IndividualsIDs)
+		{
+			// Find the K nearest inside the species
+
+			// Clear the K buffer
+			for (auto & v : CompetitionNearestKBuffer)
+			{
+				v.first = -1;
+				v.second = numeric_limits<float>::max();
+			}
+			int k_buffer_top = 0;
+
+			// Check against the species individuals
+			for (int other_idx : s->IndividualsIDs)
+			{
+				if (idx == other_idx)
+					continue;
+
+				// This is the morphology distance
+				float dist = Individuals[idx].GetMorphologyTag().Distance(Individuals[other_idx].GetMorphologyTag());
+
+				// Check if it's in the k nearest
+				for (auto[kidx, v] : enumerate(CompetitionNearestKBuffer))
+				{
+					if (dist < v.second)
+					{
+						// Move all the values to the right
+						for (int i = Settings::LocalCompetitionK - 1; i > kidx; i--)
+							CompetitionNearestKBuffer[i] = CompetitionNearestKBuffer[i - 1];
+
+						if (kidx > k_buffer_top)
+							k_buffer_top = kidx;
+						v.first = other_idx;
+						v.second = dist;
+						break;
+					}
+				}
+			}
+
+			// With the k nearest found, check how many of them this individual bests
+			auto & org = Individuals[idx];
+			org.LocalScore = 0;
+			for (int i = 0; i <= k_buffer_top; i++)
+			{
+				const auto& other_org = Individuals[CompetitionNearestKBuffer[i].first];
+				if (org.Fitness > other_org.Fitness)
+					org.LocalScore++;
+			}
+		}
+
 		// First update the fitness values for neat
 		auto& pop = s->NetworksPopulation;
 		for (auto& neat_org : pop->organisms)
@@ -141,11 +198,13 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 				const auto& org = Individuals[org_idx];
 				if (org.Genome->genome_id == neat_org->gnome->genome_id) 
 				{
-					neat_org->fitness = org.Fitness; // Here you could add some contribution of the novelty
+					//neat_org->fitness = org.Fitness; // Here you could add some contribution of the novelty
 					
 					// Remapping because NEAT appears to only work with positive fitness
-					neat_org->fitness = log2(exp2(0.1*neat_org->fitness) + 1.0) + 1.0;
+					neat_org->fitness = log2(exp2(0.1*org.Fitness) + 1.0) + 1.0;
 					
+					//neat_org->fitness = org.LocalScore;
+
 					break;
 				}
 			}
@@ -163,9 +222,15 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 			// Using % because when neat does "delta encoding" it drops the pop size to half
 			auto target_genome = pop->organisms[idx % pop->organisms.size()]->gnome;
 
-			Individuals[org_idx].Genome = target_genome->duplicate(target_genome->genome_id);
-			Individuals[org_idx].Brain = Individuals[org_idx].Genome->genesis(target_genome->genome_id);
-			Individuals[org_idx].Morphology.Genes.reset(target_genome->duplicate(target_genome->genome_id));
+			auto& org = Individuals[org_idx];
+
+			org.Genome = target_genome->duplicate(target_genome->genome_id);
+			org.Brain = org.Genome->genesis(target_genome->genome_id);
+			org.Morphology.Genes.reset(target_genome->duplicate(target_genome->genome_id));
+
+			// On the population creation, the parameters were set from agio -> neat
+			// Now the parameters have been evolved by neat, so do the inverse process
+			org.Parameters = org.Genome->MorphParams;
 		}
 	}
 }
@@ -176,6 +241,8 @@ void Population::EvaluatePopulation(void * WorldPtr)
 		org.AccumulatedFitness = 0;
 
 	// Simulate in batches of SimulationSize
+	// TODO : This is wrong, you need to take into account the proportion of each species when selecting what to simulate
+	// or maybe not, if the individuals are uniformly distributed it should work 
 	for (int j = 0; j < Individuals.size() / SimulationSize; j++)
 	{
 		// TODO : Optimize this, you could pass the current batch id and make the individuals aware of their index in the vector

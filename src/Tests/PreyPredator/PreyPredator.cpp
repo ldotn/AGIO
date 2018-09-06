@@ -7,6 +7,7 @@
 #include <matplotlibcpp.h>
 #include <enumerate.h>
 #include <queue>
+#include "../../Core/Config.h"
 
 namespace plt = matplotlibcpp;
 using namespace std;
@@ -19,16 +20,16 @@ const int WorldSizeX = 50;
 const int WorldSizeY = 50;
 const float FoodScoreGain = 20;
 const float KillScoreGain = 30;
-const float DeathPenalty = 40;
+const float DeathPenalty = 0;// 400;
 const int FoodCellCount = WorldSizeX * WorldSizeY*0.05;
 const int MaxSimulationSteps = 200;
 const int SimulationSize = 10; // Population is simulated in batches
-const int PopSizeMultiplier = 20; // Population size is a multiple of the simulation size
+const int PopSizeMultiplier = 30; // Population size is a multiple of the simulation size
 const int PopulationSize = PopSizeMultiplier * SimulationSize;
 const int GenerationsCount = 250;
 const float LifeLostPerTurn = 5;
-const float BorderPenalty = 80; // penalty when trying to go out of bounds
-const float WastedActionPenalty = 5; // penalty when doing an action that has no valid target (like eating and there's no food close)
+const float BorderPenalty = 0;// 80; // penalty when trying to go out of bounds
+const float WastedActionPenalty = 0;// 5; // penalty when doing an action that has no valid target (like eating and there's no food close)
 
 minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
@@ -100,12 +101,12 @@ public:
 
 		// Basic movement
 		// The world is circular, doing this so that % works with negative numbers
-		//auto cycle_x = [](int x) { return ((x % WorldSizeX) + WorldSizeX) % WorldSizeX; };
-		//auto cycle_y = [](int y) { return ((y % WorldSizeY) + WorldSizeY) % WorldSizeY; };
+		auto cycle_x = [](int x) { return ((x % WorldSizeX) + WorldSizeX) % WorldSizeX; };
+		auto cycle_y = [](int y) { return ((y % WorldSizeY) + WorldSizeY) % WorldSizeY; };
 
 		// Test : Instead of a circular world, make them bounce on walls
-		auto cycle_x = [](int x) { return x < WorldSizeX ? (x > 0 ? x : 2) : WorldSizeX - 2; };
-		auto cycle_y = [](int y) { return y < WorldSizeY ? (y > 0 ? y : 2) : WorldSizeY - 2; };
+		//auto cycle_x = [](int x) { return x < WorldSizeX ? (x > 0 ? x : 2) : WorldSizeX - 2; };
+		//auto cycle_y = [](int y) { return y < WorldSizeY ? (y > 0 ? y : 2) : WorldSizeY - 2; };
 
 
 		ActionRegistry[(int)ActionsIDs::MoveForward] = Action
@@ -760,6 +761,8 @@ public:
 						(int)SensorsIDs::NearestFoodDistance,
 
 						//(int)SensorsIDs::NearestCompetidorAngle,
+						//(int)SensorsIDs::NearestCompetidorDistance,
+
 						//(int)SensorsIDs::NearestPartnerAngle,
 
 						//(int)SensorsIDs::NearestCompetidorDistance,
@@ -779,8 +782,8 @@ public:
 						(int)SensorsIDs::NearestPartnerX,
 						(int)SensorsIDs::NearestPartnerY,*/
 
-						(int)SensorsIDs::CurrentPosX,
-						(int)SensorsIDs::CurrentPosY,
+						//(int)SensorsIDs::CurrentPosX,
+						//(int)SensorsIDs::CurrentPosY,
 					}
 				},
 				// Carnivore
@@ -791,6 +794,8 @@ public:
 						(int)SensorsIDs::NearestCompetidorAngle,
 						(int)SensorsIDs::NearestCompetidorDistance,
 
+						//(int)SensorsIDs::NearestPartnerAngle,
+						//(int)SensorsIDs::NearestPartnerDistance,
 						//(int)SensorsIDs::NearestFoodAngle,
 						//(int)SensorsIDs::NearestPartnerAngle,
 
@@ -810,8 +815,8 @@ public:
 						(int)SensorsIDs::NearestPartnerX,
 						(int)SensorsIDs::NearestPartnerY,*/
 
-						(int)SensorsIDs::CurrentPosX,
-						(int)SensorsIDs::CurrentPosY,
+						//(int)SensorsIDs::CurrentPosX,
+						//(int)SensorsIDs::CurrentPosY,
 					}
 				}
 #endif
@@ -958,6 +963,9 @@ int main()
 {
 	// TODO : REMOVE THIS! I put it here just in the off case that the reason why the population is not improving is because some parameter wasn't loaded
 	NEAT::load_neat_params("../cfg/neat_test_config.txt");
+	NEAT::mutate_morph_param_prob = Settings::ParameterMutationProb;
+	NEAT::destructive_mutate_morph_param_prob = Settings::ParameterDestructiveMutationProb;
+	NEAT::mutate_morph_param_spread = Settings::ParameterMutationSpread;
 
 	// Create base interface
 	Interface = unique_ptr<PublicInterface>(new TestInterface);
