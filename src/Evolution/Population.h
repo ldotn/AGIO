@@ -23,6 +23,10 @@ namespace agio
 
 		// Each species has a NEAT population that represents the brains
 		NEAT::Population * NetworksPopulation;
+
+		// Used to track progress
+		float LastFitness = 0;
+		float AverageFitnessDifference = 0; // Moving average
 	};
 
 	class Population

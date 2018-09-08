@@ -738,7 +738,7 @@ public:
 
 
 		// Fill parameters
-		/*ParameterDefRegistry.resize((int)ParametersIDs::NumberOfParameters);
+		ParameterDefRegistry.resize((int)ParametersIDs::NumberOfParameters);
 
 		ParameterDefRegistry[(int)ParametersIDs::JumpDistance] = ParameterDefinition
 		(
@@ -746,7 +746,7 @@ public:
 			2, // Min bound
 			5, // max bound
 			(int)ParametersIDs::JumpDistance
-		);*/
+		);
 
 		// Fill components
 		ComponentRegistry.push_back
@@ -857,8 +857,8 @@ public:
 					{} 
 				}
 			}
-		});
-		ComponentRegistry.push_back
+		});*/
+		/*ComponentRegistry.push_back
 		({
 			0,2, // Optional sensors groups
 			{
@@ -1017,7 +1017,7 @@ int main()
 			cout << "Generation : " << gen << endl;
 			cout << "    Species Size [" << pop.GetSpecies().size() << "] : ";
 			for (const auto&[_, species] : pop.GetSpecies())
-				cout << species->IndividualsIDs.size() << " , ";
+				cout << species->IndividualsIDs.size() << " | " << species->AverageFitnessDifference <<  " , ";
 			cout << endl;
 
 #ifdef _DEBUG
@@ -1132,10 +1132,19 @@ int main()
 				float avg_n_hervibore = accumulate(novelty_vec_hervibore.begin(), novelty_vec_hervibore.begin() + min<int>(novelty_vec_hervibore.size(), 5), 0.0f) / 5.0f;
 				float avg_f_carnivore = accumulate(fitness_vec_carnivore.begin(), fitness_vec_carnivore.begin() + min<int>(fitness_vec_carnivore.size(), 5), 0.0f) / 5.0f;
 				float avg_n_carnivore = accumulate(novelty_vec_carnivore.begin(), novelty_vec_carnivore.begin() + min<int>(novelty_vec_carnivore.size(), 5), 0.0f) / 5.0f;
-				avg_fitness.push_back(avg_f_hervibore);
-				avg_novelty.push_back(avg_n_hervibore);
-				avg_fitness_carnivore.push_back(avg_f_carnivore);
+				for (auto[_, s] : pop.GetSpecies())
+				{
+					if (pop.GetIndividuals()[s->IndividualsIDs[0]].GetState<OrgState>()->IsCarnivore)
+						avg_n_carnivore = s->LastFitness;//s->AverageFitnessDifference;
+					else
+						avg_n_hervibore = s->LastFitness;// s->AverageFitnessDifference;
+				}
+
+				avg_fitness.push_back((avg_f_hervibore));
+				avg_fitness_carnivore.push_back((avg_f_carnivore));
+
 				avg_novelty_carnivore.push_back(avg_n_carnivore);
+				avg_novelty.push_back(avg_n_hervibore);
 
 
 				//cout << metrics.AverageFitnessDifference << endl;
@@ -1161,6 +1170,7 @@ int main()
 #endif
 			}
 		});
+
 	}
 
 	// Generations finished, so visualize the individuals

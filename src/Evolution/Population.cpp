@@ -7,6 +7,13 @@
 #include <unordered_set>
 #include <queue>
 
+
+
+// REMOVE!
+#include <iostream>
+
+
+
 // NEAT
 #include "innovation.h"
 #include "genome.h"
@@ -138,6 +145,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 	for (auto & [tag, s] : SpeciesMap)
 	{
 		// Compute local scores
+		/*
 		for (int idx : s->IndividualsIDs)
 		{
 			// Find the K nearest inside the species
@@ -187,8 +195,11 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 					org.LocalScore++;
 			}
 		}
+		*/
 
 		// First update the fitness values for neat
+		priority_queue<float> fitness_queue;
+		//float avg_fit = 0;
 		auto& pop = s->NetworksPopulation;
 		for (auto& neat_org : pop->organisms)
 		{
@@ -202,14 +213,37 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 					
 					// Remapping because NEAT appears to only work with positive fitness
 					neat_org->fitness = log2(exp2(0.1*org.Fitness) + 1.0) + 1.0;
-					
+					//avg_fit += neat_org->fitness;//org.Fitness;
 					//neat_org->fitness = org.LocalScore;
+
+					fitness_queue.push(org.Fitness);
 
 					break;
 				}
 			}
 		}
-	
+		float avg_fit = 0;
+		for (int i = 0; i < 5; i++)
+		{
+			avg_fit += fitness_queue.top();
+			fitness_queue.pop();
+		}
+		avg_fit /= 5.0f;
+
+		// TODO : expose this param
+		float falloff = 0.1f;
+		/*if (s->LastFitness > 0)
+			s->AverageFitnessDifference = avg_fit - s->LastFitness;//(1.0f - falloff)*s->AverageFitnessDifference + falloff *((avg_fit - s->LastFitness) );
+		else*/
+		s->AverageFitnessDifference = avg_fit - s->LastFitness;
+
+		if (s->LastFitness <= 0)
+			s->LastFitness = avg_fit;
+		else
+			s->LastFitness = (1.0f - falloff)*s->LastFitness + falloff*avg_fit;
+
+		//cout << avg_fit << endl;
+
 		// With the fitness updated call the neat epoch
 		pop->epoch(CurrentGeneration);
 
