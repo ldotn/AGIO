@@ -24,7 +24,7 @@ Individual::Individual() : RNG(chrono::high_resolution_clock::now().time_since_e
     State = nullptr;
     Genome = nullptr;
     Brain = nullptr;
-    LastFitness = 0;
+    Fitness = 0;
     LastNoveltyMetric = 0;
     OriginalID = GlobalID = CurrentGlobalID.fetch_add(1);
     SpeciesPtr = nullptr;
@@ -33,7 +33,6 @@ Individual::Individual() : RNG(chrono::high_resolution_clock::now().time_since_e
 
     AccumulatedFitness = 0;
     //AccumulatedNovelty = 0;
-    EvaluationsCount = 0;
 }
 
 void Individual::Spawn(int ID)
@@ -82,6 +81,8 @@ void Individual::Spawn(int ID)
             p.ID = pidx;
             p.Value = 0.5f * (param.Min + param.Max);
             p.HistoricalMarker = Parameter::CurrentMarkerID;
+			p.Min = param.Min;
+			p.Max = param.Max;
 
             // Small shift
             float shift = normal_distribution<float>(0, Settings::ParameterMutationSpread)(RNG);
@@ -127,17 +128,17 @@ void Individual::Spawn(int ID)
     State = Interface->MakeState(this);
 
     // Fill bitfields
-    Morphology.ActionsBitfield.resize((Interface->GetActionRegistry().size() - 1) / 64 + 1);
+    Morphology.ActionsBitfield.resize((Interface->GetActionRegistry().size() - 1) / 32 + 1);
     fill(Morphology.ActionsBitfield.begin(), Morphology.ActionsBitfield.end(), 0);
     for (auto action : Actions)
         // I'm hoping that the compiler is smart enough to change the / and % to ands and shift
-        Morphology.ActionsBitfield[action / 64ull] |= 1ull << (action % 64ull);
+        Morphology.ActionsBitfield[action / 32] |= 1 << (action % 32);
 
-    Morphology.SensorsBitfield.resize((Interface->GetSensorRegistry().size() - 1) / 64 + 1);
+    Morphology.SensorsBitfield.resize((Interface->GetSensorRegistry().size() - 1) / 32 + 1);
     fill(Morphology.SensorsBitfield.begin(), Morphology.SensorsBitfield.end(), 0);
     for (auto sensor : Sensors)
         // I'm hoping that the compiler is smart enough to change the / and % to ands and shift
-        Morphology.SensorsBitfield[sensor / 64ull] |= 1ull << (sensor % 64ull);
+        Morphology.SensorsBitfield[sensor / 32] |= 1 << (sensor % 32);
 
     Morphology.Parameters = Parameters;
     Morphology.NumberOfActions = Actions.size();
@@ -191,7 +192,7 @@ void Individual::Reset()
 {
     Interface->ResetState(State);
     if (Brain) Brain->flush();
-    LastFitness = 0;
+    Fitness = 0;
     LastNoveltyMetric = 0;
     LastDominationCount = -1;
 }
@@ -200,7 +201,7 @@ Individual::Individual(const Individual &Parent, Individual::Make) : Individual(
 {
     OriginalID = Parent.OriginalID;
     LastDominationCount = Parent.LastDominationCount;
-    LastFitness = Parent.LastFitness;
+    Fitness = Parent.Fitness;
     LastNoveltyMetric = Parent.LastNoveltyMetric;
 
     Actions = Parent.Actions;
@@ -218,7 +219,7 @@ Individual::Individual(const Individual &Parent, Individual::Make) : Individual(
 
     AccumulatedFitness = Parent.AccumulatedFitness;
     //AccumulatedNovelty = Parent.AccumulatedNovelty;
-    EvaluationsCount = Parent.EvaluationsCount;
+    //EvaluationsCount = Parent.EvaluationsCount;
 
 	SpeciesPtr = Parent.SpeciesPtr;
 };
@@ -234,7 +235,7 @@ Individual::Individual(const Individual &Mom, const Individual &Dad, int ChildID
 
     // TODO : Use the other mating functions, and test which is better
     // We don't do inter-species mating
-    Genome = Mom.Genome->mate_multipoint_avg(Dad.Genome, ChildID, Mom.LastFitness, Dad.LastFitness, false);
+    Genome = Mom.Genome->mate_multipoint_avg(Dad.Genome, ChildID, Mom.Fitness, Dad.Fitness, false);
     Brain = Genome->genesis(ChildID);
 
     // This vectors are the same for both parents
@@ -298,10 +299,21 @@ bool Individual::MorphologyTag::IsCompatible(const Individual::MorphologyTag &Ot
         return false;
 
     // Check bitfields
-    for (auto[bf0, bf1] : zip(ActionsBitfield, Other.ActionsBitfield))
+	// Optimization : Partial unroll. You usually have less than 32 actions or sensors
+	if (ActionsBitfield[0] != Other.ActionsBitfield[0])
+		return false;
+	for (int i = 1; i < ActionsBitfield.size(); i++)
+		if (ActionsBitfield[i] != Other.ActionsBitfield[i]) return false;
+
+	if (SensorsBitfield[0] != Other.SensorsBitfield[0])
+		return false;
+	for (int i = 1; i < SensorsBitfield.size(); i++)
+		if (SensorsBitfield[i] != Other.SensorsBitfield[i]) return false;
+
+    /*for (auto[bf0, bf1] : zip(ActionsBitfield, Other.ActionsBitfield))
         if (bf0 != bf1) return false;
     for (auto[bf0, bf1] : zip(SensorsBitfield, Other.SensorsBitfield))
-        if (bf0 != bf1) return false;
+        if (bf0 != bf1) return false;*/
 
     // Everything is equal, so they are compatible
     return true;
@@ -309,10 +321,14 @@ bool Individual::MorphologyTag::IsCompatible(const Individual::MorphologyTag &Ot
 
 bool Individual::MorphologyTag::operator==(const Individual::MorphologyTag &Other) const
 {
+	// TODO : Maybe instead of considering action and sensors one should just consider the components
+	//    it would avoid problems with components that provide the same actions & sensors but work differently
+
     // Check first if the are compatible
     if (!IsCompatible(Other))
         return false;
 
+	/*
     // They are compatible, so check that the parameters line up
     if (Parameters.size() != Other.Parameters.size())
         return false;
@@ -325,7 +341,7 @@ bool Individual::MorphologyTag::operator==(const Individual::MorphologyTag &Othe
         // TODO : Maybe instead of this one should use a distance threshold
         if (param_iter == Other.Parameters.end() || param.HistoricalMarker != param_iter->second.HistoricalMarker)
             return false;
-    }
+    }*/
 
     return true;
 }
@@ -368,7 +384,7 @@ float Individual::MorphologyTag::Distance(const Individual::MorphologyTag &Other
     }
 
 	// TODO : TO USE THIS YOU MUST LOAD THE NEAT PARAMETERS !!
-	dist += logf(Genes->compatibility(Other.Genes.get()) + 1);
+	dist += logf(Genes->compatibility(Other.Genes.get()) + 1.0f);
 
     // Finally check number of mismatching genes on the genome of the control network
     /*for (const auto &gene : GenesIDs)
@@ -524,17 +540,17 @@ void Individual::Mutate(Population *population, int generation)
                 Brain = Genome->genesis(Genome->genome_id);
 
                 // Fill bitfields
-                Morphology.ActionsBitfield.resize((Interface->GetActionRegistry().size() - 1) / 64 + 1);
+                Morphology.ActionsBitfield.resize((Interface->GetActionRegistry().size() - 1) / 32 + 1);
                 fill(Morphology.ActionsBitfield.begin(), Morphology.ActionsBitfield.end(), 0);
                 for (auto action : Actions)
                     // I'm hoping that the compiler is smart enough to change the / and % to ands and shift
-                    Morphology.ActionsBitfield[action / 64ull] |= 1ull << (action % 64ull);
+                    Morphology.ActionsBitfield[action / 32] |= 1 << (action % 32);
 
-                Morphology.SensorsBitfield.resize((Interface->GetSensorRegistry().size() - 1) / 64 + 1);
+                Morphology.SensorsBitfield.resize((Interface->GetSensorRegistry().size() - 1) / 32 + 1);
                 fill(Morphology.SensorsBitfield.begin(), Morphology.SensorsBitfield.end(), 0);
                 for (auto sensor : Sensors)
                     // I'm hoping that the compiler is smart enough to change the / and % to ands and shift
-                    Morphology.SensorsBitfield[sensor / 64ull] |= 1ull << (sensor % 64ull);
+                    Morphology.SensorsBitfield[sensor / 32] |= 1 << (sensor % 32);
 
                 Morphology.Parameters = Parameters;
                 Morphology.NumberOfActions = Actions.size();
@@ -607,20 +623,21 @@ void Individual::Mutate(Population *population, int generation)
         {
             if (uniform_real_distribution<float>()(RNG) <= Settings::ParameterMutationProb)
             {
+				any_mutation = true;
+
                 if (uniform_real_distribution<float>()(RNG) <= Settings::ParameterDestructiveMutationProb)
                 {
-                    auto &parameterDef = Interface->GetParameterDefRegistry()[idx];
-                    uniform_real_distribution<float> distribution(parameterDef.Min, parameterDef.Max);
+                    uniform_real_distribution<float> distribution(param.Min, param.Max);
                     param.Value = distribution(RNG);
                     param.HistoricalMarker = Parameter::CurrentMarkerID.fetch_add(1);// Create a new historical marker
-
-                    any_mutation = true;
-                } else
+                } 
+				else
                 {
-                    normal_distribution<float> distribution(param.Value, Settings::ParameterMutationSpread);
-                    param.Value = distribution(RNG);
+					float shift = normal_distribution<float>(0, Settings::ParameterMutationSpread)(RNG);
+					param.Value += shift * abs(param.Max - param.Min);
 
-                    any_mutation = true;
+					// Clamp values
+					param.Value = clamp(param.Value, param.Min, param.Max);
                 }
             }
         }
@@ -633,7 +650,7 @@ void Individual::Mutate(Population *population, int generation)
 		// Also reset the accumulators, as they are no longer valid
 		AccumulatedFitness = 0;
 		//AccumulatedNovelty = 0;
-		EvaluationsCount = 0;
+		//EvaluationsCount = 0;
 	}
         
 }
@@ -655,13 +672,13 @@ Individual::Individual(Individual &&other) noexcept
     Morphology = move(other.Morphology);
 
     LastDominationCount = other.LastDominationCount;
-    LastFitness = other.LastFitness;
+    Fitness = other.Fitness;
     LastNoveltyMetric = other.LastNoveltyMetric;
 
 
     AccumulatedFitness = other.AccumulatedFitness;
     //AccumulatedNovelty = other.AccumulatedNovelty;
-    EvaluationsCount = other.EvaluationsCount;
+    //EvaluationsCount = other.EvaluationsCount;
 	
 
 	DominatedSet = move(other.DominatedSet);

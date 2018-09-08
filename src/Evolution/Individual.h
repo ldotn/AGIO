@@ -5,18 +5,20 @@
 #include <atomic>
 #include <unordered_set>
 #include <memory>
+#include <unordered_map>
+#include "genome.h"
 
 // Forward declaration
-namespace NEAT
+/*namespace NEAT
 {
 	class Genome;
 	class Network;
-}
+}*/
 
 namespace agio
 {
 	// Represents an instantiation of a specific parameter
-	struct Parameter
+	/*struct Parameter
 	{
 		int ID;
 		float Value;
@@ -24,7 +26,7 @@ namespace agio
 							  
 		// Used to create the historical markers IDs
 		inline static std::atomic<int> CurrentMarkerID = 0;
-	};
+	};*/
 
 	// Represents an individual in the population
 	class Individual
@@ -80,9 +82,24 @@ namespace agio
 		int GetGlobalID() const { return GlobalID; }
 		int GetOriginalID() const { return OriginalID; }
 
+		// Instantiation of the parameters
+		// The map takes as keys the user id
+		std::unordered_map<int, Parameter> Parameters;
+
+
+		// The genome and the neural network it generates
+		// Used to control de individual
+		// Forward declaration
+		NEAT::Genome * Genome;
+		NEAT::Network * Brain;
+		
+
+
+
+
 		// Fitness of the last evaluation of this individual
 		// Reset sets it to 0
-		float LastFitness;
+		float Fitness;
 
 		// Novelty metric associated to the last evaluation
 		// Reset sets it to 0
@@ -94,7 +111,7 @@ namespace agio
 		// TODO : Refactor this, it feels dirty
 		float AccumulatedFitness;
 		//float AccumulatedNovelty;
-		float EvaluationsCount;
+		//float EvaluationsCount;
 
 
 
@@ -112,8 +129,8 @@ namespace agio
 		int DominationRank;
 		int LocalScore;
 		float GenotypicDiversity;
-
-
+		bool InSimulation;
+		float BackupFitness;
 
 
 
@@ -127,7 +144,7 @@ namespace agio
 
 
 		// Pointer to the current species where the individual belongs
-		class Species * SpeciesPtr;
+		struct Species * SpeciesPtr;
 
 		// Serializes the individual to a file
 		void DumpToFile(const std::string& FilePath);
@@ -156,15 +173,7 @@ namespace agio
 		};
 		std::vector<ComponentRef> Components;
 
-		// Instantiation of the parameters
-		// The map takes as keys the user id
-		std::unordered_map<int,Parameter> Parameters;
 
-		// The genome and the neural network it generates
-		// Used to control de individual
-		// Forward declaration
-		NEAT::Genome * Genome;
-		NEAT::Network * Brain;
 
 		// On individual creation, this lists are filled from the components
 		// They make the action decision faster,
@@ -191,8 +200,8 @@ namespace agio
 			int NumberOfActions;
 			int NumberOfSensors;
 
-			std::vector<uint64_t> ActionsBitfield;
-			std::vector<uint64_t> SensorsBitfield;
+			std::vector<uint32_t> ActionsBitfield;
+			std::vector<uint32_t> SensorsBitfield;
 			std::unordered_map<int, Parameter> Parameters;
 			
 			std::shared_ptr<NEAT::Genome> Genes;
@@ -200,8 +209,8 @@ namespace agio
 			// The innovation numbers of the genes
 			//std::vector<double> GenesIDs;
 
-			// Checks that the actions and sensors are the same, 
-			//  and that the parameters have the same historical marker
+			// Checks that the actions and sensors are the same
+			// IGNORES PARAMETERS!
 			bool operator==(const MorphologyTag &) const;
 
 			// Takes the parameters into account and genes
@@ -210,7 +219,7 @@ namespace agio
 			// Compares actions and sensors to see if two individuals can mate
 			bool IsCompatible(const MorphologyTag &) const;
 		};
-	private:
+	//private:
 		MorphologyTag Morphology;
 	};
 }

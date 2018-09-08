@@ -340,3 +340,4 @@ ASALocalRun/
 # CLion cmake directories
 cmake-build-debug-gcc/
 cmake-build-release-gcc/
+cmake-build-release/

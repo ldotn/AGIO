@@ -5,9 +5,19 @@
 #include <numeric>
 #include <assert.h>
 #include <unordered_set>
+#include <queue>
+
+
+
+// REMOVE!
+#include <iostream>
+
+
 
 // NEAT
 #include "innovation.h"
+#include "genome.h"
+#include "../NEAT/include/population.h"
 
 using namespace std;
 using namespace agio;
@@ -35,8 +45,8 @@ void Population::BuildSpeciesMap()
 	// put every individual into his corresponding species
 	for (auto [idx, org] : enumerate(Individuals))
 	{
-		auto tag = org.GetMorphologyTag(); // make a copy
-		tag.Parameters = {}; // remove parameters
+		auto& tag = org.GetMorphologyTag(); // make a copy
+		//tag.Parameters = {}; // remove parameters
 
 
 		Species* species_ptr = nullptr;
@@ -54,23 +64,245 @@ void Population::BuildSpeciesMap()
 	}
 }
 
-void Population::Spawn(size_t Size)
+void Population::Spawn(int SizeMult,int SimSize)
 {
-	Individuals.resize(Size);
+	int pop_size = SizeMult * SimSize;
+
+	SimulationSize = SimSize;
+	Individuals.resize(pop_size);
 	
 	for (auto [idx, org] : enumerate(Individuals))
 		org.Spawn(idx);
 
-	DominationBuffer.resize(Size);
+	DominationBuffer.resize(pop_size);
 	NoveltyNearestKBuffer.resize(Settings::NoveltyNearestK);
 	CompetitionNearestKBuffer.resize(Settings::LocalCompetitionK);
-	ChildrenBuffer.resize(Size);
+	ChildrenBuffer.resize(pop_size);
 	CurrentGeneration = 0;
 
+	// Build species
+	for (auto[idx, org] : enumerate(Individuals))
+	{
+		auto& tag = org.GetMorphologyTag();
+
+		Species* species_ptr = nullptr;
+		auto iter = SpeciesMap.find(tag);
+		if (iter == SpeciesMap.end())
+		{
+			species_ptr = new Species;
+			SpeciesMap[tag] = species_ptr;
+		}
+		else
+			species_ptr = iter->second;
+
+		species_ptr->IndividualsIDs.push_back(idx);
+		org.SpeciesPtr = species_ptr;
+	}
+
+	for (auto &[tag, s] : SpeciesMap)
+	{
+		auto start_genome = new NEAT::Genome(tag.NumberOfSensors, tag.NumberOfActions, 0, 0);
+		s->NetworksPopulation = new NEAT::Population(start_genome, s->IndividualsIDs.size());
+
+		// Replace the genomes
+		for (auto[idx, org_idx] : enumerate(s->IndividualsIDs))
+		{
+			auto& org = Individuals[org_idx];
+
+			// Using % because when neat does "delta encoding" it drops the pop size to half
+			// Not needed here, I just copied and pasted
+			auto target_genome = s->NetworksPopulation->organisms[idx % s->NetworksPopulation->organisms.size()]->gnome;
+
+			org.Genome = target_genome->duplicate(target_genome->genome_id);
+			org.Brain = org.Genome->genesis(target_genome->genome_id);
+			org.Morphology.Genes.reset(target_genome->duplicate(target_genome->genome_id));
+
+			// Set morphological parameters of the genome
+			// Make a copy
+			org.Genome->MorphParams = org.GetParameters();
+		}
+	}
+
 	// TODO :  Separate organisms by distance in the world too
-	BuildSpeciesMap();
+//	BuildSpeciesMap();
 }
 
+void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
+{
+	// First version : The species are fixed and created at the start. Also no parameters
+
+	// Evaluate the entire population
+	EvaluatePopulation(WorldPtr);
+
+	// Call the callback
+	ComputeNovelty(); // <- Just to see how it's changing
+	EpochCallback(CurrentGeneration);
+
+	// Advance generation
+	CurrentGeneration++;
+	
+	// Now do the epoch
+	for (auto & [tag, s] : SpeciesMap)
+	{
+		// Compute local scores
+		/*
+		for (int idx : s->IndividualsIDs)
+		{
+			// Find the K nearest inside the species
+
+			// Clear the K buffer
+			for (auto & v : CompetitionNearestKBuffer)
+			{
+				v.first = -1;
+				v.second = numeric_limits<float>::max();
+			}
+			int k_buffer_top = 0;
+
+			// Check against the species individuals
+			for (int other_idx : s->IndividualsIDs)
+			{
+				if (idx == other_idx)
+					continue;
+
+				// This is the morphology distance
+				float dist = Individuals[idx].GetMorphologyTag().Distance(Individuals[other_idx].GetMorphologyTag());
+
+				// Check if it's in the k nearest
+				for (auto[kidx, v] : enumerate(CompetitionNearestKBuffer))
+				{
+					if (dist < v.second)
+					{
+						// Move all the values to the right
+						for (int i = Settings::LocalCompetitionK - 1; i > kidx; i--)
+							CompetitionNearestKBuffer[i] = CompetitionNearestKBuffer[i - 1];
+
+						if (kidx > k_buffer_top)
+							k_buffer_top = kidx;
+						v.first = other_idx;
+						v.second = dist;
+						break;
+					}
+				}
+			}
+
+			// With the k nearest found, check how many of them this individual bests
+			auto & org = Individuals[idx];
+			org.LocalScore = 0;
+			for (int i = 0; i <= k_buffer_top; i++)
+			{
+				const auto& other_org = Individuals[CompetitionNearestKBuffer[i].first];
+				if (org.Fitness > other_org.Fitness)
+					org.LocalScore++;
+			}
+		}
+		*/
+
+		// First update the fitness values for neat
+		priority_queue<float> fitness_queue;
+		//float avg_fit = 0;
+		auto& pop = s->NetworksPopulation;
+		for (auto& neat_org : pop->organisms)
+		{
+			// Find the organism in the individuals that has this brain
+			for (int org_idx : s->IndividualsIDs)
+			{
+				const auto& org = Individuals[org_idx];
+				if (org.Genome->genome_id == neat_org->gnome->genome_id) 
+				{
+					//neat_org->fitness = org.Fitness; // Here you could add some contribution of the novelty
+					
+					// Remapping because NEAT appears to only work with positive fitness
+					neat_org->fitness = log2(exp2(0.1*org.Fitness) + 1.0) + 1.0;
+					//avg_fit += neat_org->fitness;//org.Fitness;
+					//neat_org->fitness = org.LocalScore;
+
+					fitness_queue.push(org.Fitness);
+
+					break;
+				}
+			}
+		}
+		float avg_fit = 0;
+		for (int i = 0; i < 5; i++)
+		{
+			avg_fit += fitness_queue.top();
+			fitness_queue.pop();
+		}
+		avg_fit /= 5.0f;
+
+		// TODO : expose this param
+		float falloff = 0.1f;
+		/*if (s->LastFitness > 0)
+			s->AverageFitnessDifference = avg_fit - s->LastFitness;//(1.0f - falloff)*s->AverageFitnessDifference + falloff *((avg_fit - s->LastFitness) );
+		else*/
+		s->AverageFitnessDifference = avg_fit - s->LastFitness;
+
+		if (s->LastFitness <= 0)
+			s->LastFitness = avg_fit;
+		else
+			s->LastFitness = (1.0f - falloff)*s->LastFitness + falloff*avg_fit;
+
+		//cout << avg_fit << endl;
+
+		// With the fitness updated call the neat epoch
+		pop->epoch(CurrentGeneration);
+
+		// Now replace the individuals with the new brains genomes
+		for (auto [idx, org_idx] : enumerate(s->IndividualsIDs))
+		{
+			delete Individuals[org_idx].Genome;
+			delete Individuals[org_idx].Brain;
+
+			// Using % because when neat does "delta encoding" it drops the pop size to half
+			auto target_genome = pop->organisms[idx % pop->organisms.size()]->gnome;
+
+			auto& org = Individuals[org_idx];
+
+			org.Genome = target_genome->duplicate(target_genome->genome_id);
+			org.Brain = org.Genome->genesis(target_genome->genome_id);
+			org.Morphology.Genes.reset(target_genome->duplicate(target_genome->genome_id));
+
+			// On the population creation, the parameters were set from agio -> neat
+			// Now the parameters have been evolved by neat, so do the inverse process
+			org.Parameters = org.Genome->MorphParams;
+		}
+	}
+}
+
+void Population::EvaluatePopulation(void * WorldPtr)
+{
+	for (auto& org : Individuals)
+		org.AccumulatedFitness = 0;
+
+	// Simulate in batches of SimulationSize
+	// TODO : This is wrong, you need to take into account the proportion of each species when selecting what to simulate
+	// or maybe not, if the individuals are uniformly distributed it should work 
+	for (int j = 0; j < Individuals.size() / SimulationSize; j++)
+	{
+		// TODO : Optimize this, you could pass the current batch id and make the individuals aware of their index in the vector
+		for (auto[idx, org] : enumerate(Individuals))
+		{
+			if (idx >= j * SimulationSize && idx < (j + 1)*SimulationSize)
+				org.InSimulation = true;
+			else
+				org.InSimulation = false;
+		}
+
+		for (int i = 0; i < Settings::SimulationReplications; i++)
+		{
+			// Compute fitness of each individual
+			Interface->ComputeFitness(this, WorldPtr);
+
+			// Update the fitness and novelty accumulators
+			for (auto& org : Individuals)
+				org.AccumulatedFitness += org.Fitness;
+		}
+	}
+
+	for (auto& org : Individuals)
+		org.Fitness = org.AccumulatedFitness / (float)Settings::SimulationReplications;
+};
+#if 0
 void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 {
 	auto compute_local_scores = [&]()
@@ -89,7 +321,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 				}
 				int k_buffer_top = 0;
 
-				// Check both against the species individuals
+				// Check against the species individuals
 				for (int other_idx : species->IndividualsIDs)
 				{
 					if (idx == other_idx)
@@ -123,7 +355,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 				for(int i = 0;i <= k_buffer_top;i++)
 				{
 					const auto& other_org = Individuals[CompetitionNearestKBuffer[i].first];
-					if (org.LastFitness > other_org.LastFitness)
+					if (org.Fitness > other_org.Fitness)
 						org.LocalScore++;
 
 					org.GenotypicDiversity += org.GetMorphologyTag().Distance(other_org.GetMorphologyTag());
@@ -132,34 +364,11 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 			}
 		}
 	};
-	auto evaluate_pop = [&]()
-	{
-		// Compute novelty metric
-		ComputeNovelty();
 
-		// TODO : Expose this as a parameter
-		for (int i = 0; i < 10; i++)
-		{
-			// Compute fitness of each individual
-			Interface->ComputeFitness(this, WorldPtr);
 
-			// Update the fitness and novelty accumulators
-			for (auto& org : Individuals)
-			{
-				org.AccumulatedFitness += org.LastFitness;
-				org.EvaluationsCount++;
-
-				// Replace the last fitness and last novelty with the values of the accumulators
-				// TODO : Maybe make some refactor here, all this mess doesn't really looks clean 
-				org.LastFitness = org.AccumulatedFitness / org.EvaluationsCount;
-			}
-		}
-
-		// Now compute local scores
-		compute_local_scores();
-	};
 	auto dominates = [](const Individual& A, const Individual& B)
 	{
+		//return A.LocalScore > B.LocalScore;
 		return (A.LastNoveltyMetric >= B.LastNoveltyMetric && A.LocalScore >= B.LocalScore  && A.GenotypicDiversity >= B.GenotypicDiversity) &&
 			(A.LastNoveltyMetric > B.LastNoveltyMetric || A.LocalScore > B.LocalScore || A.GenotypicDiversity > B.GenotypicDiversity);
 	};
@@ -259,8 +468,9 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 	if (CurrentGeneration == 0)
 	{
-		evaluate_pop();
-		auto fronts_map = compute_domination_fronts();
+		ComputeNovelty();
+		EvaluatePopulation(WorldPtr);
+		compute_local_scores();
 
 		// Select parents based on the non dominated fronts
 		// Not using the crowding distance because novelty already cares about diversity
@@ -279,39 +489,22 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 				continue;
 			}
 
-			vector<int> parents;
-			parents.reserve(species->IndividualsIDs.size());
-
-			auto& front = fronts_map[tag];
-			int i = 0;
-			while (parents.size() < species->IndividualsIDs.size())
-			{
-				for (int idx : front[i])
-				{
-					if (parents.size() == species->IndividualsIDs.size())
-						break;
-
-					parents.push_back(idx);
-				}
-
-				i++;
-			}
+			// On the first generation generate everyone can be a parent
 
 			for (int n = 0; n < species->IndividualsIDs.size(); n++)
 			{
-				int mom_idx = tournament_select(parents);
-				int dad_idx = tournament_select(parents);
+				int mom_idx = tournament_select(species->IndividualsIDs);
+				int dad_idx = tournament_select(species->IndividualsIDs);
 				while (mom_idx == dad_idx)
-					dad_idx = tournament_select(parents); // TODO : I think this gets stuck if you have only 2 individuals where one is dominated by the other
+					dad_idx = tournament_select(species->IndividualsIDs); // TODO : I think this gets stuck if you have only 2 individuals where one is dominated by the other
 
 				Children.emplace_back(Individuals[mom_idx], Individuals[dad_idx], Children.size());
+
+				// Mutate
+				if (uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
+					Children.back().Mutate(this, CurrentGeneration);
 			}
 		}
-
-		// Mutate children
-		for (auto& child : Children)
-			if (uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
-				child.Mutate(this, CurrentGeneration);
 	}
 	else
 	{
@@ -323,7 +516,9 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 		BuildSpeciesMap();
 
 		// Evaluate
-		evaluate_pop();
+		ComputeNovelty();
+		EvaluatePopulation(WorldPtr);
+		compute_local_scores();
 
 		for (auto &[tag, species] : SpeciesMap)
 		{
@@ -363,22 +558,28 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 		// TODO : For now, generating the same number of children as individuals on the species
 		//   this should be changed, the species size should change based on fitness
-		for (auto &[tag, species] : next_pop_species_map)
+		for (auto &[tag, species] : SpeciesMap) // the population at this point is a mixture of the children and parents
 		{
-			if (species->IndividualsIDs.size() == 1)
+			// Search for this species in the map of what the next population would be
+			auto next_iter = next_pop_species_map.find(tag);
+
+			if (next_iter == next_pop_species_map.end() || 
+				species->IndividualsIDs.size() == 1 ||
+				next_iter->second->IndividualsIDs.size() == 1)
 				continue;
 
 			auto& front = fronts_map[tag];
 
 			vector<int> parents;
-			parents.reserve(species->IndividualsIDs.size());
+			int number_of_children = next_iter->second->IndividualsIDs.size();
+			parents.reserve(number_of_children);
 
 			int i = 0;
-			while (parents.size() < species->IndividualsIDs.size())
+			while (parents.size() < number_of_children)
 			{
 				for (int idx : front[i])
 				{
-					if (parents.size() == species->IndividualsIDs.size())
+					if (parents.size() == number_of_children)
 						break;
 
 					parents.push_back(idx);
@@ -387,7 +588,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 				i++;
 			}
 
-			for (int n = 0; n < species->IndividualsIDs.size(); n++)
+			for (int n = 0; n < number_of_children; n++)
 			{
 				int mom_idx = tournament_select(parents);
 				int dad_idx = tournament_select(parents);
@@ -395,13 +596,12 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 					dad_idx = tournament_select(parents); // TODO : I think this gets stuck if you have only 2 individuals where one is dominated by the other
 
 				Children.emplace_back(Individuals[mom_idx], Individuals[dad_idx], Children.size());
+				
+				// Mutate
+				if (uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
+					Children.back().Mutate(this, CurrentGeneration);
 			}
 		}
-
-		// Mutate children
-		for (auto& child : Children)
-			if (uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
-				child.Mutate(this, CurrentGeneration);
 
 		// Restore species
 		for (auto &[_, s] : SpeciesMap)
@@ -428,7 +628,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 	return;
 }
-
+#endif
 void Population::ComputeNovelty()
 {
 	for (auto[idx, org] : enumerate(Individuals))
@@ -503,25 +703,11 @@ void Population::ComputeNovelty()
 	}
 }
 
-void Population::BuildFinalPopulation()
+
+Population::ProgressMetrics Population::ComputeProgressMetrics(void * World)
 {
-	vector<Individual> final_pop;
-	for (const auto& [_, individuals] : NonDominatedRegistry)
-		for (const auto& org : individuals)
-			final_pop.emplace_back(org, Individual::Make::Clone);
-
-	Individuals = move(final_pop);
-	BuildSpeciesMap();
-}
-
-Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int Replications)
-{
-	/*
-	// Save the current population
-	vector<Individual> current_pop = move(Individuals);
-
-	// Now build the population from the registry
-	BuildFinalPopulation();*/
+	// TODO : For some reason this function is affecting the results of neat!
+	return {};
 
 	ProgressMetrics metrics;
 
@@ -533,29 +719,49 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int 
 	metrics.AverageNovelty /= Individuals.size();
 
 	// Do a few simulations to compute fitness
-	for (auto& org : Individuals)
-		org.AccumulatedFitness = org.EvaluationsCount = 0;
-	for (int i = 0; i < Replications; i++)
-	{
-		Interface->ComputeFitness(this, World);
+	EvaluatePopulation(World);
 
-		for (auto& org : Individuals)
-		{
-			org.AccumulatedFitness += org.LastFitness;
-			org.EvaluationsCount++;
-		}
-	}
+	// Backup the evaluated fitness value
+	for (auto &org : Individuals)
+		org.BackupFitness = org.Fitness;
+
+	for (auto &org : Individuals)
+		metrics.AverageFitness += org.Fitness;
+	metrics.AverageFitness /= Individuals.size();
 
 	// Now for each species set that to be random, and do a couple of simulations
 	metrics.AverageFitnessDifference = 0;
-	for (const auto& [_, species] : SpeciesMap)
+	metrics.MaxFitnessDifference = -numeric_limits<float>::max();
+	metrics.MinFitnessDifference = numeric_limits<float>::max();
+	for (const auto&[_, species] : SpeciesMap)
 	{
 		// First compute average fitness of the species when using the network
+		// Only consider the 5 best
+
 		float avg_f = 0;
+		priority_queue<float> fitness_queue;
+
+		// TODO : Move this to the config file
+		const int QueueSize = 5;
+
 		for (int org_id : species->IndividualsIDs)
-			avg_f += Individuals[org_id].AccumulatedFitness
-			/ Individuals[org_id].EvaluationsCount;
-		avg_f /= species->IndividualsIDs.size();
+		{
+			fitness_queue.push(-Individuals[org_id].Fitness); // using - because the priority queue is from high to low
+			while (fitness_queue.size() > QueueSize)
+				fitness_queue.pop();
+		}
+
+		float queue_size = fitness_queue.size();
+		assert(queue_size == QueueSize);
+		while (!fitness_queue.empty())
+		{
+			avg_f += -fitness_queue.top();
+			fitness_queue.pop();
+		}
+		avg_f /= queue_size;
+
+			//avg_f += Individuals[org_id].Fitness;
+		//avg_f /= species->IndividualsIDs.size();
 
 		// Override the use of the network for decision-making
 		for (int org_id : species->IndividualsIDs)
@@ -564,20 +770,43 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int 
 		// Do a few simulations
 		float avg_random_f = 0;
 		float count = 0;
-		for (int i = 0; i < Replications; i++)
+		for (int org_id : species->IndividualsIDs)
+			Individuals[org_id].AccumulatedFitness = 0;
+		
+		for (int i = 0; i < Settings::SimulationReplications; i++)
 		{
 			Interface->ComputeFitness(this, World);
 
 			for (int org_id : species->IndividualsIDs)
-			{
-				avg_random_f += Individuals[org_id].LastFitness;
-				count++;
-			}
+				Individuals[org_id].AccumulatedFitness += Individuals[org_id].Fitness / (float)Settings::SimulationReplications;
 		}
-		avg_random_f /= count;
+
+		for (int org_id : species->IndividualsIDs)
+		{
+			fitness_queue.push(-Individuals[org_id].AccumulatedFitness); // using - because the priority queue is from high to low
+			while (fitness_queue.size() > QueueSize)
+				fitness_queue.pop();
+		}
+
+		queue_size = fitness_queue.size();
+		assert(queue_size == QueueSize);
+		while (!fitness_queue.empty())
+		{
+			avg_random_f += -fitness_queue.top();
+			fitness_queue.pop();
+		}
+		avg_random_f /= queue_size;
+
 
 		// Accumulate difference
-		metrics.AverageFitnessDifference += 100.0f*((avg_f - avg_random_f)/avg_random_f);
+		const float epsilon = 1e-6;
+		metrics.AverageFitnessDifference += avg_f - avg_random_f;
+		metrics.MaxFitnessDifference = max(metrics.MaxFitnessDifference, avg_f - avg_random_f);
+		metrics.MinFitnessDifference = min(metrics.MinFitnessDifference, avg_f - avg_random_f);
+
+		//metrics.AverageFitnessDifference += 100.0f * (avg_f - avg_random_f) / (fabsf(avg_random_f) + 1.0f);
+		//metrics.MaxFitnessDifference = max(metrics.MaxFitnessDifference, 100.0f * (avg_f - avg_random_f) / (fabsf(avg_random_f) + 1.0f));
+		//metrics.MinFitnessDifference = min(metrics.MinFitnessDifference, 100.0f * (avg_f - avg_random_f) / (fabsf(avg_random_f) + 1.0f));
 
 		// Re-enable the network
 		for (int org_id : species->IndividualsIDs)
@@ -585,10 +814,59 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World,int 
 	}
 	metrics.AverageFitnessDifference /= SpeciesMap.size();
 
-	// TODO : Compute standard deviations
-
-	// After all is done, restore the current population
-	//Individuals = move(current_pop);
+	// Restore the old fitness values
+	for (auto &org : Individuals)
+		org.Fitness = org.BackupFitness;
 
 	return metrics;
 }
+
+
+#if 0
+Population::ProgressMetrics Population::ComputeProgressMetrics(void * World)
+{
+	ProgressMetrics metrics;
+
+	// Compute average novelty
+	ComputeNovelty();
+	metrics.AverageNovelty = 0;
+	for (const auto& org : Individuals)
+		metrics.AverageNovelty += org.LastNoveltyMetric;
+	metrics.AverageNovelty /= Individuals.size();
+
+	// Do a few simulations to compute fitness
+    metrics.AverageFitnessDifference = 0;
+    metrics.AverageFitness = 0;
+    metrics.AverageRandomFitness = 0;
+
+	EvaluatePopulation(World);
+
+    for (auto &org : Individuals)
+        metrics.AverageFitness += org.Fitness;
+    metrics.AverageFitness /= Individuals.size();
+
+    // Now for each species set that to be random, and do a couple of simulations
+    // Override the use of the network for decision-making
+    for (const auto &[_, species] : SpeciesMap)
+        for (int org_id : species->IndividualsIDs)
+            Individuals[org_id].UseNetwork = false;
+
+	EvaluatePopulation(World);
+
+    for (auto &org : Individuals)
+        metrics.AverageRandomFitness += org.Fitness;
+    metrics.AverageRandomFitness /= Individuals.size();
+
+    // Re-enable the network
+    for (const auto &[_, species] : SpeciesMap)
+        for (int org_id : species->IndividualsIDs)
+            Individuals[org_id].UseNetwork = true;
+
+    metrics.AverageFitnessDifference =
+            ((metrics.AverageFitness - metrics.AverageRandomFitness) / metrics.AverageRandomFitness) * 100;
+
+	// TODO : Compute standard deviations
+
+	return metrics;
+}
+#endif

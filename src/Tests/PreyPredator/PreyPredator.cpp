@@ -6,6 +6,8 @@
 #include <random>
 #include <matplotlibcpp.h>
 #include <enumerate.h>
+#include <queue>
+#include "../../Core/Config.h"
 
 namespace plt = matplotlibcpp;
 using namespace std;
@@ -14,23 +16,29 @@ using namespace fpp;
 
 // TODO : Refactor, this could be spread on a couple files. 
 //   Need to see if that's actually better though
-const int WorldSizeX = 30;
-const int WorldSizeY = 30;
-const float FoodLifeGain = 20;
-const float KillLifeGain = 30;
-const float StartingLife = 300;
-const int FoodCellCount = WorldSizeX * WorldSizeY*0.1;
+const int WorldSizeX = 50;
+const int WorldSizeY = 50;
+const float FoodScoreGain = 20;
+const float KillScoreGain = 30;
+const float DeathPenalty = 0;// 400;
+const int FoodCellCount = WorldSizeX * WorldSizeY*0.05;
 const int MaxSimulationSteps = 200;
-const int PopulationSize = 100;
-const int GenerationsCount = 10000;
+const int SimulationSize = 10; // Population is simulated in batches
+const int PopSizeMultiplier = 30; // Population size is a multiple of the simulation size
+const int PopulationSize = PopSizeMultiplier * SimulationSize;
+const int GenerationsCount = 250;
 const float LifeLostPerTurn = 5;
+const float BorderPenalty = 0;// 80; // penalty when trying to go out of bounds
+const float WastedActionPenalty = 0;// 5; // penalty when doing an action that has no valid target (like eating and there's no food close)
 
 minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
 struct OrgState
 {
-	float Life = StartingLife;
+	float Score = 0;
 	float2 Position;
+
+	bool IsCarnivore;
 };
 
 enum class ParametersIDs
@@ -62,8 +70,19 @@ enum class SensorsIDs
 	NearestPartnerAngle,
 	NearestCompetidorAngle, // Angle to the nearest individual of another species
 	NearestFoodAngle,
+	NearestPartnerDistance,
 	NearestCompetidorDistance,
 	NearestFoodDistance,
+
+	NearestPartnerX,
+	NearestPartnerY,
+	NearestCompetidorX,
+	NearestCompetidorY,
+	NearestFoodX,
+	NearestFoodY,
+
+	CurrentPosX,
+	CurrentPosY,
 
 	NumberOfSensors
 };
@@ -85,13 +104,26 @@ public:
 		auto cycle_x = [](int x) { return ((x % WorldSizeX) + WorldSizeX) % WorldSizeX; };
 		auto cycle_y = [](int y) { return ((y % WorldSizeY) + WorldSizeY) % WorldSizeY; };
 
+		// Test : Instead of a circular world, make them bounce on walls
+		//auto cycle_x = [](int x) { return x < WorldSizeX ? (x > 0 ? x : 2) : WorldSizeX - 2; };
+		//auto cycle_y = [](int y) { return y < WorldSizeY ? (y > 0 ? y : 2) : WorldSizeY - 2; };
+
+
 		ActionRegistry[(int)ActionsIDs::MoveForward] = Action
 		(
 			[&](void * State, const Population * Pop,Individual * Org, void * World) 
 			{
 				auto state_ptr = (OrgState*)State;
 
+				if (state_ptr->Position.y >= WorldSizeY - 1)
+					state_ptr->Score -= BorderPenalty;
+
 				state_ptr->Position.y = cycle_y(state_ptr->Position.y + 1);//clamp<int>(state_ptr->Position.y + 1, 0, WorldSizeY - 1);
+				
+				/*if (state_ptr->IsCarnivore)
+					ActionRegistry[(int)ActionsIDs::KillAndEat].Execute(State, Pop, Org, World);
+				else
+					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);*/
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::MoveBackwards] = Action
@@ -100,7 +132,15 @@ public:
 			{
 				auto state_ptr = (OrgState*)State;
 
-				state_ptr->Position.y = cycle_y(state_ptr->Position.y - 1) % WorldSizeY;//clamp<int>(state_ptr->Position.y - 1, 0, WorldSizeY - 1);
+				if (state_ptr->Position.y <= 1)
+					state_ptr->Score -= BorderPenalty;
+
+				state_ptr->Position.y = cycle_y(state_ptr->Position.y - 1);//clamp<int>(state_ptr->Position.y - 1, 0, WorldSizeY - 1);
+
+				/*if (state_ptr->IsCarnivore)
+					ActionRegistry[(int)ActionsIDs::KillAndEat].Execute(State, Pop, Org, World);
+				else
+					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);*/
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::MoveRight] = Action
@@ -109,7 +149,15 @@ public:
 			{
 				auto state_ptr = (OrgState*)State;
 
-				state_ptr->Position.x = cycle_x(state_ptr->Position.x + 1) % WorldSizeX;//clamp<int>(state_ptr->Position.x + 1, 0, WorldSizeX - 1);
+				if (state_ptr->Position.x >= WorldSizeX)
+					state_ptr->Score -= BorderPenalty;
+
+				state_ptr->Position.x = cycle_x(state_ptr->Position.x + 1);//clamp<int>(state_ptr->Position.x + 1, 0, WorldSizeX - 1);
+
+				/*if (state_ptr->IsCarnivore)
+					ActionRegistry[(int)ActionsIDs::KillAndEat].Execute(State, Pop, Org, World);
+				else
+					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);*/
 			}
 		);
 		ActionRegistry[(int)ActionsIDs::MoveLeft] = Action
@@ -118,7 +166,15 @@ public:
 			{
 				auto state_ptr = (OrgState*)State;
 
-				state_ptr->Position.x = cycle_x(state_ptr->Position.x - 1) % WorldSizeX;// clamp<int>(state_ptr->Position.x - 1, 0, WorldSizeX - 1);
+				if (state_ptr->Position.x <= 1)
+					state_ptr->Score -= BorderPenalty;
+
+				state_ptr->Position.x = cycle_x(state_ptr->Position.x - 1);// clamp<int>(state_ptr->Position.x - 1, 0, WorldSizeX - 1);
+
+				/*if (state_ptr->IsCarnivore)
+					ActionRegistry[(int)ActionsIDs::KillAndEat].Execute(State, Pop, Org, World);
+				else
+					ActionRegistry[(int)ActionsIDs::EatFood].Execute(State, Pop, Org, World);*/
 			}
 		);
 
@@ -185,21 +241,24 @@ public:
 				auto world_ptr = (WorldData*)World;
 				auto state_ptr = (OrgState*)State;
 
+				bool any_eaten = false;
 				for (auto [idx,pos] : enumerate(world_ptr->FoodPositions))
 				{
 					auto diff = abs >> (pos - state_ptr->Position);
 
 					if (diff.x <= 1 && diff.y <= 1)
 					{
-						state_ptr->Life += FoodLifeGain;
+						state_ptr->Score += FoodScoreGain;
 
-						// Remove food and create a new one
-						world_ptr->FoodPositions.erase(world_ptr->FoodPositions.begin() + idx);
-						float2 food_pos(uniform_real_distribution<float>(0, WorldSizeX)(RNG), uniform_real_distribution<float>(0, WorldSizeY)(RNG));
-						world_ptr->FoodPositions.push_back(food_pos);
+						// Just move the food to a different position. Achieves the same effect as removing it
+						world_ptr->FoodPositions[idx] = { uniform_real_distribution<float>(0, WorldSizeX)(RNG), uniform_real_distribution<float>(0, WorldSizeY)(RNG) };
+						any_eaten = true;
 						break;
 					}
 				}
+
+				if (!any_eaten)
+					state_ptr->Score -= WastedActionPenalty;
 			}
 		);
 
@@ -211,34 +270,42 @@ public:
 			{
 				auto state_ptr = (OrgState*)State;
 
-				// TODO : Find a way to avoid the copy of the tag
-				auto tag = Org->GetMorphologyTag();
-				tag.Parameters = {};
+
+				const auto& tag = Org->GetMorphologyTag();
 				
 				// Find an individual of a DIFFERENT species.
 				// The species map is not really useful here
+				bool any_eaten = false;
 				for (const auto& individual : Pop->GetIndividuals())
 				{
-					if (individual.GetState<OrgState>()->Life <= 0)
+					// Ignore individuals that aren't being simulated right now
+					// Also, don't do all the other stuff against yourself. 
+					// You already know you don't want to kill yourself
+					if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
 						continue;
 
 					auto other_state_ptr = (OrgState*)individual.GetState();
 					auto diff = abs >> (other_state_ptr->Position - state_ptr->Position);
 					if (diff.x <= 1 && diff.y <= 1)
 					{
-						// Check if they are from different species by comparing tags without parameters
-						// TODO : Find a way to avoid the copy of the tag
-						auto other_tag = individual.GetMorphologyTag();
-						other_tag.Parameters = {};
+						// Check if they are from different species by comparing tags
+						const auto& other_tag = individual.GetMorphologyTag();
 
 						if (!(tag == other_tag))
 						{
-							state_ptr->Life += KillLifeGain;
-							other_state_ptr->Life = 0;
+							state_ptr->Score += KillScoreGain;
+
+							other_state_ptr->Score -= DeathPenalty;
+							other_state_ptr->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
+							other_state_ptr->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
+							any_eaten = true;
 							break;
 						}
 					}
 				}
+
+				if (!any_eaten)
+					state_ptr->Score -= WastedActionPenalty;
 			}
 		);
 		
@@ -249,7 +316,22 @@ public:
 		(
 			[](void * State, void * World, const Population* Pop, const Individual * Org)
 			{
-				return ((OrgState*)State)->Life;
+				return ((OrgState*)State)->Score;
+			}
+		);
+		// Normalized position
+		SensorRegistry[(int)SensorsIDs::CurrentPosX] = Sensor
+		(
+			[](void * State, void * World, const Population* Pop, const Individual * Org)
+			{
+				return((OrgState*)State)->Position.x / (float)WorldSizeX;
+			}
+		);
+		SensorRegistry[(int)SensorsIDs::CurrentPosY] = Sensor
+		(
+			[](void * State, void * World, const Population* Pop, const Individual * Org)
+			{
+				return ((OrgState*)State)->Position.y / (float)WorldSizeY;
 			}
 		);
 		SensorRegistry[(int)SensorsIDs::NearestFoodAngle] = Sensor
@@ -277,120 +359,6 @@ public:
 				return (nearest_pos - state_ptr->Position).normalize().y;
 			}
 		);
-		SensorRegistry[(int)SensorsIDs::NearestPartnerAngle] = Sensor
-		(
-			[](void * State, void * World,const Population* Pop, const Individual * Org)
-			{
-				// TODO : Find a way to avoid the copy of the tag
-				auto tag = Org->GetMorphologyTag();
-				tag.Parameters = {};
-
-				auto world_ptr = (WorldData*)World;
-				auto state_ptr = (OrgState*)State;
-
-				float nearest_dist = numeric_limits<float>::max();
-				float2 nearest_pos;
-				for (const auto& other_org : Pop->GetIndividuals())
-				{
-					if (other_org.GetState<OrgState>()->Life <= 0)
-						continue;
-
-					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
-					if (dist < nearest_dist)
-					{
-						auto other_tag = other_org.GetMorphologyTag();
-						other_tag.Parameters = {};
-
-						if (tag == other_tag)
-						{
-							nearest_dist = dist;
-							nearest_pos = ((OrgState*)other_org.GetState())->Position;
-						}
-					}
-				}
-
-				// Compute "angle", taking as 0 = looking forward ([0,1])
-				// The idea is
-				//	angle = normalize(V - Pos) . [0,1]
-				return (nearest_pos - state_ptr->Position).normalize().y;
-			}
-		);
-		SensorRegistry[(int)SensorsIDs::NearestCompetidorAngle] = Sensor
-		(
-			[](void * State, void * World,const Population* Pop, const Individual * Org)
-			{
-				// TODO : Find a way to avoid the copy of the tag
-				auto tag = Org->GetMorphologyTag();
-				tag.Parameters = {};
-
-				auto world_ptr = (WorldData*)World;
-				auto state_ptr = (OrgState*)State;
-
-				float nearest_dist = numeric_limits<float>::max();
-				float2 nearest_pos;
-				for (const auto& other_org : Pop->GetIndividuals())
-				{
-					if (other_org.GetState<OrgState>()->Life <= 0)
-						continue;
-
-					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
-					if (dist < nearest_dist)
-					{
-						auto other_tag = other_org.GetMorphologyTag();
-						other_tag.Parameters = {};
-
-						if (!(tag == other_tag))
-						{
-							nearest_dist = dist;
-							nearest_pos = ((OrgState*)other_org.GetState())->Position;
-						}
-					}
-				}
-
-				// Compute "angle", taking as 0 = looking forward ([0,1])
-				// The idea is
-				//	angle = normalize(V - Pos) . [0,1]
-				return (nearest_pos - state_ptr->Position).normalize().y;
-			}
-		);
-
-
-		SensorRegistry[(int)SensorsIDs::NearestCompetidorDistance] = Sensor
-		(
-			[](void * State, void * World,const Population* Pop, const Individual * Org)
-			{
-				// TODO : Find a way to avoid the copy of the tag
-				auto tag = Org->GetMorphologyTag();
-				tag.Parameters = {};
-
-				auto world_ptr = (WorldData*)World;
-				auto state_ptr = (OrgState*)State;
-
-				float nearest_dist = numeric_limits<float>::max();
-				float2 nearest_pos;
-				for (const auto& other_org : Pop->GetIndividuals())
-				{
-					if (other_org.GetState<OrgState>()->Life <= 0)
-						continue;
-
-					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
-					if (dist < nearest_dist)
-					{
-						auto other_tag = other_org.GetMorphologyTag();
-						other_tag.Parameters = {};
-
-						if (!(tag == other_tag))
-						{
-							nearest_dist = dist;
-							nearest_pos = ((OrgState*)other_org.GetState())->Position;
-						}
-					}
-				}
-
-				return (nearest_pos - state_ptr->Position).length_sqr();
-			}
-		);
-
 		SensorRegistry[(int)SensorsIDs::NearestFoodDistance] = Sensor
 		(
 			[](void * State, void * World, const Population* Pop, const Individual * Org)
@@ -410,11 +378,338 @@ public:
 					}
 				}
 
-				return (nearest_pos - state_ptr->Position).length_sqr();
+				return nearest_dist;
+			}
+		);
+		SensorRegistry[(int)SensorsIDs::NearestPartnerAngle] = Sensor
+		(
+			[](void * State, void * World,const Population* Pop, const Individual * Org)
+			{
+				// TODO : USE THE SPECIES MAP HERE!
+				const auto & tag = Org->GetMorphologyTag();
+
+				auto world_ptr = (WorldData*)World;
+				auto state_ptr = (OrgState*)State;
+
+				float nearest_dist = numeric_limits<float>::max();
+				float2 nearest_pos;
+				for (const auto& other_org : Pop->GetIndividuals())
+				{
+					// Ignore individuals that aren't being simulated right now
+					// Also, don't do all the other stuff against yourself. 
+					if (!other_org.InSimulation || other_org.GetGlobalID() == Org->GetGlobalID())
+						continue;
+
+					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
+					if (dist < nearest_dist)
+					{
+						const auto & other_tag = other_org.GetMorphologyTag();
+
+						if (tag == other_tag)
+						{
+							nearest_dist = dist;
+							nearest_pos = ((OrgState*)other_org.GetState())->Position;
+						}
+					}
+				}
+
+				// Compute "angle", taking as 0 = looking forward ([0,1])
+				// The idea is
+				//	angle = normalize(V - Pos) . [0,1]
+				return (nearest_pos - state_ptr->Position).normalize().y;
+			}
+		);
+		SensorRegistry[(int)SensorsIDs::NearestCompetidorAngle] = Sensor
+		(
+			[](void * State, void * World,const Population* Pop, const Individual * Org)
+			{
+				const auto& tag = Org->GetMorphologyTag();
+
+				auto world_ptr = (WorldData*)World;
+				auto state_ptr = (OrgState*)State;
+
+				float nearest_dist = numeric_limits<float>::max();
+				float2 nearest_pos;
+				for (const auto& other_org : Pop->GetIndividuals())
+				{
+					// Ignore individuals that aren't being simulated right now
+					// Also, don't do all the other stuff against yourself. 
+					if (!other_org.InSimulation || other_org.GetGlobalID() == Org->GetGlobalID())
+						continue;
+
+					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
+					if (dist < nearest_dist)
+					{
+						const auto& other_tag = other_org.GetMorphologyTag();
+
+						if (!(tag == other_tag))
+						{
+							nearest_dist = dist;
+							nearest_pos = ((OrgState*)other_org.GetState())->Position;
+						}
+					}
+				}
+
+				// Compute "angle", taking as 0 = looking forward ([0,1])
+				// The idea is
+				//	angle = normalize(V - Pos) . [0,1]
+				return (nearest_pos - state_ptr->Position).normalize().y;
+			}
+		);
+		SensorRegistry[(int)SensorsIDs::NearestPartnerDistance] = Sensor
+		(
+			[](void * State, void * World,const Population* Pop, const Individual * Org)
+			{
+				// TODO : USE THE SPECIES MAP HERE!
+				const auto & tag = Org->GetMorphologyTag();
+
+				auto world_ptr = (WorldData*)World;
+				auto state_ptr = (OrgState*)State;
+
+				float nearest_dist = numeric_limits<float>::max();
+				float2 nearest_pos;
+				for (const auto& other_org : Pop->GetIndividuals())
+				{
+					// Ignore individuals that aren't being simulated right now
+					// Also, don't do all the other stuff against yourself. 
+					if (!other_org.InSimulation || other_org.GetGlobalID() == Org->GetGlobalID())
+						continue;
+
+					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
+					if (dist < nearest_dist)
+					{
+						const auto & other_tag = other_org.GetMorphologyTag();
+
+						if (tag == other_tag)
+						{
+							nearest_dist = dist;
+							nearest_pos = ((OrgState*)other_org.GetState())->Position;
+						}
+					}
+				}
+
+				return nearest_dist;
+			}
+		);
+		SensorRegistry[(int)SensorsIDs::NearestCompetidorDistance] = Sensor
+		(
+			[](void * State, void * World,const Population* Pop, const Individual * Org)
+			{
+				const auto& tag = Org->GetMorphologyTag();
+
+				auto world_ptr = (WorldData*)World;
+				auto state_ptr = (OrgState*)State;
+
+				float nearest_dist = numeric_limits<float>::max();
+				float2 nearest_pos;
+				for (const auto& other_org : Pop->GetIndividuals())
+				{
+					// Ignore individuals that aren't being simulated right now
+					// Also, don't do all the other stuff against yourself. 
+					if (!other_org.InSimulation || other_org.GetGlobalID() == Org->GetGlobalID())
+						continue;
+
+					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
+					if (dist < nearest_dist)
+					{
+						const auto& other_tag = other_org.GetMorphologyTag();
+
+						if (!(tag == other_tag))
+						{
+							nearest_dist = dist;
+							nearest_pos = ((OrgState*)other_org.GetState())->Position;
+						}
+					}
+				}
+
+				return nearest_dist;
 			}
 		);
 
 
+
+		SensorRegistry[(int)SensorsIDs::NearestFoodX] = Sensor
+		(
+			[](void * State, void * World, const Population* Pop, const Individual * Org)
+			{
+				auto world_ptr = (WorldData*)World;
+				auto state_ptr = (OrgState*)State;
+
+				float nearest_dist = numeric_limits<float>::max();
+				float2 nearest_pos;
+				for (auto pos : world_ptr->FoodPositions)
+				{
+					float dist = (pos - state_ptr->Position).length_sqr();
+					if (dist < nearest_dist)
+					{
+						nearest_dist = dist;
+						nearest_pos = pos;
+					}
+				}
+
+				return nearest_pos.x;
+			}
+		);
+		SensorRegistry[(int)SensorsIDs::NearestFoodY] = Sensor
+		(
+			[](void * State, void * World, const Population* Pop, const Individual * Org)
+			{
+				auto world_ptr = (WorldData*)World;
+				auto state_ptr = (OrgState*)State;
+
+				float nearest_dist = numeric_limits<float>::max();
+				float2 nearest_pos;
+				for (auto pos : world_ptr->FoodPositions)
+				{
+					float dist = (pos - state_ptr->Position).length_sqr();
+					if (dist < nearest_dist)
+					{
+						nearest_dist = dist;
+						nearest_pos = pos;
+					}
+				}
+
+				return nearest_pos.y;
+			}
+		);
+		SensorRegistry[(int)SensorsIDs::NearestPartnerX] = Sensor
+		(
+			[](void * State, void * World,const Population* Pop, const Individual * Org)
+			{
+				// TODO : USE THE SPECIES MAP HERE!
+				const auto & tag = Org->GetMorphologyTag();
+
+				auto world_ptr = (WorldData*)World;
+				auto state_ptr = (OrgState*)State;
+
+				float nearest_dist = numeric_limits<float>::max();
+				float2 nearest_pos;
+				for (const auto& other_org : Pop->GetIndividuals())
+				{
+					// Ignore individuals that aren't being simulated right now
+					// Also, don't do all the other stuff against yourself. 
+					if (!other_org.InSimulation || other_org.GetGlobalID() == Org->GetGlobalID())
+						continue;
+
+					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
+					if (dist < nearest_dist)
+					{
+						const auto & other_tag = other_org.GetMorphologyTag();
+
+						if (tag == other_tag)
+						{
+							nearest_dist = dist;
+							nearest_pos = ((OrgState*)other_org.GetState())->Position;
+						}
+					}
+				}
+
+				return nearest_pos.x;
+			}
+		);
+		SensorRegistry[(int)SensorsIDs::NearestPartnerY] = Sensor
+		(
+			[](void * State, void * World,const Population* Pop, const Individual * Org)
+			{
+				// TODO : USE THE SPECIES MAP HERE!
+				const auto & tag = Org->GetMorphologyTag();
+
+				auto world_ptr = (WorldData*)World;
+				auto state_ptr = (OrgState*)State;
+
+				float nearest_dist = numeric_limits<float>::max();
+				float2 nearest_pos;
+				for (const auto& other_org : Pop->GetIndividuals())
+				{
+					// Ignore individuals that aren't being simulated right now
+					// Also, don't do all the other stuff against yourself. 
+					if (!other_org.InSimulation || other_org.GetGlobalID() == Org->GetGlobalID())
+						continue;
+
+					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
+					if (dist < nearest_dist)
+					{
+						const auto & other_tag = other_org.GetMorphologyTag();
+
+						if (tag == other_tag)
+						{
+							nearest_dist = dist;
+							nearest_pos = ((OrgState*)other_org.GetState())->Position;
+						}
+					}
+				}
+
+				return nearest_pos.y;
+			}
+		);
+		SensorRegistry[(int)SensorsIDs::NearestCompetidorX] = Sensor
+		(
+			[](void * State, void * World,const Population* Pop, const Individual * Org)
+			{
+				const auto& tag = Org->GetMorphologyTag();
+
+				auto world_ptr = (WorldData*)World;
+				auto state_ptr = (OrgState*)State;
+
+				float nearest_dist = numeric_limits<float>::max();
+				float2 nearest_pos;
+				for (const auto& other_org : Pop->GetIndividuals())
+				{
+					// Ignore individuals that aren't being simulated right now
+					// Also, don't do all the other stuff against yourself. 
+					if (!other_org.InSimulation || other_org.GetGlobalID() == Org->GetGlobalID())
+						continue;
+
+					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
+					if (dist < nearest_dist)
+					{
+						const auto& other_tag = other_org.GetMorphologyTag();
+
+						if (!(tag == other_tag))
+						{
+							nearest_dist = dist;
+							nearest_pos = ((OrgState*)other_org.GetState())->Position;
+						}
+					}
+				}
+
+				return nearest_pos.x;
+			}
+		);
+		SensorRegistry[(int)SensorsIDs::NearestCompetidorY] = Sensor
+		(
+			[](void * State, void * World,const Population* Pop, const Individual * Org)
+			{
+				const auto& tag = Org->GetMorphologyTag();
+
+				auto world_ptr = (WorldData*)World;
+				auto state_ptr = (OrgState*)State;
+
+				float nearest_dist = numeric_limits<float>::max();
+				float2 nearest_pos;
+				for (const auto& other_org : Pop->GetIndividuals())
+				{
+					// Ignore individuals that aren't being simulated right now
+					// Also, don't do all the other stuff against yourself. 
+					if (!other_org.InSimulation || other_org.GetGlobalID() == Org->GetGlobalID())
+						continue;
+
+					float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
+					if (dist < nearest_dist)
+					{
+						const auto& other_tag = other_org.GetMorphologyTag();
+
+						if (!(tag == other_tag))
+						{
+							nearest_dist = dist;
+							nearest_pos = ((OrgState*)other_org.GetState())->Position;
+						}
+					}
+				}
+
+				return nearest_pos.y;
+			}
+		);
 		// DEBUG!
 		/*ComponentRegistry.push_back
 		({
@@ -443,7 +738,7 @@ public:
 
 
 		// Fill parameters
-		/*ParameterDefRegistry.resize((int)ParametersIDs::NumberOfParameters);
+		ParameterDefRegistry.resize((int)ParametersIDs::NumberOfParameters);
 
 		ParameterDefRegistry[(int)ParametersIDs::JumpDistance] = ParameterDefinition
 		(
@@ -451,7 +746,7 @@ public:
 			2, // Min bound
 			5, // max bound
 			(int)ParametersIDs::JumpDistance
-		);*/
+		);
 
 		// Fill components
 		ComponentRegistry.push_back
@@ -464,16 +759,67 @@ public:
 					{
 						(int)SensorsIDs::NearestFoodAngle,
 						(int)SensorsIDs::NearestFoodDistance,
+
+						//(int)SensorsIDs::NearestCompetidorAngle,
+						//(int)SensorsIDs::NearestCompetidorDistance,
+
+						//(int)SensorsIDs::NearestPartnerAngle,
+
+						//(int)SensorsIDs::NearestCompetidorDistance,
+						//(int)SensorsIDs::NearestFoodDistance,
+						//(int)SensorsIDs::NearestPartnerDistance,
+
+						/*(int)SensorsIDs::NearestFoodAngle,
+						(int)SensorsIDs::NearestCompetidorAngle,
+						(int)SensorsIDs::NearestCompetidorDistance,
+						(int)SensorsIDs::NearestPartnerAngle,
+						(int)SensorsIDs::NearestPartnerDistance,*/
+
+						/*(int)SensorsIDs::NearestFoodX,
+						(int)SensorsIDs::NearestFoodY,
+						(int)SensorsIDs::NearestCompetidorX,
+						(int)SensorsIDs::NearestCompetidorY,
+						(int)SensorsIDs::NearestPartnerX,
+						(int)SensorsIDs::NearestPartnerY,*/
+
+						//(int)SensorsIDs::CurrentPosX,
+						//(int)SensorsIDs::CurrentPosY,
 					}
 				},
 				// Carnivore
+#if 1
 				{
 					{(int)ActionsIDs::KillAndEat},
 					{
 						(int)SensorsIDs::NearestCompetidorAngle,
-						(int)SensorsIDs::NearestCompetidorDistance
+						(int)SensorsIDs::NearestCompetidorDistance,
+
+						//(int)SensorsIDs::NearestPartnerAngle,
+						//(int)SensorsIDs::NearestPartnerDistance,
+						//(int)SensorsIDs::NearestFoodAngle,
+						//(int)SensorsIDs::NearestPartnerAngle,
+
+						//(int)SensorsIDs::NearestCompetidorDistance,
+						//(int)SensorsIDs::NearestFoodDistance,
+						//(int)SensorsIDs::NearestPartnerDistance,
+
+						/*(int)SensorsIDs::NearestCompetidorAngle,
+						(int)SensorsIDs::NearestCompetidorDistance,
+						(int)SensorsIDs::NearestPartnerAngle,
+						(int)SensorsIDs::NearestPartnerDistance,*/
+
+						/*(int)SensorsIDs::NearestFoodX,
+						(int)SensorsIDs::NearestFoodY,
+						(int)SensorsIDs::NearestCompetidorX,
+						(int)SensorsIDs::NearestCompetidorY,
+						(int)SensorsIDs::NearestPartnerX,
+						(int)SensorsIDs::NearestPartnerY,*/
+
+						//(int)SensorsIDs::CurrentPosX,
+						//(int)SensorsIDs::CurrentPosY,
 					}
 				}
+#endif
 			}
 		});
 		ComponentRegistry.push_back
@@ -487,8 +833,8 @@ public:
 						(int)ActionsIDs::MoveBackwards,
 						(int)ActionsIDs::MoveLeft,
 						(int)ActionsIDs::MoveRight,
-					},
-					{ (int)SensorsIDs::CurrentLife } 
+					}/*,
+					{ (int)SensorsIDs::CurrentLife }*/
 				}
 			}
 		});
@@ -511,8 +857,8 @@ public:
 					{} 
 				}
 			}
-		});
-		ComponentRegistry.push_back
+		});*/
+		/*ComponentRegistry.push_back
 		({
 			0,2, // Optional sensors groups
 			{
@@ -533,13 +879,25 @@ public:
 		});*/
 	}
 
-	virtual void * MakeState(const class Individual *) override
+	virtual void * MakeState(const Individual * org) override
 	{
 		auto state = new OrgState;
 
-		state->Life = StartingLife;
+		state->Score = 0;
 		state->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
 		state->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
+
+		// TODO : If the org mutates this becomes invalid...
+		for (auto[gid, cid] : org->GetComponents())
+		{
+			if (gid == 0) // mouth group
+			{
+				if (cid == 0) // herbivore
+					state->IsCarnivore = false;
+				else if (cid == 1)
+					state->IsCarnivore = true;
+			}
+		}
 
 		return state;
 	}
@@ -548,7 +906,7 @@ public:
 	{
 		auto state_ptr = (OrgState*)State;
 
-		state_ptr->Life = StartingLife;
+		state_ptr->Score = 0;
 		state_ptr->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
 		state_ptr->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
 	}
@@ -581,26 +939,19 @@ public:
 		for (auto& org : Pop->GetIndividuals())
 			org.Reset();
 
-		// TODO : Shuffle the evaluation order
 		LastSimulationStepCount = 0;
-		bool any_alive = true;
-		for (int i = 0; i < MaxSimulationSteps && any_alive; i++)
+		for (int i = 0; i < MaxSimulationSteps; i++)
 		{
-			any_alive = false;
 			for (auto& org : Pop->GetIndividuals())
 			{
-				auto state_ptr = (OrgState*)org.GetState();
-				if (state_ptr->Life <= 0)
+				if (!org.InSimulation)
 					continue;
-				any_alive = true;
+
+				auto state_ptr = (OrgState*)org.GetState();
 
 				org.DecideAndExecute(World, Pop);
-				state_ptr->Life -= LifeLostPerTurn;
-				
-				// Using as fitness the accumulated life
-				org.LastFitness += state_ptr->Life;
-				// Second option : moving average
-				//org.LastFitness = org.LastFitness*0.9f + state_ptr->Life*0.1f;
+
+				org.Fitness = state_ptr->Score;
 			}
 			LastSimulationStepCount++;
 		}
@@ -612,6 +963,9 @@ int main()
 {
 	// TODO : REMOVE THIS! I put it here just in the off case that the reason why the population is not improving is because some parameter wasn't loaded
 	NEAT::load_neat_params("../cfg/neat_test_config.txt");
+	NEAT::mutate_morph_param_prob = Settings::ParameterMutationProb;
+	NEAT::destructive_mutate_morph_param_prob = Settings::ParameterDestructiveMutationProb;
+	NEAT::mutate_morph_param_spread = Settings::ParameterMutationSpread;
 
 	// Create base interface
 	Interface = unique_ptr<PublicInterface>(new TestInterface);
@@ -628,18 +982,29 @@ int main()
 
 	// Spawn population
 	Population pop;
-	pop.Spawn(PopulationSize);
+	pop.Spawn(PopSizeMultiplier,SimulationSize);
 	
 	// Do evolution loop
-	vector<float> fitness_vec(PopulationSize);
-	vector<float> novelty_vec(PopulationSize);
+	vector<float> fitness_vec_hervibore;
+	vector<float> novelty_vec_hervibore;
+	vector<float> fitness_vec_carnivore;
+	vector<float> novelty_vec_carnivore;
+
 	vector<float> fitness_vec_registry;
 	vector<float> novelty_vec_registry;
 	vector<float> avg_fitness;
 	vector<float> avg_novelty;
+	vector<float> avg_fitness_carnivore;
+	vector<float> avg_novelty_carnivore;
+
 	vector<float> avg_fitness_difference;
+	vector<float> avg_fitness_network;
+	vector<float> avg_fitness_random;
 	vector<float> avg_novelty_registry;
 	vector<float> species_count;
+	vector<float> min_fitness_difference;
+	vector<float> max_fitness_difference;
+
 	// TODO : Make the plot work in debug
 #ifndef _DEBUG
 	plt::ion();
@@ -650,14 +1015,36 @@ int main()
 		pop.Epoch(&world, [&](int gen)
 		{
 			cout << "Generation : " << gen << endl;
+			cout << "    Species Size [" << pop.GetSpecies().size() << "] : ";
+			for (const auto&[_, species] : pop.GetSpecies())
+				cout << species->IndividualsIDs.size() << " | " << species->AverageFitnessDifference <<  " , ";
+			cout << endl;
 
+#ifdef _DEBUG
+			auto metrics = pop.ComputeProgressMetrics(&world);
+			cout << metrics.AverageFitnessDifference << endl;
+			return;
+#endif
 			// Every some generations graph the fitness & novelty of the individuals of the registry
-			if (gen % 10 == 0)
+			if (true)//(gen % 10 == 0)
 			{
+				fitness_vec_hervibore.resize(0);
+				novelty_vec_hervibore.resize(0);
+				fitness_vec_carnivore.resize(0);
+				novelty_vec_carnivore.resize(0);
+
 				for (auto [idx, org] : enumerate(pop.GetIndividuals()))
 				{
-					fitness_vec[idx] = org.LastFitness;
-					novelty_vec[idx] = org.LastNoveltyMetric;
+					if (org.GetState<OrgState>()->IsCarnivore)
+					{
+						fitness_vec_carnivore.push_back(org.Fitness);
+						novelty_vec_carnivore.push_back(org.LastNoveltyMetric);
+					}
+					else
+					{
+						fitness_vec_hervibore.push_back(org.Fitness);
+						novelty_vec_hervibore.push_back(org.LastNoveltyMetric);
+					}
 				}
 
 				/*float avg_f = 0;
@@ -672,7 +1059,7 @@ int main()
 					{
 						avg_f += org.LastFitness;
 						avg_n += org.LastNoveltyMetric;
-						
+
 						fitness_vec_registry.push_back(org.LastFitness);
 						novelty_vec_registry.push_back(org.LastNoveltyMetric);
 
@@ -721,45 +1108,125 @@ int main()
 				plt::plot(avg_novelty_registry, "g");
 				//plt::hist(novelty_vec_registry);*/
 
-				float avg_f = accumulate(fitness_vec.begin(), fitness_vec.end(), 0.0f) / fitness_vec.size();
-				float avg_n = accumulate(novelty_vec.begin(), novelty_vec.end(), 0.0f) / novelty_vec.size();
-
-				auto metrics = pop.ComputeProgressMetrics(&world, 10);
-				avg_fitness_difference.push_back(metrics.AverageFitnessDifference);
+				//auto metrics = pop.ComputeProgressMetrics(&world);
+				/*avg_fitness_difference.push_back(metrics.AverageFitnessDifference);
+				avg_fitness_network.push_back(metrics.AverageFitness);
+				avg_fitness_random.push_back(metrics.AverageRandomFitness);
 				avg_novelty_registry.push_back(metrics.AverageNovelty);
 
-				avg_fitness.push_back(avg_f);
-				avg_novelty.push_back(avg_n);
+				min_fitness_difference.push_back(metrics.MinFitnessDifference);
+				max_fitness_difference.push_back(metrics.MaxFitnessDifference);*/
 
 				plt::clf();
 
-				plt::subplot(5, 1, 1);
-				plt::plot(fitness_vec, novelty_vec, "x");
+				plt::subplot(3, 1, 1);
+				plt::plot(fitness_vec_hervibore, novelty_vec_hervibore, "xb");
+				plt::plot(fitness_vec_carnivore, novelty_vec_carnivore, "xk");
 				//plt::loglog(fitness_vec, novelty_vec, "x");
 
-				plt::subplot(5, 1, 2);
-				plt::plot(avg_fitness, "r");
+				// Only average the best 5
+				sort(fitness_vec_hervibore.begin(), fitness_vec_hervibore.end(), [](float a, float b) { return a > b; });
+				sort(fitness_vec_carnivore.begin(), fitness_vec_carnivore.end(), [](float a, float b) { return a > b; });
 
-				plt::subplot(5, 1, 3);
-				plt::plot(avg_novelty, "g");
+				float avg_f_hervibore = accumulate(fitness_vec_hervibore.begin(), fitness_vec_hervibore.begin() + min<int>(fitness_vec_hervibore.size(), 5), 0.0f) / 5.0f;
+				float avg_n_hervibore = accumulate(novelty_vec_hervibore.begin(), novelty_vec_hervibore.begin() + min<int>(novelty_vec_hervibore.size(), 5), 0.0f) / 5.0f;
+				float avg_f_carnivore = accumulate(fitness_vec_carnivore.begin(), fitness_vec_carnivore.begin() + min<int>(fitness_vec_carnivore.size(), 5), 0.0f) / 5.0f;
+				float avg_n_carnivore = accumulate(novelty_vec_carnivore.begin(), novelty_vec_carnivore.begin() + min<int>(novelty_vec_carnivore.size(), 5), 0.0f) / 5.0f;
+				for (auto[_, s] : pop.GetSpecies())
+				{
+					if (pop.GetIndividuals()[s->IndividualsIDs[0]].GetState<OrgState>()->IsCarnivore)
+						avg_n_carnivore = s->LastFitness;//s->AverageFitnessDifference;
+					else
+						avg_n_hervibore = s->LastFitness;// s->AverageFitnessDifference;
+				}
 
-				plt::subplot(5, 1, 4);
-				plt::plot(avg_fitness_difference, "r");
+				avg_fitness.push_back((avg_f_hervibore));
+				avg_fitness_carnivore.push_back((avg_f_carnivore));
 
-				plt::subplot(5, 1, 5);
-				plt::plot(avg_novelty_registry, "g");
+				avg_novelty_carnivore.push_back(avg_n_carnivore);
+				avg_novelty.push_back(avg_n_hervibore);
+
+
+				//cout << metrics.AverageFitnessDifference << endl;
+
+
+				plt::subplot(3, 1, 2);
+				plt::plot(avg_fitness, "b");
+				plt::plot(avg_fitness_carnivore, "k");
+
+				plt::subplot(3, 1, 3);
+				plt::plot(avg_novelty, "b");
+				plt::plot(avg_novelty_carnivore, "k");
+
+				//plt::subplot(4, 1, 4);
+				//plt::plot(avg_fitness_difference, "r");
+				//plt::plot(min_fitness_difference, "k");
+				//plt::plot(max_fitness_difference, "b");
+
+				//plt::subplot(5, 1, 5);
+				//plt::plot(avg_novelty_registry, "g");
 
 				plt::pause(0.01);
 #endif
 			}
 		});
+
 	}
 
 	// Generations finished, so visualize the individuals
 #ifndef _DEBUG
+	{
+		char c;
+		cout << "Show simulation (y/n) ? ";
+		cin >> c;
+		if (c == 'n')
+			return 0;
+	}
+	pop.EvaluatePopulation(&world);
 	// After evolution is done, replace the population with the ones of the registry
-	pop.BuildFinalPopulation();
+//	pop.BuildFinalPopulation();
+	//another interesting option would be to select 5 random individuals from the non dominated front, maybe for each species
+	// Find the best 5 prey and predator
+	{
+		auto comparator = [](pair<int, float> a, pair<int, float> b) { return a.second > b.second; };
+		priority_queue<pair<int, float>, vector<pair<int, float>>, decltype(comparator)> prey_queue(comparator), predator_queue(comparator);
 
+		for (auto[idx, org] : enumerate(pop.GetIndividuals()))
+		{
+			if (org.GetState<OrgState>()->IsCarnivore)
+			{
+				predator_queue.push({ idx, org.Fitness });
+				if (predator_queue.size() == 6)
+					predator_queue.pop();
+			}
+			else
+			{
+				prey_queue.push({ idx, org.Fitness });
+				if (prey_queue.size() == 6)
+					prey_queue.pop();
+			}
+		}
+
+		vector<Individual> tmp;
+		while (predator_queue.size() > 0)
+		{
+			tmp.push_back(move(pop.GetIndividuals()[predator_queue.top().first]));
+			predator_queue.pop();
+		}
+
+		while (prey_queue.size() > 0)
+		{
+			tmp.push_back(move(pop.GetIndividuals()[prey_queue.top().first]));
+			prey_queue.pop();
+		}
+
+		for (auto& org : tmp)
+			org.InSimulation = true;
+
+		pop.GetIndividuals() = move(tmp);
+	}
+
+    //pop.GetIndividuals().resize(5);
 	while (true)
 	{
 		for (auto& org : pop.GetIndividuals())
@@ -784,12 +1251,7 @@ int main()
 
 			any_alive = false;
 			for (auto& org : pop.GetIndividuals())
-			{
-				auto state_ptr = (OrgState*)org.GetState();
-				if (state_ptr->Life >= 0)
-					org.DecideAndExecute(&world, &pop);
-				state_ptr->Life -= LifeLostPerTurn;
-			}
+				org.DecideAndExecute(&world, &pop);
 
 			// Plot food
 			plt::clf();
@@ -816,7 +1278,7 @@ int main()
 			plt::plot(org_x, org_y, string("x") + string("C") + to_string(species_idx));
 			}*/
 
-			// Plot herbivores on green and carnivores on black
+			// Plot herbivores on blue and carnivores on black
 			vector<int> herbivores_x, herbivores_y;
 			vector<int> carnivores_x, carnivores_y;
 			herbivores_x.reserve(PopulationSize);
@@ -826,20 +1288,10 @@ int main()
 
 			for (const auto& org : pop.GetIndividuals())
 			{
-				bool is_carnivore = false;
-				for (const auto& comp : org.GetComponents())
-				{
-					// Group 0 is the "mouth", component 1 of that group is carnivores mouth
-					if (comp.GroupID == 0 && comp.ComponentID == 1)
-						is_carnivore = true;
-				}
-
 				auto state_ptr = (OrgState*)org.GetState();
-				if (state_ptr->Life <= 0)
-					continue;
 
 				any_alive = true;
-				if (is_carnivore)
+				if (state_ptr->IsCarnivore)
 				{
 					carnivores_x.push_back(state_ptr->Position.x);
 					carnivores_y.push_back(state_ptr->Position.y);
