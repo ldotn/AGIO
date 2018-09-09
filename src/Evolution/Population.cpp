@@ -231,16 +231,20 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 		avg_fit /= 5.0f;
 
 		// TODO : expose this param
-		float falloff = 0.1f;
+		float falloff = 0.05f;
 		/*if (s->LastFitness > 0)
 			s->AverageFitnessDifference = avg_fit - s->LastFitness;//(1.0f - falloff)*s->AverageFitnessDifference + falloff *((avg_fit - s->LastFitness) );
 		else*/
-		s->AverageFitnessDifference = avg_fit - s->LastFitness;
-
+		float smoothed_fitness = (1.0f - falloff)*s->LastFitness + falloff * avg_fit;
 		if (s->LastFitness <= 0)
-			s->LastFitness = avg_fit;
+		{
+			smoothed_fitness = avg_fit;
+			s->AverageFitnessDifference = 0;
+		}
 		else
-			s->LastFitness = (1.0f - falloff)*s->LastFitness + falloff*avg_fit;
+			s->AverageFitnessDifference = (1.0f - falloff)*s->AverageFitnessDifference + falloff*((smoothed_fitness - s->LastFitness) / s->LastFitness);
+
+		s->LastFitness = smoothed_fitness;
 
 		//cout << avg_fit << endl;
 

@@ -1135,9 +1135,9 @@ int main()
 				for (auto[_, s] : pop.GetSpecies())
 				{
 					if (pop.GetIndividuals()[s->IndividualsIDs[0]].GetState<OrgState>()->IsCarnivore)
-						avg_n_carnivore = s->LastFitness;//s->AverageFitnessDifference;
+						avg_n_carnivore = s->AverageFitnessDifference;
 					else
-						avg_n_hervibore = s->LastFitness;// s->AverageFitnessDifference;
+						avg_n_hervibore = s->AverageFitnessDifference;
 				}
 
 				avg_fitness.push_back((avg_f_hervibore));

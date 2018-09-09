@@ -25,8 +25,8 @@ namespace agio
 		NEAT::Population * NetworksPopulation;
 
 		// Used to track progress
-		float LastFitness = 0;
-		float AverageFitnessDifference = 0; // Moving average
+		float LastFitness = 0; // moving average
+		float ProgressMetric = 0; // Moving average difference of fitness with last
 	};
 
 	class Population
@@ -56,7 +56,7 @@ namespace agio
 			ProgressMetrics() { memset(this, 0, sizeof(ProgressMetrics)); }
 			float AverageNovelty;
 			float NoveltyStandardDeviation;
-			float AverageFitnessDifference;
+			float ProgressMetric;
 			float AverageFitness;
 			float AverageRandomFitness;
 			float FitnessDifferenceStandardDeviation;
