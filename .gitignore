@@ -341,3 +341,6 @@ ASALocalRun/
 cmake-build-debug-gcc/
 cmake-build-release-gcc/
 cmake-build-release/
+
+# Boost
+boost-cmake/
