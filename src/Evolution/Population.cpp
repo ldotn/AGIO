@@ -232,24 +232,25 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 		// TODO : expose this param
 		float falloff = 0.05f;
-		/*if (s->LastFitness > 0)
-			s->AverageFitnessDifference = avg_fit - s->LastFitness;//(1.0f - falloff)*s->AverageFitnessDifference + falloff *((avg_fit - s->LastFitness) );
-		else*/
 		float smoothed_fitness = (1.0f - falloff)*s->LastFitness + falloff * avg_fit;
 		if (s->LastFitness <= 0)
 		{
 			smoothed_fitness = avg_fit;
-			s->AverageFitnessDifference = 0;
+			s->ProgressMetric = 0;
 		}
 		else
-			s->AverageFitnessDifference = (1.0f - falloff)*s->AverageFitnessDifference + falloff*((smoothed_fitness - s->LastFitness) / s->LastFitness);
+			s->ProgressMetric = (1.0f - falloff)*s->ProgressMetric + falloff*((smoothed_fitness - s->LastFitness) / s->LastFitness);
 
 		s->LastFitness = smoothed_fitness;
 
 		//cout << avg_fit << endl;
 
 		// With the fitness updated call the neat epoch
-		pop->epoch(CurrentGeneration);
+		pop->epoch(CurrentGeneration/*,2*/);
+		
+		
+		//cout << pop->organisms.size() << endl;
+
 
 		// Now replace the individuals with the new brains genomes
 		for (auto [idx, org_idx] : enumerate(s->IndividualsIDs))
@@ -257,8 +258,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 			delete Individuals[org_idx].Genome;
 			delete Individuals[org_idx].Brain;
 
-			// Using % because when neat does "delta encoding" it drops the pop size to half
-			auto target_genome = pop->organisms[idx % pop->organisms.size()]->gnome;
+			auto target_genome = pop->organisms[idx % s->IndividualsIDs.size()]->gnome;
 
 			auto& org = Individuals[org_idx];
 
@@ -270,6 +270,8 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 			// Now the parameters have been evolved by neat, so do the inverse process
 			org.Parameters = org.Genome->MorphParams;
 		}
+
+		s->Age++;
 	}
 }
 
@@ -734,7 +736,7 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World)
 	metrics.AverageFitness /= Individuals.size();
 
 	// Now for each species set that to be random, and do a couple of simulations
-	metrics.AverageFitnessDifference = 0;
+	metrics.ProgressMetric = 0;
 	metrics.MaxFitnessDifference = -numeric_limits<float>::max();
 	metrics.MinFitnessDifference = numeric_limits<float>::max();
 	for (const auto&[_, species] : SpeciesMap)
@@ -804,7 +806,7 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World)
 
 		// Accumulate difference
 		const float epsilon = 1e-6;
-		metrics.AverageFitnessDifference += avg_f - avg_random_f;
+		metrics.ProgressMetric += avg_f - avg_random_f;
 		metrics.MaxFitnessDifference = max(metrics.MaxFitnessDifference, avg_f - avg_random_f);
 		metrics.MinFitnessDifference = min(metrics.MinFitnessDifference, avg_f - avg_random_f);
 
@@ -816,7 +818,7 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World)
 		for (int org_id : species->IndividualsIDs)
 			Individuals[org_id].UseNetwork = true;
 	}
-	metrics.AverageFitnessDifference /= SpeciesMap.size();
+	metrics.ProgressMetric /= SpeciesMap.size();
 
 	// Restore the old fitness values
 	for (auto &org : Individuals)

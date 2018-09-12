@@ -27,6 +27,8 @@ namespace agio
 		// Used to track progress
 		float LastFitness = 0; // moving average
 		float ProgressMetric = 0; // Moving average difference of fitness with last
+		
+		int Age = 0;
 	};
 
 	class Population
