@@ -1017,12 +1017,12 @@ int main()
 			cout << "Generation : " << gen << endl;
 			cout << "    Species Size [" << pop.GetSpecies().size() << "] : ";
 			for (const auto&[_, species] : pop.GetSpecies())
-				cout << species->IndividualsIDs.size() << " | " << species->AverageFitnessDifference <<  " , ";
+				cout << species->IndividualsIDs.size() << " | " << species->ProgressMetric <<  " , ";
 			cout << endl;
 
 #ifdef _DEBUG
 			auto metrics = pop.ComputeProgressMetrics(&world);
-			cout << metrics.AverageFitnessDifference << endl;
+			cout << metrics.ProgressMetric << endl;
 			return;
 #endif
 			// Every some generations graph the fitness & novelty of the individuals of the registry
@@ -1135,9 +1135,9 @@ int main()
 				for (auto[_, s] : pop.GetSpecies())
 				{
 					if (pop.GetIndividuals()[s->IndividualsIDs[0]].GetState<OrgState>()->IsCarnivore)
-						avg_n_carnivore = s->AverageFitnessDifference;
+						avg_n_carnivore = s->ProgressMetric;
 					else
-						avg_n_hervibore = s->AverageFitnessDifference;
+						avg_n_hervibore = s->ProgressMetric;
 				}
 
 				avg_fitness.push_back((avg_f_hervibore));
