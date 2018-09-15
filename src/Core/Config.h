@@ -25,6 +25,12 @@ namespace agio
 		// Probability of selecting an individual from the registry as parent instead of one of the current population
 		inline static float RegistryParentProb = 0.25f;
 
+		// Minimum number of individuals allowed on a species
+		inline static int MinIndividualsPerSpecies = 10;
+
+		// Number of times to try when creating a new morphology
+		inline static int MorphologyTries = 10;
+
 		// Number of replications to do when simulating
 		inline static int SimulationReplications = 10;
 

@@ -18,8 +18,6 @@ namespace agio
 	struct Species
 	{
 		std::vector<int> IndividualsIDs;
-		// TODO : Maybe refactor this, don't like the idea of using pointers like this when it's resources that only last an epoch
-		std::vector<NEAT::Innovation *> innovations;
 
 		// Each species has a NEAT population that represents the brains
 		NEAT::Population * NetworksPopulation;
@@ -80,32 +78,19 @@ namespace agio
 		std::minstd_rand RNG;
 
 		// Map from the morphology tag (that's what separates species) to the species
-		// IMPORTANT! : The parameters are REMOVED before creating the map
-		//	The tag cares about the parameters, but species are only separated by actions and sensors
-		std::unordered_map<Individual::MorphologyTag, Species*> SpeciesMap;
+		std::unordered_map<MorphologyTag, Species> SpeciesMap;
 
 		// Used to keep track of the different morphologies that were tried
-		std::vector<Individual::MorphologyTag> MorphologyRegistry;
+		std::vector<MorphologyTag> MorphologyRegistry;
 	
-		// Buffer vectors
-		std::vector<float> NoveltyNearestKBuffer;
-		std::vector<std::pair<int,float>> CompetitionNearestKBuffer;
-		std::vector<float> DominationBuffer;
-		std::vector<Individual> ChildrenBuffer;
-
-		// Separates the individuals in species based on the actions and sensors
-		void BuildSpeciesMap();
-	
-		// Computes the novelty metric for the population
-		void ComputeNovelty();
+		// Used to register the species that got stuck and where removed from the simulation
+		std::unordered_map<MorphologyTag, Species> StagnantSpecies;
 
 		// Number of individuals simulated at the same time. 
 		// The entire population is simulated, but on batches of SimulationSize
 		int SimulationSize;
 
-		// Children of the current population. See NSGA-II
-		std::vector<Individual> Children;
-
-
+		// Creates a random morphology
+		MorphologyTag MakeRandomMorphology();
 	};
 }
