@@ -16,7 +16,7 @@ namespace agio
 		inline static int LocalCompetitionK = 15;
 
 		// Minimum age before a species is considered to be removed
-		inline static int MinSpeciesAge = 10;
+		inline static int MinSpeciesAge = 20;
 
 		// Number of individuals to consider when computing progress metrics
 		inline static int ProgressMetricsIndividuals = 5;
@@ -27,7 +27,7 @@ namespace agio
 
 		// Minimum progress that an species has to be making. 
 		// Less than this is considered to be stuck and it may be removed if it keeps stuck
-		inline static float ProgressThreshold = 0.1f;//0.005f;
+		inline static float ProgressThreshold = 0.01f;
 
 		// Number of consecutive epochs that an species must have a progress lower than the threshold to be removed
 		inline static int SpeciesStagnancyChances = 10;

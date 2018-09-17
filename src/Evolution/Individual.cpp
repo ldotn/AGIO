@@ -473,7 +473,12 @@ Individual::Individual(Individual &&other) noexcept
 
 Individual::~Individual()
 {
-    delete Brain;
-    delete Genome;
+    if(Brain) delete Brain;
+
+	// Don't delete the genome here
+	// It's the same pointer that's stored on the (NEAT) population, so it'll be deleted when the population is deleted
+	// If you delete it here, it'll crash later on when the neat pop is deleted
+	//if(Genome) delete Genome;
+
     if (State) Interface->DestroyState(State);
 }

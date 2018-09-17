@@ -317,9 +317,15 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 	}
 
 	// With the species updated, check if there are stagnant ones
-	for(auto & [tag, s] : SpeciesMap)
+	for(auto iter = SpeciesMap.begin();iter != SpeciesMap.end();)
 	{
-		if (s.Age < Settings::MinSpeciesAge) continue; // Ignore young species
+		auto &[tag, s] = *iter;
+
+		if (s.Age < Settings::MinSpeciesAge)
+		{
+			++iter; // Ignore young species
+			continue;
+		}
 
 		if (s.ProgressMetric < Settings::ProgressThreshold)
 		{
@@ -344,6 +350,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 				s.LastFitness = 0;
 				s.ProgressMetric = 0;
 				s.EpochsUnderThreshold = 0;
+				auto old_pop_ptr = s.NetworksPopulation;
 
 				// Check if a new species can be generated
 				// There might not be any species left that aren't already on the map
@@ -369,7 +376,6 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 					// Similar to the delta-encoding that neat does
 
 					// Create a new population starting with the historical best genome
-					auto old_pop_ptr = s.NetworksPopulation;
 					s.NetworksPopulation = new NEAT::Population(old_pop_ptr->GetBestGenome(), s.IndividualsIDs.size(), 5.0f);
 
 					// Important : You need to set the starting parameters by hand
@@ -381,10 +387,10 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 					for (auto [num,idx] : enumerate(s.IndividualsIDs))
 						Individuals[idx].Genome = s.NetworksPopulation->organisms[num]->gnome;
 
-					cout << "\n\n\n\n!! RESETED SPECIES !!\n\n\n\n" << endl;
-
 					// Finally delete the old neat pop
 					delete old_pop_ptr;
+
+					cout << "\n\n\n\n!! RESETED SPECIES !!\n\n\n\n" << endl;
 				}
 				else
 				{
@@ -396,7 +402,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 					unordered_set<int> actions_set;
 					unordered_set<int> sensors_set;
 
-					for (auto[gidx, cidx] : tag)
+					for (auto [gidx, cidx] : new_tag)
 					{
 						const auto &component = Interface->GetComponentRegistry()[gidx].Components[cidx];
 
@@ -465,10 +471,24 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 						Individuals[s.IndividualsIDs[i]].~Individual();
 						new (&Individuals[s.IndividualsIDs[i]]) Individual(move(org));
 					}
+
+					// Change key
+					++iter; // Advance before changing the key, because that invalidates the iterator
+					auto handle = SpeciesMap.extract(tag);
+					handle.key() = new_tag;
+					SpeciesMap.insert(move(handle));
+
+					// Finally delete the old neat pop
+					delete old_pop_ptr;
+
+					// Already advanced the iterator, don't advance twice
+					continue;
 				}
 			}
 		}
 		else s.EpochsUnderThreshold = 0;
+
+		++iter;
 	}
 }
 

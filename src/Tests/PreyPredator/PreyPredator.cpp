@@ -838,7 +838,7 @@ public:
 				}
 			}
 		});
-		ComponentRegistry.push_back
+		/*ComponentRegistry.push_back
 		({
 			0,2, // Jumping is optional
 			{
@@ -857,7 +857,7 @@ public:
 					{} 
 				}
 			}
-		});
+		});*/
 		/*ComponentRegistry.push_back
 		({
 			0,2, // Optional sensors groups
