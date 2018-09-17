@@ -760,8 +760,8 @@ public:
 						(int)SensorsIDs::NearestFoodAngle,
 						(int)SensorsIDs::NearestFoodDistance,
 
-						//(int)SensorsIDs::NearestCompetidorAngle,
-						//(int)SensorsIDs::NearestCompetidorDistance,
+						(int)SensorsIDs::NearestCompetidorAngle,
+						(int)SensorsIDs::NearestCompetidorDistance,
 
 						//(int)SensorsIDs::NearestPartnerAngle,
 
@@ -838,7 +838,7 @@ public:
 				}
 			}
 		});
-		/*ComponentRegistry.push_back
+		ComponentRegistry.push_back
 		({
 			0,2, // Jumping is optional
 			{
@@ -857,7 +857,7 @@ public:
 					{} 
 				}
 			}
-		});*/
+		});
 		/*ComponentRegistry.push_back
 		({
 			0,2, // Optional sensors groups

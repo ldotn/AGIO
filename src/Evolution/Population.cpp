@@ -274,15 +274,15 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 			}
 		}
 		float avg_fit = 0;
-		for (int i = 0; i < 5; i++)
+		for (int i = 0; i < Settings::ProgressMetricsIndividuals; i++)
 		{
 			avg_fit += fitness_queue.top();
 			fitness_queue.pop();
 		}
-		avg_fit /= 5.0f;
+		avg_fit /= (float)Settings::ProgressMetricsIndividuals;
 
-		// TODO : expose this param
-		float falloff = 0.05f;
+		float inv_age = 1.0f / (s.Age + 1);
+		float falloff = (1.0f - inv_age) * Settings::ProgressMetricsFalloff + inv_age;
 		float smoothed_fitness = (1.0f - falloff)*s.LastFitness + falloff * avg_fit;
 		if (s.LastFitness <= 0)
 		{
@@ -296,7 +296,8 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 
 
 		// With the fitness updated call the neat epoch
-		pop->epoch(CurrentGeneration);
+		s.Age++;
+		pop->epoch(s.Age);
 
 		// Now replace the individuals with the new brains genomes
 		// At this point the old pointers are probably invalid, but is NEAT the one that manages that
@@ -313,8 +314,161 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 			// Now the parameters have been evolved by neat, so do the inverse process
 			org.Parameters = org.Genome->MorphParams;
 		}
+	}
 
-		s.Age++;
+	// With the species updated, check if there are stagnant ones
+	for(auto & [tag, s] : SpeciesMap)
+	{
+		if (s.Age < Settings::MinSpeciesAge) continue; // Ignore young species
+
+		if (s.ProgressMetric < Settings::ProgressThreshold)
+		{
+			s.EpochsUnderThreshold++;
+			if (s.EpochsUnderThreshold >= Settings::SpeciesStagnancyChances)
+			{
+				// Store this species to the registry
+				SpeciesRecord entry;
+				entry.Age = s.Age;
+				entry.Morphology = tag;
+				entry.IndividualsSize = s.IndividualsIDs.size();
+				entry.LastFitness = s.LastFitness;
+				entry.HistoricalBestGenome = s.NetworksPopulation->GetBestGenome()->duplicate(0);
+				entry.LastGenomes.resize(s.NetworksPopulation->organisms.size());
+				for (auto [idx, org] : enumerate(s.NetworksPopulation->organisms))
+					entry.LastGenomes[idx] = org->gnome->duplicate(org->gnome->genome_id);
+
+				StagnantSpecies.push_back(move(entry));
+
+				// Reset the species
+				s.Age = 0;
+				s.LastFitness = 0;
+				s.ProgressMetric = 0;
+				s.EpochsUnderThreshold = 0;
+
+				// Check if a new species can be generated
+				// There might not be any species left that aren't already on the map
+				bool found = true;
+				auto new_tag = MakeRandomMorphology();
+				int tries = 0;
+				while (SpeciesMap.find(new_tag) != SpeciesMap.end())
+				{
+					tries++;
+					if (tries > Settings::MorphologyTries)
+					{
+						found = false;
+						break;
+					}
+
+					new_tag = MakeRandomMorphology();
+				}
+
+				// If no new topology could be found in N tries, recreate this one
+				if (tries >= Settings::MorphologyTries)
+				{
+					// No new species was found, so re-create this one
+					// Similar to the delta-encoding that neat does
+
+					// Create a new population starting with the historical best genome
+					auto old_pop_ptr = s.NetworksPopulation;
+					s.NetworksPopulation = new NEAT::Population(old_pop_ptr->GetBestGenome(), s.IndividualsIDs.size(), 5.0f);
+
+					// Important : You need to set the starting parameters by hand
+					// NEAT can evolve them, but has no knowledge of the registry, so it can't create them
+					for (int i = 0; i < s.IndividualsIDs.size(); i++)
+						s.NetworksPopulation->organisms[i]->gnome->MorphParams = Individuals[s.IndividualsIDs[i]].Parameters;
+
+					// Replace the genome pointers of the individuals
+					for (auto [num,idx] : enumerate(s.IndividualsIDs))
+						Individuals[idx].Genome = s.NetworksPopulation->organisms[num]->gnome;
+
+					cout << "\n\n\n\n!! RESETED SPECIES !!\n\n\n\n" << endl;
+
+					// Finally delete the old neat pop
+					delete old_pop_ptr;
+				}
+				else
+				{
+					// "Steal" the ids of the old individuals for the new species
+					// For those objects, you'll need to call the destructors, and create new ones in place
+					// Also, instead of erasing and inserting, just replace this species in-place for the new one
+					cout << "\n\n\n\n## NEW SPECIES ##\n\n\n\n" << endl;
+
+					unordered_set<int> actions_set;
+					unordered_set<int> sensors_set;
+
+					for (auto[gidx, cidx] : tag)
+					{
+						const auto &component = Interface->GetComponentRegistry()[gidx].Components[cidx];
+
+						actions_set.insert(component.Actions.begin(), component.Actions.end());
+						sensors_set.insert(component.Sensors.begin(), component.Sensors.end());
+					}
+
+					vector<int> actions, sensors;
+
+					// Compute action and sensors vectors
+					actions.resize(actions_set.size());
+					for (auto[idx, action] : enumerate(actions_set))
+						actions[idx] = action;
+
+					sensors.resize(sensors_set.size());
+					for (auto[idx, sensor] : enumerate(sensors_set))
+						sensors[idx] = sensor;
+
+					// Take all the individuals from this species
+					int size = s.IndividualsIDs.size();
+
+					// Create NEAT population
+					auto start_genome = new NEAT::Genome(sensors.size(), actions.size(), 0, 0);
+					s.NetworksPopulation = new NEAT::Population(start_genome, size);
+
+					// Initialize individuals
+					for (int i = 0; i < size; i++)
+					{
+						Individual org;
+						org.Morphology = tag;
+						org.Genome = s.NetworksPopulation->organisms[i]->gnome;
+						org.Brain = org.Genome->genesis(org.Genome->genome_id);
+						org.Actions = actions;
+						org.Sensors = sensors;
+						org.ActivationsBuffer.resize(org.Actions.size());
+
+						for (auto[pidx, param] : enumerate(Interface->GetParameterDefRegistry()))
+						{
+							// If the parameter is not required, select it randomly, 50/50 chance
+							// TODO : Maybe make the selection probability a parameter? Does it makes sense?
+							if (param.IsRequired || uniform_int_distribution<int>(0, 1)(RNG))
+							{
+								Parameter p{};
+								p.ID = pidx;
+								p.Value = 0.5f * (param.Min + param.Max);
+								p.HistoricalMarker = Parameter::CurrentMarkerID;
+								p.Min = param.Min;
+								p.Max = param.Max;
+
+								// Small shift
+								float shift = normal_distribution<float>(0, Settings::ParameterMutationSpread)(RNG);
+								p.Value += shift * abs(param.Max - param.Min);
+
+								// Clamp values
+								p.Value = clamp(p.Value, param.Min, param.Max);
+
+								org.Parameters[param.UserID] = p;
+							}
+						}
+
+						// Set morphological parameters of the genome
+						// Make a copy
+						org.Genome->MorphParams = org.GetParameters();
+						org.State = Interface->MakeState(&org);
+
+						Individuals[s.IndividualsIDs[i]].~Individual();
+						new (&Individuals[s.IndividualsIDs[i]]) Individual(move(org));
+					}
+				}
+			}
+		}
+		else s.EpochsUnderThreshold = 0;
 	}
 }
 

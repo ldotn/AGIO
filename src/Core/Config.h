@@ -15,6 +15,23 @@ namespace agio
 		// Number of nearest individuals inside the species to consider for the local competition
 		inline static int LocalCompetitionK = 15;
 
+		// Minimum age before a species is considered to be removed
+		inline static int MinSpeciesAge = 10;
+
+		// Number of individuals to consider when computing progress metrics
+		inline static int ProgressMetricsIndividuals = 5;
+
+		// Controls how smooth is the interpolation when computing the progress metric
+		// Lower = more smooth
+		inline static float ProgressMetricsFalloff = 0.025f;
+
+		// Minimum progress that an species has to be making. 
+		// Less than this is considered to be stuck and it may be removed if it keeps stuck
+		inline static float ProgressThreshold = 0.1f;//0.005f;
+
+		// Number of consecutive epochs that an species must have a progress lower than the threshold to be removed
+		inline static int SpeciesStagnancyChances = 10;
+
         // Minimum novelty of an individual to add it to the morphology registry
         // TODO : No idea what's the range of this. Maybe it can be automatically adjusted from the prev novelty?
         inline static float NoveltyThreshold = 2.0;
@@ -26,7 +43,7 @@ namespace agio
 		inline static float RegistryParentProb = 0.25f;
 
 		// Minimum number of individuals allowed on a species
-		inline static int MinIndividualsPerSpecies = 10;
+		inline static int MinIndividualsPerSpecies = 50;
 
 		// Number of times to try when creating a new morphology
 		inline static int MorphologyTries = 10;

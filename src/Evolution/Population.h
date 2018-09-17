@@ -10,6 +10,7 @@ namespace NEAT
 {
 	class Innovation;
 	class Population;
+	class Genome;
 }
 
 namespace agio
@@ -17,6 +18,8 @@ namespace agio
 	// Encapsulates the data for a single species
 	struct Species
 	{
+		Species() = default;
+
 		std::vector<int> IndividualsIDs;
 
 		// Each species has a NEAT population that represents the brains
@@ -27,6 +30,11 @@ namespace agio
 		float ProgressMetric = 0; // Moving average difference of fitness with last
 		
 		int Age = 0;
+
+		// The species are checked for stagnancy on each epoch
+		// Each species has N "chances"
+		// If after N consecutive epochs the progress is below the threshold, it's considered stagnant
+		int EpochsUnderThreshold;
 	};
 
 	class Population
@@ -84,7 +92,18 @@ namespace agio
 		std::vector<MorphologyTag> MorphologyRegistry;
 	
 		// Used to register the species that got stuck and where removed from the simulation
-		std::unordered_map<MorphologyTag, Species> StagnantSpecies;
+		// The same species might be more than one time, because it may have become stagnant, got removed, and then later on created again
+		// That does make sense, because as the species change, some that was stuck might not be stuck anymore
+		struct SpeciesRecord
+		{
+			MorphologyTag Morphology;
+			NEAT::Genome * HistoricalBestGenome;
+			std::vector<NEAT::Genome*> LastGenomes;
+			int IndividualsSize;
+			int Age;
+			float LastFitness;
+		};
+		std::vector<SpeciesRecord> StagnantSpecies;
 
 		// Number of individuals simulated at the same time. 
 		// The entire population is simulated, but on batches of SimulationSize
