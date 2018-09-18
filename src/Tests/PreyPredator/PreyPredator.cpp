@@ -760,8 +760,8 @@ public:
 						(int)SensorsIDs::NearestFoodAngle,
 						(int)SensorsIDs::NearestFoodDistance,
 
-						(int)SensorsIDs::NearestCompetidorAngle,
-						(int)SensorsIDs::NearestCompetidorDistance,
+						//(int)SensorsIDs::NearestCompetidorAngle,
+						//(int)SensorsIDs::NearestCompetidorDistance,
 
 						//(int)SensorsIDs::NearestPartnerAngle,
 
@@ -1184,31 +1184,32 @@ int main()
 		auto comparator = [](pair<int, float> a, pair<int, float> b) { return a.second > b.second; };
 		priority_queue<pair<int, float>, vector<pair<int, float>>, decltype(comparator)> prey_queue(comparator), predator_queue(comparator);
 
-		for (auto[idx, org] : enumerate(pop.GetIndividuals()))
+		vector<Individual> tmp_pop;
+		for (auto[idx, species] : enumerate(pop.GetSpeciesRegistry()))
 		{
+			Individual org(species.Morphology,species.HistoricalBestGenome);
+			
 			if (org.GetState<OrgState>()->IsCarnivore)
-			{
-				predator_queue.push({ idx, org.Fitness });
-				if (predator_queue.size() == 6)
-					predator_queue.pop();
-			}
+				predator_queue.push({ idx, species.LastFitness });
 			else
-			{
-				prey_queue.push({ idx, org.Fitness });
-				if (prey_queue.size() == 6)
-					prey_queue.pop();
-			}
+				prey_queue.push({ idx, species.LastFitness });
+
+			tmp_pop.push_back(move(org));
 		}
 
 		vector<Individual> tmp;
-		while (predator_queue.size() > 0)
+		for(int i = 0;i < 5;i++)
 		{
+			if (predator_queue.size() == 0) break;
+
 			tmp.push_back(move(pop.GetIndividuals()[predator_queue.top().first]));
 			predator_queue.pop();
 		}
 
-		while (prey_queue.size() > 0)
+		for (int i = 0; i < 5; i++)
 		{
+			if (prey_queue.size() == 0) break;
+
 			tmp.push_back(move(pop.GetIndividuals()[prey_queue.top().first]));
 			prey_queue.pop();
 		}

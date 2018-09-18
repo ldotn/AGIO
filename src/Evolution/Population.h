@@ -56,7 +56,7 @@ namespace agio
 		const auto& GetIndividuals() const { return Individuals; }
 		auto& GetIndividuals() { return Individuals; }
 		const auto& GetSpecies() const { return SpeciesMap; }
-
+		const auto& GetSpeciesRegistry() const { return StagnantSpecies; }
 		// Returns several metrics that allow one to measure the progress of the evolution
 		// TODO : More comprehensive docs maybe?
 		struct ProgressMetrics

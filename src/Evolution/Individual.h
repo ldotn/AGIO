@@ -46,6 +46,11 @@ namespace agio
 		// That's necessary so that the destructor doesn't try to release a moved resource
 		Individual(Individual &&) noexcept;
 
+
+		// Constructor that makes an individual from a NEAT genome and a morphology tag
+		// NOTE : It duplicates the genome!
+		Individual(MorphologyTag Morphology,NEAT::Genome * Genome);
+
 		// Does 4 steps
 		//    1) Load the sensors from the world
 		//    2) Input that values to the network and compute actions probabilities
@@ -116,6 +121,9 @@ namespace agio
 
 		// IDs of the components in the global (user provided) components registry
 		MorphologyTag Morphology;
+
+		// When this individual was created directly from a genome, the genome is duplicated, so it needs to be deleted
+		bool NeedGenomeDeletion;
 	};
 
 	inline void swap(Individual& a, Individual& b)

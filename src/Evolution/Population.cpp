@@ -376,12 +376,12 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 					// Similar to the delta-encoding that neat does
 
 					// Create a new population starting with the historical best genome
-					s.NetworksPopulation = new NEAT::Population(old_pop_ptr->GetBestGenome(), s.IndividualsIDs.size(), 5.0f);
+					s.NetworksPopulation = new NEAT::Population(old_pop_ptr->GetBestGenome(), s.IndividualsIDs.size());
 
 					// Important : You need to set the starting parameters by hand
 					// NEAT can evolve them, but has no knowledge of the registry, so it can't create them
 					for (int i = 0; i < s.IndividualsIDs.size(); i++)
-						s.NetworksPopulation->organisms[i]->gnome->MorphParams = Individuals[s.IndividualsIDs[i]].Parameters;
+						s.NetworksPopulation->organisms[i]->gnome->MorphParams = old_pop_ptr->GetBestGenome()->MorphParams;
 
 					// Replace the genome pointers of the individuals
 					for (auto [num,idx] : enumerate(s.IndividualsIDs))

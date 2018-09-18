@@ -27,6 +27,7 @@ Individual::Individual() noexcept : RNG(chrono::high_resolution_clock::now().tim
     Fitness = 0;
     OriginalID = GlobalID = CurrentGlobalID.fetch_add(1);
     AccumulatedFitness = 0;
+	NeedGenomeDeletion = false;
 }
 
 #if 0
@@ -471,6 +472,39 @@ Individual::Individual(Individual &&other) noexcept
     other.State = nullptr;
 }
 
+Individual::Individual(MorphologyTag Tag,NEAT::Genome * InGenome) : Individual()
+{
+	Morphology = move(Tag);
+	Genome = InGenome->duplicate(GlobalID);
+	Brain = Genome->genesis(Genome->genome_id);
+	Parameters = Genome->MorphParams;
+
+	unordered_set<int> actions_set;
+	unordered_set<int> sensors_set;
+
+	for (auto[gidx, cidx] : Morphology)
+	{
+		const auto &component = Interface->GetComponentRegistry()[gidx].Components[cidx];
+
+		actions_set.insert(component.Actions.begin(), component.Actions.end());
+		sensors_set.insert(component.Sensors.begin(), component.Sensors.end());
+	}
+
+	// Compute action and sensors vectors
+	Actions.resize(actions_set.size());
+	for (auto[idx, action] : enumerate(actions_set))
+		Actions[idx] = action;
+
+	Sensors.resize(sensors_set.size());
+	for (auto[idx, sensor] : enumerate(sensors_set))
+		Sensors[idx] = sensor;
+
+	ActivationsBuffer.resize(Actions.size());
+	NeedGenomeDeletion = true;
+
+	State = Interface->MakeState(this);
+}
+
 Individual::~Individual()
 {
     if(Brain) delete Brain;
@@ -478,7 +512,8 @@ Individual::~Individual()
 	// Don't delete the genome here
 	// It's the same pointer that's stored on the (NEAT) population, so it'll be deleted when the population is deleted
 	// If you delete it here, it'll crash later on when the neat pop is deleted
-	//if(Genome) delete Genome;
+	// The only time you need to delete it, is when you are explicitly making a duplicate
+	if(NeedGenomeDeletion && Genome) delete Genome;
 
     if (State) Interface->DestroyState(State);
 }
