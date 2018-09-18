@@ -7,6 +7,9 @@
 #include <unordered_set>
 #include <queue>
 
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
+#include "../Serialization/SPopulation.h"
 
 
 // REMOVE!
@@ -827,6 +830,28 @@ Population::ProgressMetrics Population::ComputeProgressMetrics(void * World)
 	return metrics;
 }
 
+void Population::save(std::string filename)
+{
+	std::ofstream ofs(filename);
+	{
+		boost::archive::text_oarchive oa(ofs);
+		SPopulation sPopulation(this);
+		oa << sPopulation;
+	}
+}
+
+SPopulation Population::load(std::string filename)
+{
+	SPopulation sPopulation;
+	{
+		std::ifstream ifs(filename);
+		boost::archive::text_iarchive ia(ifs);
+
+		ia >> sPopulation;
+	}
+
+	return sPopulation;
+}
 
 #if 0
 Population::ProgressMetrics Population::ComputeProgressMetrics(void * World)

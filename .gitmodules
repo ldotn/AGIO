@@ -7,3 +7,6 @@
 [submodule "NEAT"]
 	path = NEAT
 	url = https://github.com/RyanTorant/NEAT.git
+[submodule "boost-cmake"]
+	path = boost-cmake
+	url = https://github.com/Orphis/boost-cmake.git

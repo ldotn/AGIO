@@ -5,6 +5,9 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 
+
+add_subdirectory(boost-cmake)
+
 find_package(PythonLibs 3.5)
 include_directories(${PYTHON_INCLUDE_DIRS})
 include_directories(${CMAKE_SOURCE_DIR}/matplotlib-cpp)
@@ -21,12 +24,15 @@ set(project_sources
 	src/Evolution/Individual.cpp
 	src/Evolution/Population.cpp
 	src/Tests/PreyPredator/PreyPredator.cpp
-	${neat_sources}
-)
+	src/Serialization/SPopulation.cpp
+	src/Serialization/SIndividual.cpp
+	${neat_sources})
 
 add_executable(agio ${project_sources} )
 
-target_link_libraries(agio ${PYTHON_LIBRARIES})
+target_link_libraries(agio
+		${PYTHON_LIBRARIES}
+		Boost::serialization)
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT agio)
 

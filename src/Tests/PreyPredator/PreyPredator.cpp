@@ -1,4 +1,5 @@
 #include "../../Evolution/Population.h"
+#include "../../Serialization/SPopulation.h"
 #include "../../Evolution/Globals.h"
 #include <assert.h>
 #include "../../Utils/Math/Float2.h"
@@ -22,11 +23,11 @@ const float FoodScoreGain = 20;
 const float KillScoreGain = 30;
 const float DeathPenalty = 0;// 400;
 const int FoodCellCount = WorldSizeX * WorldSizeY*0.05;
-const int MaxSimulationSteps = 200;
+const int MaxSimulationSteps = 50;
 const int SimulationSize = 10; // Population is simulated in batches
 const int PopSizeMultiplier = 30; // Population size is a multiple of the simulation size
 const int PopulationSize = PopSizeMultiplier * SimulationSize;
-const int GenerationsCount = 250;
+const int GenerationsCount = 3;
 const float LifeLostPerTurn = 5;
 const float BorderPenalty = 0;// 80; // penalty when trying to go out of bounds
 const float WastedActionPenalty = 0;// 5; // penalty when doing an action that has no valid target (like eating and there's no food close)
@@ -1173,13 +1174,16 @@ int main()
 
 	}
 
+	pop.save("population.txt");
+	SPopulation spop = pop.load("population.txt");
+
 	// Generations finished, so visualize the individuals
 #ifndef _DEBUG
 	{
 		char c;
 		cout << "Show simulation (y/n) ? ";
-		cin >> c;
-		if (c == 'n')
+//		cin >> c;
+		if (true)//c == 'n')
 			return 0;
 	}
 	pop.EvaluatePopulation(&world);
@@ -1227,7 +1231,8 @@ int main()
 	}
 
     //pop.GetIndividuals().resize(5);
-	while (true)
+
+	while (false)
 	{
 		for (auto& org : pop.GetIndividuals())
 			org.Reset();

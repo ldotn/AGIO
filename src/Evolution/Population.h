@@ -4,8 +4,11 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <string>
 
 // Forward declaration
+class SPopulation;
+
 namespace NEAT
 {
 	class Innovation;
@@ -74,7 +77,11 @@ namespace agio
 
 		// Evaluates the population
 		void EvaluatePopulation(void * WorldPtr);
+
+		void save(std::string filename);
+		SPopulation load(std::string filename);
 	private:
+		friend SPopulation;
 		int CurrentGeneration;
 		std::vector<Individual> Individuals;
 		std::minstd_rand RNG;
