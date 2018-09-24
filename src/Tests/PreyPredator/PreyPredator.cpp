@@ -1183,7 +1183,7 @@ int main()
 		char c;
 		cout << "Show simulation (y/n) ? ";
 //		cin >> c;
-		if (true)//c == 'n')
+		if (false)//c == 'n')
 			return 0;
 	}
 	pop.EvaluatePopulation(&world);

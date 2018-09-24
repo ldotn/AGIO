@@ -26,6 +26,7 @@ set(project_sources
 	src/Tests/PreyPredator/PreyPredator.cpp
 	src/Serialization/SPopulation.cpp
 	src/Serialization/SIndividual.cpp
+	src/Serialization/SNetwork.cpp
 	${neat_sources})
 
 add_executable(agio ${project_sources} )

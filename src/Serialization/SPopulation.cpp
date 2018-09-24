@@ -7,7 +7,7 @@ SPopulation::SPopulation(Population *population)
 {
     // Save the individuals
     for(Individual &individual : population->Individuals)
-        sIndividuals.emplace_back(SIndividual(individual));
+        individuals.emplace_back(SIndividual(individual));
 
     // Save the species map
     population->BuildSpeciesMap();
@@ -17,12 +17,12 @@ SPopulation::SPopulation(Population *population)
         vector<SIndividual *> speciesIndividuals;
         for (int individualId : species->IndividualsIDs)
         {
-            SIndividual *individual = &sIndividuals[individualId];
-            individual->speciesId = speciesId;
+            SIndividual *individual = &individuals[individualId];
+            individual->species_id = speciesId;
 
             speciesIndividuals.emplace_back(individual);
         }
-        speciesMap.emplace(speciesId, speciesIndividuals);
+        species_map.emplace(speciesId, speciesIndividuals);
         speciesId++;
     }
 }

@@ -18,8 +18,8 @@ using namespace agio;
 
 class SPopulation {
 public:
-    vector<SIndividual> sIndividuals;
-    unordered_map<int, vector<SIndividual*>> speciesMap;
+    vector<SIndividual> individuals;
+    unordered_map<int, vector<SIndividual*>> species_map;
 
     SPopulation();
     SPopulation(Population *population);
@@ -28,7 +28,7 @@ public:
     template<class Archive>
     void serialize(Archive &ar, const unsigned int version)
     {
-        ar & sIndividuals;
-        ar & speciesMap;
+        ar & individuals;
+        ar & species_map;
     }
 };

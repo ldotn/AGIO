@@ -7,6 +7,7 @@
 
 
 #include "SParameter.h"
+#include "SNetwork.h"
 
 namespace agio {
     class Individual;
@@ -16,8 +17,9 @@ using namespace agio;
 
 class SIndividual {
 public:
-    int speciesId;
+    int species_id;
     std::unordered_map<int, SParameter> parameters;
+    SNetwork brain;
 
     SIndividual();
     SIndividual(Individual &individual);
@@ -26,7 +28,7 @@ public:
     template<class Archive>
     void serialize(Archive &ar, const unsigned int version)
     {
-        ar & speciesId;
+        ar & species_id;
         ar & parameters;
     }
 };
