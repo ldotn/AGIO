@@ -2,13 +2,14 @@
 
 #include <vector>
 #include <math.h>
+#include <unordered_map>
 
 #include "../../NEAT/include/network.h"
 #include "../../NEAT/include/nnode.h"
 
 // Forward declarations
 class SNode;
-class SNetwork
+class SNetwork;
 
 enum class NodeType{
     NEURON = 0,
@@ -20,11 +21,16 @@ inline double sigmoid(double value) {
 }
 
 class SLink {
+public:
     friend SNode;
     friend SNetwork;
 
     double weight;
     SNode *in_node;
+    SNode *out_node;
+
+    SLink();
+    SLink(double weight, SNode *in_node, SNode *out_node);
 
 };
 
@@ -36,7 +42,7 @@ class SNode{
     std::vector<SLink*> outgoing;
 
     SNode();
-    SNode(NEAT::NNode* node);
+    SNode(NodeType type);
 private:
     friend SNetwork;
     friend SLink;
@@ -62,5 +68,9 @@ private:
     std::vector<SNode*> inputs;
     std::vector<SNode*> outputs;
 
+    std::unordered_map<NEAT::Link*, SLink*> linkMap;
+    std::unordered_map<NEAT::NNode*, SNode*> nodeMap;
+
     bool outputsOff();
+    SLink* findLink(NEAT::Link *link);
 };

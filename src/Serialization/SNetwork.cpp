@@ -101,15 +101,30 @@ void SNetwork::flush()
         node->flushback();
 }
 
+SNode::SNode() {}
+
+SNode::SNode(NodeType type)
+{
+    this->type = type;
+}
+
+SLink::SLink() {}
+
+SLink::SLink(double weight, SNode *in_node, SNode *out_node)
+{
+    this->weight = weight;
+    this->in_node = in_node;
+    this->out_node = out_node;
+}
+
 SNetwork::SNetwork() {}
 
 SNetwork::SNetwork(NEAT::Network *network)
 {
-    std::unordered_map<NEAT::NNode*, SNode*> nodeMap;
-
     for (auto node : network->all_nodes)
     {
-        SNode *snode = new SNode(node);
+        NodeType type = node->type == NEAT::SENSOR? NodeType::SENSOR : NodeType::NEURON;
+        SNode *snode = new SNode(type);
 
         nodeMap.emplace(node, snode);
         all_nodes.emplace_back(snode);
@@ -120,10 +135,34 @@ SNetwork::SNetwork(NEAT::Network *network)
 
     for (auto node : network->outputs)
         outputs.emplace_back(nodeMap[node]);
+
+
+    for (auto node : network->all_nodes)
+    {
+        for (auto link : node->incoming)
+            nodeMap[node]->incoming.emplace_back(findLink(link));
+
+        for (auto link : node->outgoing)
+            nodeMap[node]->outgoing.emplace_back(findLink(link));
+    }
 }
 
+SLink* SNetwork::findLink(NEAT::Link *link)
+{
+    SLink *slink;
+    if (linkMap.find(link) == linkMap.end())
+    {
+        SNode *in_node = nodeMap[link->in_node];
+        SNode *out_node = nodeMap[link->out_node];
+        slink = new SLink(link->weight, in_node, out_node);
 
+        linkMap.emplace(link, slink);
+    } else {
+        slink = linkMap[link];
+    }
 
+    return slink;
+}
 
 
 
