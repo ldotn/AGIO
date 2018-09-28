@@ -101,9 +101,13 @@ void SNetwork::flush()
         node->flushback();
 }
 
-SNode::SNode() {}
+SNode::SNode() {
+    activesum = 0;
+    activation = 0;
+    active_flag = false;
+}
 
-SNode::SNode(NodeType type)
+SNode::SNode(NodeType type) : SNode()
 {
     this->type = type;
 }

@@ -10,5 +10,4 @@ SIndividual::SIndividual(Individual &individual)
         parameters.emplace(key, SParameter(param.ID, param.Value));
 
     brain = SNetwork(individual.Brain);
-
 }

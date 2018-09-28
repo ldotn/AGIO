@@ -30,5 +30,6 @@ public:
     {
         ar & species_id;
         ar & parameters;
+        ar & brain;
     }
 };

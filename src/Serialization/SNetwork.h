@@ -7,6 +7,11 @@
 #include "../../NEAT/include/network.h"
 #include "../../NEAT/include/nnode.h"
 
+#include <boost/serialization/access.hpp>
+#include <boost/serialization/vector.hpp>
+#include <boost/serialization/unordered_map.hpp>
+
+
 // Forward declarations
 class SNode;
 class SNetwork;
@@ -32,6 +37,17 @@ public:
     SLink();
     SLink(double weight, SNode *in_node, SNode *out_node);
 
+    friend class boost::serialization::access;
+    template<class Archive>
+    void serialize(Archive &ar, const unsigned int version)
+    {
+        ar & weight;
+        ar & in_node;
+        ar & out_node;
+
+    }
+
+
 };
 
 class SNode{
@@ -53,6 +69,16 @@ private:
 
     double getActiveOut();
     void flushback();
+
+    friend class boost::serialization::access;
+    template<class Archive>
+    void serialize(Archive &ar, const unsigned int version)
+    {
+        ar & type;
+        ar & activation;
+        ar & incoming;
+        ar & outgoing;
+    }
 };
 
 class SNetwork {
@@ -68,9 +94,19 @@ private:
     std::vector<SNode*> inputs;
     std::vector<SNode*> outputs;
 
+    // variables used for internal logic
     std::unordered_map<NEAT::Link*, SLink*> linkMap;
     std::unordered_map<NEAT::NNode*, SNode*> nodeMap;
 
     bool outputsOff();
     SLink* findLink(NEAT::Link *link);
+
+    friend class boost::serialization::access;
+    template<class Archive>
+    void serialize(Archive &ar, const unsigned int version)
+    {
+        ar & all_nodes;
+        ar & inputs;
+        ar & outputs;
+    }
 };
