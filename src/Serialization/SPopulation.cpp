@@ -10,12 +10,11 @@ SPopulation::SPopulation(Population *population)
         individuals.emplace_back(SIndividual(individual));
 
     // Save the species map
-    population->BuildSpeciesMap();
     int speciesId = 0;
     for (auto const &[_, species]: population->SpeciesMap)
     {
         vector<SIndividual *> speciesIndividuals;
-        for (int individualId : species->IndividualsIDs)
+        for (int individualId : species.IndividualsIDs)
         {
             SIndividual *individual = &individuals[individualId];
             individual->species_id = speciesId;

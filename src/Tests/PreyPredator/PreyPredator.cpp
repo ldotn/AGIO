@@ -889,7 +889,7 @@ public:
 		state->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
 
 		// TODO : If the org mutates this becomes invalid...
-		for (auto[gid, cid] : org->GetComponents())
+		for (auto [gid, cid] : org->GetMorphologyTag())
 		{
 			if (gid == 0) // mouth group
 			{
@@ -994,9 +994,9 @@ int main()
 	vector<float> fitness_vec_registry;
 	vector<float> novelty_vec_registry;
 	vector<float> avg_fitness;
-	vector<float> avg_novelty;
+	vector<float> avg_progress_herbivore;
 	vector<float> avg_fitness_carnivore;
-	vector<float> avg_novelty_carnivore;
+	vector<float> avg_progress_carnivore;
 
 	vector<float> avg_fitness_difference;
 	vector<float> avg_fitness_network;
@@ -1017,13 +1017,11 @@ int main()
 		{
 			cout << "Generation : " << gen << endl;
 			cout << "    Species Size [" << pop.GetSpecies().size() << "] : ";
-			for (const auto&[_, species] : pop.GetSpecies())
-				cout << species->IndividualsIDs.size() << " | " << species->ProgressMetric <<  " , ";
+			for (const auto& [_, species] : pop.GetSpecies())
+				cout << species.IndividualsIDs.size() << " | " << species.ProgressMetric <<  " , ";
 			cout << endl;
 
 #ifdef _DEBUG
-			auto metrics = pop.ComputeProgressMetrics(&world);
-			cout << metrics.ProgressMetric << endl;
 			return;
 #endif
 			// Every some generations graph the fitness & novelty of the individuals of the registry
@@ -1031,21 +1029,13 @@ int main()
 			{
 				fitness_vec_hervibore.resize(0);
 				novelty_vec_hervibore.resize(0);
-				fitness_vec_carnivore.resize(0);
-				novelty_vec_carnivore.resize(0);
 
 				for (auto [idx, org] : enumerate(pop.GetIndividuals()))
 				{
 					if (org.GetState<OrgState>()->IsCarnivore)
-					{
 						fitness_vec_carnivore.push_back(org.Fitness);
-						novelty_vec_carnivore.push_back(org.LastNoveltyMetric);
-					}
 					else
-					{
 						fitness_vec_hervibore.push_back(org.Fitness);
-						novelty_vec_hervibore.push_back(org.LastNoveltyMetric);
-					}
 				}
 
 				/*float avg_f = 0;
@@ -1120,44 +1110,47 @@ int main()
 
 				plt::clf();
 
-				plt::subplot(3, 1, 1);
-				plt::plot(fitness_vec_hervibore, novelty_vec_hervibore, "xb");
-				plt::plot(fitness_vec_carnivore, novelty_vec_carnivore, "xk");
+				//plt::subplot(3, 1, 1);
+				//plt::plot(fitness_vec_hervibore, novelty_vec_hervibore, "xb");
+				//plt::plot(fitness_vec_carnivore, novelty_vec_carnivore, "xk");
 				//plt::loglog(fitness_vec, novelty_vec, "x");
 
 				// Only average the best 5
+
 				sort(fitness_vec_hervibore.begin(), fitness_vec_hervibore.end(), [](float a, float b) { return a > b; });
 				sort(fitness_vec_carnivore.begin(), fitness_vec_carnivore.end(), [](float a, float b) { return a > b; });
 
 				float avg_f_hervibore = accumulate(fitness_vec_hervibore.begin(), fitness_vec_hervibore.begin() + min<int>(fitness_vec_hervibore.size(), 5), 0.0f) / 5.0f;
-				float avg_n_hervibore = accumulate(novelty_vec_hervibore.begin(), novelty_vec_hervibore.begin() + min<int>(novelty_vec_hervibore.size(), 5), 0.0f) / 5.0f;
+				//float avg_n_hervibore = accumulate(novelty_vec_hervibore.begin(), novelty_vec_hervibore.begin() + min<int>(novelty_vec_hervibore.size(), 5), 0.0f) / 5.0f;
 				float avg_f_carnivore = accumulate(fitness_vec_carnivore.begin(), fitness_vec_carnivore.begin() + min<int>(fitness_vec_carnivore.size(), 5), 0.0f) / 5.0f;
-				float avg_n_carnivore = accumulate(novelty_vec_carnivore.begin(), novelty_vec_carnivore.begin() + min<int>(novelty_vec_carnivore.size(), 5), 0.0f) / 5.0f;
+				//float avg_n_carnivore = accumulate(novelty_vec_carnivore.begin(), novelty_vec_carnivore.begin() + min<int>(novelty_vec_carnivore.size(), 5), 0.0f) / 5.0f;
+				float progress_carnivore, progress_herbivore;
+
 				for (auto[_, s] : pop.GetSpecies())
 				{
-					if (pop.GetIndividuals()[s->IndividualsIDs[0]].GetState<OrgState>()->IsCarnivore)
-						avg_n_carnivore = s->ProgressMetric;
+					if (pop.GetIndividuals()[s.IndividualsIDs[0]].GetState<OrgState>()->IsCarnivore)
+						progress_carnivore = s.ProgressMetric;
 					else
-						avg_n_hervibore = s->ProgressMetric;
+						progress_herbivore = s.ProgressMetric;
 				}
 
 				avg_fitness.push_back((avg_f_hervibore));
 				avg_fitness_carnivore.push_back((avg_f_carnivore));
 
-				avg_novelty_carnivore.push_back(avg_n_carnivore);
-				avg_novelty.push_back(avg_n_hervibore);
+				avg_progress_carnivore.push_back(progress_carnivore);
+				avg_progress_herbivore.push_back(progress_herbivore);
 
 
 				//cout << metrics.AverageFitnessDifference << endl;
 
 
-				plt::subplot(3, 1, 2);
+				plt::subplot(2, 1, 1);
 				plt::plot(avg_fitness, "b");
 				plt::plot(avg_fitness_carnivore, "k");
 
-				plt::subplot(3, 1, 3);
-				plt::plot(avg_novelty, "b");
-				plt::plot(avg_novelty_carnivore, "k");
+				plt::subplot(2, 1, 2);
+				plt::plot(avg_progress_herbivore, "b");
+				plt::plot(avg_progress_carnivore, "k");
 
 				//plt::subplot(4, 1, 4);
 				//plt::plot(avg_fitness_difference, "r");
@@ -1195,31 +1188,32 @@ int main()
 		auto comparator = [](pair<int, float> a, pair<int, float> b) { return a.second > b.second; };
 		priority_queue<pair<int, float>, vector<pair<int, float>>, decltype(comparator)> prey_queue(comparator), predator_queue(comparator);
 
-		for (auto[idx, org] : enumerate(pop.GetIndividuals()))
+		vector<Individual> tmp_pop;
+		for (auto[idx, species] : enumerate(pop.GetSpeciesRegistry()))
 		{
+			Individual org(species.Morphology,species.HistoricalBestGenome);
+			
 			if (org.GetState<OrgState>()->IsCarnivore)
-			{
-				predator_queue.push({ idx, org.Fitness });
-				if (predator_queue.size() == 6)
-					predator_queue.pop();
-			}
+				predator_queue.push({ idx, species.LastFitness });
 			else
-			{
-				prey_queue.push({ idx, org.Fitness });
-				if (prey_queue.size() == 6)
-					prey_queue.pop();
-			}
+				prey_queue.push({ idx, species.LastFitness });
+
+			tmp_pop.push_back(move(org));
 		}
 
 		vector<Individual> tmp;
-		while (predator_queue.size() > 0)
+		for(int i = 0;i < 5;i++)
 		{
+			if (predator_queue.size() == 0) break;
+
 			tmp.push_back(move(pop.GetIndividuals()[predator_queue.top().first]));
 			predator_queue.pop();
 		}
 
-		while (prey_queue.size() > 0)
+		for (int i = 0; i < 5; i++)
 		{
+			if (prey_queue.size() == 0) break;
+
 			tmp.push_back(move(pop.GetIndividuals()[prey_queue.top().first]));
 			prey_queue.pop();
 		}

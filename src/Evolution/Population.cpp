@@ -28,43 +28,29 @@ using namespace fpp;
 
 Population::Population() : RNG(std::chrono::high_resolution_clock::now().time_since_epoch().count())
 {
-	// TODO : Create a bigger population and only simulate a few on each step
 	cur_node_id = 0;
 	cur_innov_num = 0;
 	CurrentGeneration = 0;
 }
 
-void Population::BuildSpeciesMap()
+MorphologyTag Population::MakeRandomMorphology()
 {
-    // clear the species map
-	for(auto & [_, s] : SpeciesMap)
-    {
-        for (auto innovation : s->innovations)
-            delete innovation;
-		delete s;
-    }
-    SpeciesMap.clear();
+	MorphologyTag tag;
 
-	// put every individual into his corresponding species
-	for (auto [idx, org] : enumerate(Individuals))
+	for (auto[gidx, group] : enumerate(Interface->GetComponentRegistry()))
 	{
-		auto& tag = org.GetMorphologyTag(); // make a copy
-		//tag.Parameters = {}; // remove parameters
+		int components_count = uniform_int_distribution<int>(group.MinCardinality, group.MaxCardinality)(RNG);
 
+		vector<int> index_vec(group.Components.size());
+		for (auto[idx, v] : enumerate(index_vec)) v = idx;
 
-		Species* species_ptr = nullptr;
-		auto iter = SpeciesMap.find(tag);
-		if (iter == SpeciesMap.end())
-		{
-			species_ptr = new Species;
-			SpeciesMap[tag] = species_ptr;
-		}
-		else
-			species_ptr = iter->second;
+		shuffle(index_vec.begin(), index_vec.end(), RNG);
 
-		species_ptr->IndividualsIDs.push_back(idx);
-		org.SpeciesPtr = species_ptr;
+		for (int i = 0; i < components_count; i++)
+			tag.push_back({ (int)gidx, index_vec[i] });
 	}
+
+	return tag;
 }
 
 void Population::Spawn(int SizeMult,int SimSize)
@@ -72,62 +58,128 @@ void Population::Spawn(int SizeMult,int SimSize)
 	int pop_size = SizeMult * SimSize;
 
 	SimulationSize = SimSize;
-	Individuals.resize(pop_size);
-	
-	for (auto [idx, org] : enumerate(Individuals))
-		org.Spawn(idx);
+	Individuals.reserve(pop_size);
 
-	DominationBuffer.resize(pop_size);
-	NoveltyNearestKBuffer.resize(Settings::NoveltyNearestK);
-	CompetitionNearestKBuffer.resize(Settings::LocalCompetitionK);
-	ChildrenBuffer.resize(pop_size);
-	CurrentGeneration = 0;
-
-	// Build species
-	for (auto[idx, org] : enumerate(Individuals))
+	// The loop is finished when no new species can be found
+	//   or when the pop size / (species count + 1)  < Min Species Individuals
+	bool finished = false;
+	while (!finished)
 	{
-		auto& tag = org.GetMorphologyTag();
+		// Check if we have enough species
+		if (float(pop_size) / float(SpeciesMap.size() + 1) <= Settings::MinIndividualsPerSpecies)
+			break;
 
-		Species* species_ptr = nullptr;
-		auto iter = SpeciesMap.find(tag);
-		if (iter == SpeciesMap.end())
+		// Create a new random morphology
+		auto tag = MakeRandomMorphology();
+		int tries = 0;
+		while (SpeciesMap.find(tag) != SpeciesMap.end())
 		{
-			species_ptr = new Species;
-			SpeciesMap[tag] = species_ptr;
-		}
-		else
-			species_ptr = iter->second;
+			tries++;
+			if (tries > Settings::MorphologyTries)
+			{
+				finished = true;
+				break;
+			}
 
-		species_ptr->IndividualsIDs.push_back(idx);
-		org.SpeciesPtr = species_ptr;
+			tag = MakeRandomMorphology();
+		}
+
+		// Now that a species has been found, insert it into the map
+		SpeciesMap[tag] = Species();
 	}
 
-	for (auto &[tag, s] : SpeciesMap)
+	// Now assign individuals to the species and create NEAT populations
+	int individuals_per_species = pop_size / SpeciesMap.size(); // int divide
+	for (auto & [tag, s] : SpeciesMap)
 	{
-		auto start_genome = new NEAT::Genome(tag.NumberOfSensors, tag.NumberOfActions, 0, 0);
-		s->NetworksPopulation = new NEAT::Population(start_genome, s->IndividualsIDs.size());
+		unordered_set<int> actions_set;
+		unordered_set<int> sensors_set;
 
-		// Replace the genomes
-		for (auto[idx, org_idx] : enumerate(s->IndividualsIDs))
+		for (auto [gidx,cidx] : tag)
 		{
-			auto& org = Individuals[org_idx];
+			const auto &component = Interface->GetComponentRegistry()[gidx].Components[cidx];
 
-			// Using % because when neat does "delta encoding" it drops the pop size to half
-			// Not needed here, I just copied and pasted
-			auto target_genome = s->NetworksPopulation->organisms[idx % s->NetworksPopulation->organisms.size()]->gnome;
+			actions_set.insert(component.Actions.begin(), component.Actions.end());
+			sensors_set.insert(component.Sensors.begin(), component.Sensors.end());
+		}
+		
+		vector<int> actions, sensors;
 
-			org.Genome = target_genome->duplicate(target_genome->genome_id);
-			org.Brain = org.Genome->genesis(target_genome->genome_id);
-			org.Morphology.Genes.reset(target_genome->duplicate(target_genome->genome_id));
+		// Compute action and sensors vectors
+		actions.resize(actions_set.size());
+		for (auto[idx, action] : enumerate(actions_set))
+			actions[idx] = action;
+		
+		sensors.resize(sensors_set.size());
+		for (auto[idx, sensor] : enumerate(sensors_set))
+			sensors[idx] = sensor;
+
+		// Find the number of individuals that will be put on this species
+		int size = min(individuals_per_species, pop_size - (int)Individuals.size());
+
+		// Create NEAT population
+		auto start_genome = new NEAT::Genome(sensors.size(), actions.size(), 0, 0);
+		s.NetworksPopulation = new NEAT::Population(start_genome, size);
+
+		// Initialize individuals
+		for (int i = 0; i < size; i++)
+		{
+			Individual org;
+			org.Morphology = tag;
+			org.Genome = s.NetworksPopulation->organisms[i]->gnome;
+			org.Brain = org.Genome->genesis(org.Genome->genome_id);
+			org.Actions = actions;
+			org.Sensors = sensors;
+			org.ActivationsBuffer.resize(org.Actions.size());
+
+			for (auto [pidx, param] : enumerate(Interface->GetParameterDefRegistry()))
+			{
+				// If the parameter is not required, select it randomly, 50/50 chance
+				// TODO : Maybe make the selection probability a parameter? Does it makes sense?
+				if (param.IsRequired || uniform_int_distribution<int>(0, 1)(RNG))
+				{
+					Parameter p{};
+					p.ID = pidx;
+					p.Value = 0.5f * (param.Min + param.Max);
+					p.HistoricalMarker = Parameter::CurrentMarkerID;
+					p.Min = param.Min;
+					p.Max = param.Max;
+
+					// Small shift
+					float shift = normal_distribution<float>(0, Settings::ParameterMutationSpread)(RNG);
+					p.Value += shift * abs(param.Max - param.Min);
+
+					// Clamp values
+					p.Value = clamp(p.Value, param.Min, param.Max);
+
+					org.Parameters[param.UserID] = p;
+				}
+			}
 
 			// Set morphological parameters of the genome
 			// Make a copy
 			org.Genome->MorphParams = org.GetParameters();
+			org.State = Interface->MakeState(&org);
+			Individuals.push_back(move(org));
 		}
 	}
 
+	// Now shuffle individuals vector
+	shuffle(Individuals.begin(), Individuals.end(),RNG);
+
+	// And finally find the id's of the individuals for each species
+	for (auto & [tag, s] : SpeciesMap)
+	{
+		for (auto [idx, org] : enumerate(Individuals))
+		{
+			if (org.Morphology == tag)
+				s.IndividualsIDs.push_back(idx);
+		}
+	}
+
+	CurrentGeneration = 0;
+
 	// TODO :  Separate organisms by distance in the world too
-//	BuildSpeciesMap();
 }
 
 void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
@@ -138,7 +190,6 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 	EvaluatePopulation(WorldPtr);
 
 	// Call the callback
-	ComputeNovelty(); // <- Just to see how it's changing
 	EpochCallback(CurrentGeneration);
 
 	// Advance generation
@@ -149,7 +200,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 	{
 		// Compute local scores
 		/*
-		for (int idx : s->IndividualsIDs)
+		for (int idx : s.IndividualsIDs)
 		{
 			// Find the K nearest inside the species
 
@@ -162,7 +213,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 			int k_buffer_top = 0;
 
 			// Check against the species individuals
-			for (int other_idx : s->IndividualsIDs)
+			for (int other_idx : s.IndividualsIDs)
 			{
 				if (idx == other_idx)
 					continue;
@@ -203,14 +254,14 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 		// First update the fitness values for neat
 		priority_queue<float> fitness_queue;
 		//float avg_fit = 0;
-		auto& pop = s->NetworksPopulation;
+		auto& pop = s.NetworksPopulation;
 		for (auto& neat_org : pop->organisms)
 		{
 			// Find the organism in the individuals that has this brain
-			for (int org_idx : s->IndividualsIDs)
+			for (int org_idx : s.IndividualsIDs)
 			{
 				const auto& org = Individuals[org_idx];
-				if (org.Genome->genome_id == neat_org->gnome->genome_id) 
+				if (org.Genome == neat_org->gnome)  // comparing pointers
 				{
 					//neat_org->fitness = org.Fitness; // Here you could add some contribution of the novelty
 					
@@ -226,55 +277,221 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 			}
 		}
 		float avg_fit = 0;
-		for (int i = 0; i < 5; i++)
+		for (int i = 0; i < Settings::ProgressMetricsIndividuals; i++)
 		{
 			avg_fit += fitness_queue.top();
 			fitness_queue.pop();
 		}
-		avg_fit /= 5.0f;
+		avg_fit /= (float)Settings::ProgressMetricsIndividuals;
 
-		// TODO : expose this param
-		float falloff = 0.05f;
-		float smoothed_fitness = (1.0f - falloff)*s->LastFitness + falloff * avg_fit;
-		if (s->LastFitness <= 0)
+		float inv_age = 1.0f / (s.Age + 1);
+		float falloff = (1.0f - inv_age) * Settings::ProgressMetricsFalloff + inv_age;
+		float smoothed_fitness = (1.0f - falloff)*s.LastFitness + falloff * avg_fit;
+		if (s.LastFitness <= 0)
 		{
 			smoothed_fitness = avg_fit;
-			s->ProgressMetric = 0;
+			s.ProgressMetric = 0;
 		}
 		else
-			s->ProgressMetric = (1.0f - falloff)*s->ProgressMetric + falloff*((smoothed_fitness - s->LastFitness) / s->LastFitness);
+			s.ProgressMetric = (1.0f - falloff)*s.ProgressMetric + falloff*((smoothed_fitness - s.LastFitness) / s.LastFitness);
 
-		s->LastFitness = smoothed_fitness;
+		s.LastFitness = smoothed_fitness;
 
-		//cout << avg_fit << endl;
 
 		// With the fitness updated call the neat epoch
-		pop->epoch(CurrentGeneration/*,2*/);
-		
-		
-		//cout << pop->organisms.size() << endl;
-
+		s.Age++;
+		pop->epoch(s.Age);
 
 		// Now replace the individuals with the new brains genomes
-		for (auto [idx, org_idx] : enumerate(s->IndividualsIDs))
+		// At this point the old pointers are probably invalid, but is NEAT the one that manages that
+		for (auto [idx, org_idx] : enumerate(s.IndividualsIDs))
 		{
-			delete Individuals[org_idx].Genome;
-			delete Individuals[org_idx].Brain;
-
-			auto target_genome = pop->organisms[idx % s->IndividualsIDs.size()]->gnome;
+			auto target_genome = pop->organisms[idx % pop->organisms.size()]->gnome;
 
 			auto& org = Individuals[org_idx];
 
-			org.Genome = target_genome->duplicate(target_genome->genome_id);
-			org.Brain = org.Genome->genesis(target_genome->genome_id);
-			org.Morphology.Genes.reset(target_genome->duplicate(target_genome->genome_id));
+			org.Genome = target_genome;
+			org.Brain = org.Genome->genesis(org.Genome->genome_id);
 
 			// On the population creation, the parameters were set from agio -> neat
 			// Now the parameters have been evolved by neat, so do the inverse process
 			org.Parameters = org.Genome->MorphParams;
 		}
+	}
 
-		s->Age++;
+	// With the species updated, check if there are stagnant ones
+	for(auto iter = SpeciesMap.begin();iter != SpeciesMap.end();)
+	{
+		auto &[tag, s] = *iter;
+
+		if (s.Age < Settings::MinSpeciesAge)
+		{
+			++iter; // Ignore young species
+			continue;
+		}
+
+		if (s.ProgressMetric < Settings::ProgressThreshold)
+		{
+			s.EpochsUnderThreshold++;
+			if (s.EpochsUnderThreshold >= Settings::SpeciesStagnancyChances)
+			{
+				// Store this species to the registry
+				SpeciesRecord entry;
+				entry.Age = s.Age;
+				entry.Morphology = tag;
+				entry.IndividualsSize = s.IndividualsIDs.size();
+				entry.LastFitness = s.LastFitness;
+				entry.HistoricalBestGenome = s.NetworksPopulation->GetBestGenome()->duplicate(0);
+				entry.LastGenomes.resize(s.NetworksPopulation->organisms.size());
+				for (auto [idx, org] : enumerate(s.NetworksPopulation->organisms))
+					entry.LastGenomes[idx] = org->gnome->duplicate(org->gnome->genome_id);
+
+				StagnantSpecies.push_back(move(entry));
+
+				// Reset the species
+				s.Age = 0;
+				s.LastFitness = 0;
+				s.ProgressMetric = 0;
+				s.EpochsUnderThreshold = 0;
+				auto old_pop_ptr = s.NetworksPopulation;
+
+				// Check if a new species can be generated
+				// There might not be any species left that aren't already on the map
+				bool found = true;
+				auto new_tag = MakeRandomMorphology();
+				int tries = 0;
+				while (SpeciesMap.find(new_tag) != SpeciesMap.end())
+				{
+					tries++;
+					if (tries > Settings::MorphologyTries)
+					{
+						found = false;
+						break;
+					}
+
+					new_tag = MakeRandomMorphology();
+				}
+
+				// If no new topology could be found in N tries, recreate this one
+				if (tries >= Settings::MorphologyTries)
+				{
+					// No new species was found, so re-create this one
+					// Similar to the delta-encoding that neat does
+
+					// Create a new population starting with the historical best genome
+					s.NetworksPopulation = new NEAT::Population(old_pop_ptr->GetBestGenome(), s.IndividualsIDs.size());
+
+					// Important : You need to set the starting parameters by hand
+					// NEAT can evolve them, but has no knowledge of the registry, so it can't create them
+					for (int i = 0; i < s.IndividualsIDs.size(); i++)
+						s.NetworksPopulation->organisms[i]->gnome->MorphParams = old_pop_ptr->GetBestGenome()->MorphParams;
+
+					// Replace the genome pointers of the individuals
+					for (auto [num,idx] : enumerate(s.IndividualsIDs))
+						Individuals[idx].Genome = s.NetworksPopulation->organisms[num]->gnome;
+
+					// Finally delete the old neat pop
+					delete old_pop_ptr;
+
+					cout << "\n\n\n\n!! RESETED SPECIES !!\n\n\n\n" << endl;
+				}
+				else
+				{
+					// "Steal" the ids of the old individuals for the new species
+					// For those objects, you'll need to call the destructors, and create new ones in place
+					// Also, instead of erasing and inserting, just replace this species in-place for the new one
+					cout << "\n\n\n\n## NEW SPECIES ##\n\n\n\n" << endl;
+
+					unordered_set<int> actions_set;
+					unordered_set<int> sensors_set;
+
+					for (auto [gidx, cidx] : new_tag)
+					{
+						const auto &component = Interface->GetComponentRegistry()[gidx].Components[cidx];
+
+						actions_set.insert(component.Actions.begin(), component.Actions.end());
+						sensors_set.insert(component.Sensors.begin(), component.Sensors.end());
+					}
+
+					vector<int> actions, sensors;
+
+					// Compute action and sensors vectors
+					actions.resize(actions_set.size());
+					for (auto[idx, action] : enumerate(actions_set))
+						actions[idx] = action;
+
+					sensors.resize(sensors_set.size());
+					for (auto[idx, sensor] : enumerate(sensors_set))
+						sensors[idx] = sensor;
+
+					// Take all the individuals from this species
+					int size = s.IndividualsIDs.size();
+
+					// Create NEAT population
+					auto start_genome = new NEAT::Genome(sensors.size(), actions.size(), 0, 0);
+					s.NetworksPopulation = new NEAT::Population(start_genome, size);
+
+					// Initialize individuals
+					for (int i = 0; i < size; i++)
+					{
+						Individual org;
+						org.Morphology = tag;
+						org.Genome = s.NetworksPopulation->organisms[i]->gnome;
+						org.Brain = org.Genome->genesis(org.Genome->genome_id);
+						org.Actions = actions;
+						org.Sensors = sensors;
+						org.ActivationsBuffer.resize(org.Actions.size());
+
+						for (auto[pidx, param] : enumerate(Interface->GetParameterDefRegistry()))
+						{
+							// If the parameter is not required, select it randomly, 50/50 chance
+							// TODO : Maybe make the selection probability a parameter? Does it makes sense?
+							if (param.IsRequired || uniform_int_distribution<int>(0, 1)(RNG))
+							{
+								Parameter p{};
+								p.ID = pidx;
+								p.Value = 0.5f * (param.Min + param.Max);
+								p.HistoricalMarker = Parameter::CurrentMarkerID;
+								p.Min = param.Min;
+								p.Max = param.Max;
+
+								// Small shift
+								float shift = normal_distribution<float>(0, Settings::ParameterMutationSpread)(RNG);
+								p.Value += shift * abs(param.Max - param.Min);
+
+								// Clamp values
+								p.Value = clamp(p.Value, param.Min, param.Max);
+
+								org.Parameters[param.UserID] = p;
+							}
+						}
+
+						// Set morphological parameters of the genome
+						// Make a copy
+						org.Genome->MorphParams = org.GetParameters();
+						org.State = Interface->MakeState(&org);
+
+						Individuals[s.IndividualsIDs[i]].~Individual();
+						new (&Individuals[s.IndividualsIDs[i]]) Individual(move(org));
+					}
+
+					// Change key
+					++iter; // Advance before changing the key, because that invalidates the iterator
+					auto handle = SpeciesMap.extract(tag);
+					handle.key() = new_tag;
+					SpeciesMap.insert(move(handle));
+
+					// Finally delete the old neat pop
+					delete old_pop_ptr;
+
+					// Already advanced the iterator, don't advance twice
+					continue;
+				}
+			}
+		}
+		else s.EpochsUnderThreshold = 0;
+
+		++iter;
 	}
 }
 
@@ -311,524 +528,6 @@ void Population::EvaluatePopulation(void * WorldPtr)
 	for (auto& org : Individuals)
 		org.Fitness = org.AccumulatedFitness / (float)Settings::SimulationReplications;
 };
-#if 0
-void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
-{
-	auto compute_local_scores = [&]()
-	{
-		for (auto &[tag, species] : SpeciesMap)
-		{
-			for (int idx : species->IndividualsIDs)
-			{
-				// Find the K nearest inside the species
-
-				// Clear the K buffer
-				for (auto & v : CompetitionNearestKBuffer)
-				{
-					v.first = -1;
-					v.second = numeric_limits<float>::max();
-				}
-				int k_buffer_top = 0;
-
-				// Check against the species individuals
-				for (int other_idx : species->IndividualsIDs)
-				{
-					if (idx == other_idx)
-						continue;
-
-					// This is the morphology distance
-					float dist = Individuals[idx].GetMorphologyTag().Distance(Individuals[other_idx].GetMorphologyTag());
-
-					// Check if it's in the k nearest
-					for (auto[kidx, v] : enumerate(CompetitionNearestKBuffer))
-					{
-						if (dist < v.second)
-						{
-							// Move all the values to the right
-							for (int i = Settings::LocalCompetitionK - 1; i > kidx; i--)
-								CompetitionNearestKBuffer[i] = CompetitionNearestKBuffer[i - 1];
-
-							if (kidx > k_buffer_top)
-								k_buffer_top = kidx;
-							v.first = other_idx;
-							v.second = dist;
-							break;
-						}
-					}
-				}
-
-				// With the k nearest found, check how many of them this individual bests and also compute genotypic diversity
-				auto & org = Individuals[idx];
-				org.LocalScore = 0;
-				org.GenotypicDiversity = 0;
-				for(int i = 0;i <= k_buffer_top;i++)
-				{
-					const auto& other_org = Individuals[CompetitionNearestKBuffer[i].first];
-					if (org.Fitness > other_org.Fitness)
-						org.LocalScore++;
-
-					org.GenotypicDiversity += org.GetMorphologyTag().Distance(other_org.GetMorphologyTag());
-				}
-				org.GenotypicDiversity /= k_buffer_top + 1;
-			}
-		}
-	};
-
-
-	auto dominates = [](const Individual& A, const Individual& B)
-	{
-		//return A.LocalScore > B.LocalScore;
-		return (A.LastNoveltyMetric >= B.LastNoveltyMetric && A.LocalScore >= B.LocalScore  && A.GenotypicDiversity >= B.GenotypicDiversity) &&
-			(A.LastNoveltyMetric > B.LastNoveltyMetric || A.LocalScore > B.LocalScore || A.GenotypicDiversity > B.GenotypicDiversity);
-	};
-	auto compute_domination_fronts = [&]()
-	{
-		unordered_map<Individual::MorphologyTag, vector<unordered_set<int>>> fronts;
-
-		for (auto &[tag, species] : SpeciesMap)
-		{
-			vector<unordered_set<int>> fronts_vec;
-
-			unordered_set<int> current_front = {};
-			for (int this_idx : species->IndividualsIDs)
-			{
-				auto& org = Individuals[this_idx];
-
-				org.DominatedSet = {};
-				org.DominationCounter = 0;
-				for (int other_idx : species->IndividualsIDs)
-				{
-					if (other_idx == this_idx)
-						continue;
-
-					auto& other_org = Individuals[other_idx];
-					if (dominates(org, other_org))
-						org.DominatedSet.insert(other_idx);
-					else if (dominates(other_org, org))
-						org.DominationCounter++;
-				}
-
-				if (org.DominationCounter == 0)
-				{
-					org.DominationRank = 0;
-					current_front.insert(this_idx);
-				}
-			}
-
-			int i = 0;
-			while (current_front.size() > 0)
-			{
-				fronts_vec.push_back(current_front);
-				unordered_set<int> next_front = {};
-
-				for (int this_idx : current_front)
-				{
-					auto& org = Individuals[this_idx];
-					for (int other_idx : org.DominatedSet)
-					{
-						auto& other_org = Individuals[other_idx];
-						other_org.DominationCounter--;
-						if (other_org.DominationCounter == 0)
-						{
-							other_org.DominationRank = i + 1;
-							next_front.insert(other_idx);
-						}
-					}
-				}
-
-				i++;
-				current_front = move(next_front);
-			}
-
-			fronts[tag] = move(fronts_vec);
-		}
-
-		return fronts;
-	};
-	// Tournament selection (k = 2)
-	auto tournament_select = [&](const vector<int>& Parents)
-	{
-		int p0 = Parents[uniform_int_distribution<int>(0, Parents.size() - 1)(RNG)];
-		int p1 = Parents[uniform_int_distribution<int>(0, Parents.size() - 1)(RNG)];
-		while (p0 == p1)
-			p1 = Parents[uniform_int_distribution<int>(0, Parents.size() - 1)(RNG)];
-
-		// Keep the one with the lower rank (less dominated)
-		int r0 = Individuals[p0].DominationRank;
-		int r1 = Individuals[p1].DominationRank;
-		if (r0 < r1)
-			return p0;
-		else
-		{
-			if (r1 < r0)
-				return p1;
-			else
-				return (uniform_int_distribution<int>(0, 1)(RNG) ? p0 : p1);
-		}
-	};
-
-	// Reset innovations
-	for (auto &[tag, species] : SpeciesMap)
-	{
-		for (auto innovation : species->innovations)
-			delete innovation;
-		species->innovations.resize(0);
-	}
-
-	if (CurrentGeneration == 0)
-	{
-		ComputeNovelty();
-		EvaluatePopulation(WorldPtr);
-		compute_local_scores();
-
-		// Select parents based on the non dominated fronts
-		// Not using the crowding distance because novelty already cares about diversity
-		Children.resize(0);
-
-		// TODO : For now, generating the same number of children as individuals on the species
-		//   this should be changed, the species size should change based on fitness
-		for (auto & [tag, species] : SpeciesMap)
-		{
-			if (species->IndividualsIDs.size() == 1)
-			{
-				// Only one individual on the species, so just clone it
-				// TODO : Find if there's some better way to handle this
-				const auto& individual = Individuals[species->IndividualsIDs[0]];
-				Children.emplace_back(individual, Individual::Make::Clone);
-				continue;
-			}
-
-			// On the first generation generate everyone can be a parent
-
-			for (int n = 0; n < species->IndividualsIDs.size(); n++)
-			{
-				int mom_idx = tournament_select(species->IndividualsIDs);
-				int dad_idx = tournament_select(species->IndividualsIDs);
-				while (mom_idx == dad_idx)
-					dad_idx = tournament_select(species->IndividualsIDs); // TODO : I think this gets stuck if you have only 2 individuals where one is dominated by the other
-
-				Children.emplace_back(Individuals[mom_idx], Individuals[dad_idx], Children.size());
-
-				// Mutate
-				if (uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
-					Children.back().Mutate(this, CurrentGeneration);
-			}
-		}
-	}
-	else
-	{
-		vector<Individual> old_pop = move(Individuals);
-		size_t children_size = Children.size();
-		Individuals = move(Children);
-
-		// Generate species map for the children
-		BuildSpeciesMap();
-
-		// Evaluate
-		ComputeNovelty();
-		EvaluatePopulation(WorldPtr);
-		compute_local_scores();
-
-		for (auto &[tag, species] : SpeciesMap)
-		{
-			if (species->IndividualsIDs.size() == 1)
-			{
-				// Only one individual on the species, so just clone it
-				// TODO : Find if there's some better way to handle this
-				const auto& individual = Individuals[species->IndividualsIDs[0]];
-				Children.emplace_back(individual, Individual::Make::Clone);
-				continue;
-			}
-		}
-
-		// Make a copy of the species map
-		decltype(SpeciesMap) next_pop_species_map;
-		for (auto &[tag, species] : SpeciesMap)
-		{
-			auto new_ptr = new Species;
-			new_ptr->IndividualsIDs = species->IndividualsIDs;
-			next_pop_species_map[tag] = new_ptr;
-
-			for (int idx : species->IndividualsIDs)
-				Individuals[idx].SpeciesPtr = new_ptr;
-		}
-
-		// Merge populations and generate a species map for both
-		for (auto& org : old_pop)
-			Individuals.push_back(move(org));
-		BuildSpeciesMap();
-
-		// Recompute novelty and local competition scores
-		ComputeNovelty();
-		compute_local_scores();
-
-		// Compute fronts
-		auto fronts_map = compute_domination_fronts();
-
-		// TODO : For now, generating the same number of children as individuals on the species
-		//   this should be changed, the species size should change based on fitness
-		for (auto &[tag, species] : SpeciesMap) // the population at this point is a mixture of the children and parents
-		{
-			// Search for this species in the map of what the next population would be
-			auto next_iter = next_pop_species_map.find(tag);
-
-			if (next_iter == next_pop_species_map.end() || 
-				species->IndividualsIDs.size() == 1 ||
-				next_iter->second->IndividualsIDs.size() == 1)
-				continue;
-
-			auto& front = fronts_map[tag];
-
-			vector<int> parents;
-			int number_of_children = next_iter->second->IndividualsIDs.size();
-			parents.reserve(number_of_children);
-
-			int i = 0;
-			while (parents.size() < number_of_children)
-			{
-				for (int idx : front[i])
-				{
-					if (parents.size() == number_of_children)
-						break;
-
-					parents.push_back(idx);
-				}
-
-				i++;
-			}
-
-			for (int n = 0; n < number_of_children; n++)
-			{
-				int mom_idx = tournament_select(parents);
-				int dad_idx = tournament_select(parents);
-				while (mom_idx == dad_idx)
-					dad_idx = tournament_select(parents); // TODO : I think this gets stuck if you have only 2 individuals where one is dominated by the other
-
-				Children.emplace_back(Individuals[mom_idx], Individuals[dad_idx], Children.size());
-				
-				// Mutate
-				if (uniform_real_distribution<float>()(RNG) <= Settings::ChildMutationProb)
-					Children.back().Mutate(this, CurrentGeneration);
-			}
-		}
-
-		// Restore species
-		for (auto &[_, s] : SpeciesMap)
-		{
-			for (auto innovation : s->innovations)
-				delete innovation;
-			delete s;
-		}
-		SpeciesMap.clear();
-		SpeciesMap = next_pop_species_map;
-
-		// Remove the old pop from the individuals
-		// Children are first
-		vector<Individual> temp_vec;
-		for (int i = 0;i < children_size;i++)
-			temp_vec.push_back(move(Individuals[i]));
-		Individuals = move(temp_vec);
-
-		ComputeNovelty();
-	}
-
-	EpochCallback(CurrentGeneration);
-	CurrentGeneration++;
-
-	return;
-}
-#endif
-void Population::ComputeNovelty()
-{
-	for (auto[idx, org] : enumerate(Individuals))
-	{
-		// Clear the K buffer
-		for (auto & v : NoveltyNearestKBuffer)
-			v = numeric_limits<float>::max();
-		int k_buffer_top = 0;
-
-		// Check both against the population and the registry
-		for (auto[otherIdx, other] : enumerate(Individuals))
-		{
-			if (idx == otherIdx)
-				continue;
-
-			// This is the morphology distance
-			float dist = org.GetMorphologyTag().Distance(other.GetMorphologyTag());
-
-			// Check if it's in the k nearest
-			for (auto[kidx, v] : enumerate(NoveltyNearestKBuffer))
-			{
-				if (dist < v)
-				{
-					// Move all the values to the right
-					for (int i = Settings::NoveltyNearestK - 1; i > kidx; i--)
-						NoveltyNearestKBuffer[i] = NoveltyNearestKBuffer[i - 1];
-
-					if (kidx > k_buffer_top)
-						k_buffer_top = kidx;
-					v = dist;
-					break;
-				}
-			}
-		}
-
-		for (auto & tag : MorphologyRegistry)
-		{
-			// This is the morphology distance
-			float dist = org.GetMorphologyTag().Distance(tag);
-
-			// Check if it's in the k nearest
-			for (auto[kidx, v] : enumerate(NoveltyNearestKBuffer))
-			{
-				if (dist < v)
-				{
-					// Move all the values to the right
-					for (int i = Settings::NoveltyNearestK - 1; i > kidx; i--)
-						NoveltyNearestKBuffer[i] = NoveltyNearestKBuffer[i - 1];
-
-					if (kidx > k_buffer_top)
-						k_buffer_top = kidx;
-					v = dist;
-					break;
-				}
-			}
-		}
-
-		// After the k nearest are found, compute novelty metric
-		// It's simply the average of the k nearest distances
-		float novelty = accumulate(NoveltyNearestKBuffer.begin(), NoveltyNearestKBuffer.begin() + k_buffer_top + 1, 0) / float(NoveltyNearestKBuffer.size());
-		org.LastNoveltyMetric = novelty;
-
-		// If the novelty is above the threshold, add it to the registry if it doesn't exist already
-		if (novelty > Settings::NoveltyThreshold)
-		{
-			const auto& tag = org.GetMorphologyTag();
-			
-			// Using a vector instead of a set because iterations are much more common than insertions
-			if (find(MorphologyRegistry.begin(), MorphologyRegistry.end(), tag) == MorphologyRegistry.end())
-				MorphologyRegistry.push_back(tag);
-		}
-	}
-}
-
-
-Population::ProgressMetrics Population::ComputeProgressMetrics(void * World)
-{
-	// TODO : For some reason this function is affecting the results of neat!
-	return {};
-
-	ProgressMetrics metrics;
-
-	// Compute average novelty
-	ComputeNovelty();
-	metrics.AverageNovelty = 0;
-	for (const auto& org : Individuals)
-		metrics.AverageNovelty += org.LastNoveltyMetric;
-	metrics.AverageNovelty /= Individuals.size();
-
-	// Do a few simulations to compute fitness
-	EvaluatePopulation(World);
-
-	// Backup the evaluated fitness value
-	for (auto &org : Individuals)
-		org.BackupFitness = org.Fitness;
-
-	for (auto &org : Individuals)
-		metrics.AverageFitness += org.Fitness;
-	metrics.AverageFitness /= Individuals.size();
-
-	// Now for each species set that to be random, and do a couple of simulations
-	metrics.ProgressMetric = 0;
-	metrics.MaxFitnessDifference = -numeric_limits<float>::max();
-	metrics.MinFitnessDifference = numeric_limits<float>::max();
-	for (const auto&[_, species] : SpeciesMap)
-	{
-		// First compute average fitness of the species when using the network
-		// Only consider the 5 best
-
-		float avg_f = 0;
-		priority_queue<float> fitness_queue;
-
-		// TODO : Move this to the config file
-		const int QueueSize = 5;
-
-		for (int org_id : species->IndividualsIDs)
-		{
-			fitness_queue.push(-Individuals[org_id].Fitness); // using - because the priority queue is from high to low
-			while (fitness_queue.size() > QueueSize)
-				fitness_queue.pop();
-		}
-
-		float queue_size = fitness_queue.size();
-		assert(queue_size == QueueSize);
-		while (!fitness_queue.empty())
-		{
-			avg_f += -fitness_queue.top();
-			fitness_queue.pop();
-		}
-		avg_f /= queue_size;
-
-			//avg_f += Individuals[org_id].Fitness;
-		//avg_f /= species->IndividualsIDs.size();
-
-		// Override the use of the network for decision-making
-		for (int org_id : species->IndividualsIDs)
-			Individuals[org_id].UseNetwork = false;
-
-		// Do a few simulations
-		float avg_random_f = 0;
-		float count = 0;
-		for (int org_id : species->IndividualsIDs)
-			Individuals[org_id].AccumulatedFitness = 0;
-		
-		for (int i = 0; i < Settings::SimulationReplications; i++)
-		{
-			Interface->ComputeFitness(this, World);
-
-			for (int org_id : species->IndividualsIDs)
-				Individuals[org_id].AccumulatedFitness += Individuals[org_id].Fitness / (float)Settings::SimulationReplications;
-		}
-
-		for (int org_id : species->IndividualsIDs)
-		{
-			fitness_queue.push(-Individuals[org_id].AccumulatedFitness); // using - because the priority queue is from high to low
-			while (fitness_queue.size() > QueueSize)
-				fitness_queue.pop();
-		}
-
-		queue_size = fitness_queue.size();
-		assert(queue_size == QueueSize);
-		while (!fitness_queue.empty())
-		{
-			avg_random_f += -fitness_queue.top();
-			fitness_queue.pop();
-		}
-		avg_random_f /= queue_size;
-
-
-		// Accumulate difference
-		const float epsilon = 1e-6;
-		metrics.ProgressMetric += avg_f - avg_random_f;
-		metrics.MaxFitnessDifference = max(metrics.MaxFitnessDifference, avg_f - avg_random_f);
-		metrics.MinFitnessDifference = min(metrics.MinFitnessDifference, avg_f - avg_random_f);
-
-		//metrics.AverageFitnessDifference += 100.0f * (avg_f - avg_random_f) / (fabsf(avg_random_f) + 1.0f);
-		//metrics.MaxFitnessDifference = max(metrics.MaxFitnessDifference, 100.0f * (avg_f - avg_random_f) / (fabsf(avg_random_f) + 1.0f));
-		//metrics.MinFitnessDifference = min(metrics.MinFitnessDifference, 100.0f * (avg_f - avg_random_f) / (fabsf(avg_random_f) + 1.0f));
-
-		// Re-enable the network
-		for (int org_id : species->IndividualsIDs)
-			Individuals[org_id].UseNetwork = true;
-	}
-	metrics.ProgressMetric /= SpeciesMap.size();
-
-	// Restore the old fitness values
-	for (auto &org : Individuals)
-		org.Fitness = org.BackupFitness;
-
-	return metrics;
-}
 
 void Population::save(std::string filename)
 {
@@ -852,6 +551,7 @@ SPopulation Population::load(std::string filename)
 
 	return sPopulation;
 }
+
 
 #if 0
 Population::ProgressMetrics Population::ComputeProgressMetrics(void * World)
