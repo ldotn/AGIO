@@ -27,7 +27,7 @@ const int MaxSimulationSteps = 50;
 const int SimulationSize = 10; // Population is simulated in batches
 const int PopSizeMultiplier = 30; // Population size is a multiple of the simulation size
 const int PopulationSize = PopSizeMultiplier * SimulationSize;
-const int GenerationsCount = 3;
+const int GenerationsCount = 150;
 const float LifeLostPerTurn = 5;
 const float BorderPenalty = 0;// 80; // penalty when trying to go out of bounds
 const float WastedActionPenalty = 0;// 5; // penalty when doing an action that has no valid target (like eating and there's no food close)
@@ -96,6 +96,8 @@ struct WorldData
 class TestInterface : public PublicInterface
 {
 public:
+	virtual ~TestInterface() override {};
+
 	virtual void Init() override
 	{
 		ActionRegistry.resize((int)ActionsIDs::NumberOfActions);
@@ -962,14 +964,13 @@ public:
 #include "neat.h"
 int main()
 {
-	// TODO : REMOVE THIS! I put it here just in the off case that the reason why the population is not improving is because some parameter wasn't loaded
 	NEAT::load_neat_params("../cfg/neat_test_config.txt");
 	NEAT::mutate_morph_param_prob = Settings::ParameterMutationProb;
 	NEAT::destructive_mutate_morph_param_prob = Settings::ParameterDestructiveMutationProb;
 	NEAT::mutate_morph_param_spread = Settings::ParameterMutationSpread;
 
 	// Create base interface
-	Interface = unique_ptr<PublicInterface>(new TestInterface);
+	Interface = new TestInterface();
 	Interface->Init();
 
 	// Create and fill the world
@@ -1175,8 +1176,8 @@ int main()
 	{
 		char c;
 		cout << "Show simulation (y/n) ? ";
-//		cin >> c;
-		if (false)//c == 'n')
+		cin >> c;
+		if (c == 'n')
 			return 0;
 	}
 	pop.EvaluatePopulation(&world);
@@ -1226,7 +1227,7 @@ int main()
 
     //pop.GetIndividuals().resize(5);
 
-	while (false)
+	while (true)
 	{
 		for (auto& org : pop.GetIndividuals())
 			org.Reset();
@@ -1310,4 +1311,11 @@ int main()
 		}
 	}
 #endif
+
+	// NOTE! : Explictely leaking the interface here!
+	// There's a good reason for it
+	// The objects in the system need the interface to delete themselves
+	//  so I can delete it, as I don't know the order in which destructors are called
+	// In any case, this is not a problem, because on program exit the SO will (should?) release memory anyway
+	//delete Interface;
 }

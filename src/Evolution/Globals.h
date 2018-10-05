@@ -93,6 +93,8 @@ namespace agio
 	class PublicInterface
 	{
 	public:
+		virtual ~PublicInterface() {};
+
 		// Fills the registries
 		virtual void Init() = 0;
 
@@ -134,5 +136,5 @@ namespace agio
 
 	// Singleton variable that stores a pointer to the public interface
 	// The user MUST initialize it before using, by implementing the interface and creating a new object of the derived class
-	inline extern std::unique_ptr<PublicInterface> Interface = nullptr;
+	inline extern PublicInterface* Interface = nullptr;
 }
