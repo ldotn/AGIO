@@ -5,11 +5,8 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 
-
 add_subdirectory(boost-cmake)
 
-find_package(PythonLibs 3.5)
-include_directories(${PYTHON_INCLUDE_DIRS})
 include_directories(${CMAKE_SOURCE_DIR}/matplotlib-cpp)
 include_directories(${CMAKE_SOURCE_DIR}/FPlusPlus/FPlusPlus)
 include_directories(${CMAKE_SOURCE_DIR}/NEAT/include)
@@ -23,19 +20,13 @@ set(project_sources
 	src/Utils/Utils.cpp
 	src/Evolution/Individual.cpp
 	src/Evolution/Population.cpp
-	src/Tests/PreyPredator/PreyPredator.cpp
 	src/Serialization/SPopulation.cpp
 	src/Serialization/SIndividual.cpp
 	src/Serialization/SNetwork.cpp
 	${neat_sources})
 
-add_executable(agio ${project_sources} )
-
-target_link_libraries(agio
-		${PYTHON_LIBRARIES}
-		Boost::serialization)
-
-set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT agio)
+add_library(agio_lib STATIC ${project_sources})
+target_link_libraries(agio_lib Boost::serialization) # While libraries aren't linked, cmake seems to need the dependency
 
 if (WIN32)
 	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /std:c++17 -DWITHOUT_NUMPY /W3 /Od")
@@ -47,3 +38,35 @@ else ()
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++17 -DWITHOUT_NUMPY")
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -std=c++17 -DWITHOUT_NUMPY -O3")
 endif ()
+
+option(build_tests "Build the AGIO demo tests after building the library" ON)
+if (build_tests)
+	find_package(PythonLibs 3.5)
+	include_directories(${PYTHON_INCLUDE_DIRS})
+
+	add_executable(agio_tests src/Tests/PreyPredator/PreyPredator.cpp)
+	target_link_libraries(agio_tests
+		agio_lib
+		${PYTHON_LIBRARIES}
+		Boost::serialization)
+
+	if (WIN32)
+		# Extract the python DLL path from the lib path
+		set(PYTHON_DLL ${PYTHON_LIBRARIES})
+
+		string(REGEX REPLACE "optimized(.+)\\/libs\\/(.+).lib.*" "\\1" REGEX_OUTPUT ${PYTHON_DLL})
+		set(PYTHON_DLL ${REGEX_OUTPUT})
+
+		string(REGEX REPLACE "[.]lib.*" ".dll" REGEX_OUTPUT ${PYTHON_DLL})
+		set(PYTHON_DLL ${REGEX_OUTPUT})
+
+		string(REGEX REPLACE "libs\\/" "" REGEX_OUTPUT ${PYTHON_DLL})
+		set(PYTHON_DLL ${REGEX_OUTPUT})
+
+        add_custom_command(
+            TARGET agio_tests
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_DLL} ${CMAKE_SOURCE_DIR}/bin
+            COMMENT "Copying the Python DLL to the binaries directory.")
+	endif()
+endif()
