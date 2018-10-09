@@ -2,6 +2,9 @@
 
 #include "SNetwork.h"
 
+using namespace std;
+using namespace agio;
+
 double SNode::getActiveOut()
 {
     if (activation_count > 0)

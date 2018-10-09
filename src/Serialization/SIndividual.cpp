@@ -2,6 +2,9 @@
 #include "SParameter.h"
 #include "../Evolution/Individual.h"
 
+using namespace std;
+using namespace agio;
+
 SIndividual::SIndividual() {}
 
 SIndividual::SIndividual(Individual &individual)

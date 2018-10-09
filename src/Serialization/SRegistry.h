@@ -50,15 +50,24 @@ namespace agio
 {
 	struct SRegistry
 	{
-		std::unordered_map<SMorphologyTag, std::vector<SIndividual>> Species;
+		struct Entry
+		{
+			SMorphologyTag Morphology;
+			std::vector<SIndividual> Individuals;
+		};
+		std::vector<Entry> Species;
+		//std::unordered_map<SMorphologyTag, std::vector<SIndividual>> Species;
 
 		
 		void LoadFromFile(const std::string& Path) 
 		{ 
 			/* TODO : Implement! 
+				tmp_species = map()
 				for record in StagnantSpecies
 					org = SIndividual(record.HistoricalBestGenome)
-					species[record.Morphology].push_back(org)
+					tmp_species[record.Morphology].push_back(org)
+
+				species = to_array(tmp_species)
 			*/
 		};
 	};

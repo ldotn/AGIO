@@ -1,6 +1,9 @@
 #include "SPopulation.h"
 #include "../Evolution/Population.h"
 
+using namespace std;
+using namespace agio;
+
 SPopulation::SPopulation() {}
 
 SPopulation::SPopulation(Population *population)

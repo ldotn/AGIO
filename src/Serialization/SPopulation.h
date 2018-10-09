@@ -9,26 +9,26 @@
 
 #include "SIndividual.h"
 
-namespace agio {
-    class Population;
-};
+namespace agio 
+{
+	class Population;
 
-using namespace std;
-using namespace agio;
+    class SPopulation 
+	{
+	public:
+		std::vector<SIndividual> individuals;
+		std::unordered_map<int, std::vector<SIndividual*>> species_map;
 
-class SPopulation {
-public:
-    vector<SIndividual> individuals;
-    unordered_map<int, vector<SIndividual*>> species_map;
+		SPopulation();
+		SPopulation(Population *population);
 
-    SPopulation();
-    SPopulation(Population *population);
+		friend class boost::serialization::access;
+		template<class Archive>
+		void serialize(Archive &ar, const unsigned int version)
+		{
+			ar & individuals;
+			ar & species_map;
+		}
+	};
+}
 
-    friend class boost::serialization::access;
-    template<class Archive>
-    void serialize(Archive &ar, const unsigned int version)
-    {
-        ar & individuals;
-        ar & species_map;
-    }
-};

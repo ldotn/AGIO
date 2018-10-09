@@ -6,9 +6,6 @@
 #include <memory>
 #include <string>
 
-// Forward declaration
-class SPopulation;
-
 namespace NEAT
 {
 	class Innovation;
@@ -18,6 +15,9 @@ namespace NEAT
 
 namespace agio
 {
+	// Forward declaration
+	class SPopulation;
+
 	// Encapsulates the data for a single species
 	struct Species
 	{
