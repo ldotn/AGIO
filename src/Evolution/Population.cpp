@@ -553,51 +553,50 @@ SPopulation Population::load(std::string filename)
 }
 
 
-#if 0
-Population::ProgressMetrics Population::ComputeProgressMetrics(void * World)
+#if 1
+void Population::ComputeDevMetrics(void * World)
 {
 	ProgressMetrics metrics;
 
-	// Compute average novelty
-	ComputeNovelty();
-	metrics.AverageNovelty = 0;
-	for (const auto& org : Individuals)
-		metrics.AverageNovelty += org.LastNoveltyMetric;
-	metrics.AverageNovelty /= Individuals.size();
-
-	// Do a few simulations to compute fitness
-    metrics.AverageFitnessDifference = 0;
-    metrics.AverageFitness = 0;
-    metrics.AverageRandomFitness = 0;
-
 	EvaluatePopulation(World);
-
-    for (auto &org : Individuals)
-        metrics.AverageFitness += org.Fitness;
-    metrics.AverageFitness /= Individuals.size();
+	for (auto& org : Individuals)
+		org.DevMetrics.PrevFitness = org.Fitness;
 
     // Now for each species set that to be random, and do a couple of simulations
     // Override the use of the network for decision-making
-    for (const auto &[_, species] : SpeciesMap)
-        for (int org_id : species->IndividualsIDs)
-            Individuals[org_id].UseNetwork = false;
+	for (auto &[_, species] : SpeciesMap)
+	{
+		species.DevMetrics = {};
+		vector<pair<float,float>> orgs_f(species.IndividualsIDs.size());
 
-	EvaluatePopulation(World);
+		for (auto [idx,org_id] : enumerate(species.IndividualsIDs))
+			Individuals[org_id].UseNetwork = false;
 
-    for (auto &org : Individuals)
-        metrics.AverageRandomFitness += org.Fitness;
-    metrics.AverageRandomFitness /= Individuals.size();
+		EvaluatePopulation(World);
 
-    // Re-enable the network
-    for (const auto &[_, species] : SpeciesMap)
-        for (int org_id : species->IndividualsIDs)
-            Individuals[org_id].UseNetwork = true;
+		for (auto [idx,org_id] : enumerate(species.IndividualsIDs))
+		{
+			Individuals[org_id].UseNetwork = true;
 
-    metrics.AverageFitnessDifference =
-            ((metrics.AverageFitness - metrics.AverageRandomFitness) / metrics.AverageRandomFitness) * 100;
+			float base_f = Individuals[org_id].DevMetrics.PrevFitness;
+			float random_f = Individuals[org_id].Fitness;
+			orgs_f[idx] = { base_f,random_f };
+		}
+			
+		sort(orgs_f.begin(), orgs_f.end(), [](auto a, auto b)
+		{
+			return a.first > b.first;
+		});
 
-	// TODO : Compute standard deviations
-
-	return metrics;
+		for (int i = 0; i < 5 && i < orgs_f.size() - 6; i--)
+		{
+			auto[base_f, random_f] = orgs_f[i];
+			species.DevMetrics.RandomFitness += random_f;
+			species.DevMetrics.RealFitness += base_f;
+		}
+			
+		species.DevMetrics.RandomFitness /= min((float)orgs_f.size(), 5.0f);
+		species.DevMetrics.RealFitness /= min((float)orgs_f.size(), 5.0f);
+	}
 }
 #endif

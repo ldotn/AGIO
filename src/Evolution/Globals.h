@@ -136,5 +136,5 @@ namespace agio
 
 	// Singleton variable that stores a pointer to the public interface
 	// The user MUST initialize it before using, by implementing the interface and creating a new object of the derived class
-	inline extern PublicInterface* Interface = nullptr;
+	extern PublicInterface* Interface;
 }

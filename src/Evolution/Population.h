@@ -38,6 +38,12 @@ namespace agio
 		// Each species has N "chances"
 		// If after N consecutive epochs the progress is below the threshold, it's considered stagnant
 		int EpochsUnderThreshold;
+
+		struct 
+		{
+			float RandomFitness;
+			float RealFitness;
+		} DevMetrics;
 	};
 
 	class Population
@@ -74,7 +80,8 @@ namespace agio
 			float MaxFitnessDifference;
 			float MinFitnessDifference;
 		};
-		ProgressMetrics ComputeProgressMetrics(void * World);
+		//ProgressMetrics ComputeProgressMetrics(void * World);
+		void ComputeDevMetrics(void * World);
 
 		// Variables used in mutate_add_node and mutate_add_link (neat)
 		// TODO : Refactor this so that the naming is consistent

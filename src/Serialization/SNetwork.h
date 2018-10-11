@@ -4,12 +4,20 @@
 #include <math.h>
 #include <unordered_map>
 
-#include "../../NEAT/include/network.h"
-#include "../../NEAT/include/nnode.h"
+//#include "../../NEAT/include/network.h"
+//#include "../../NEAT/include/nnode.h"
 
 #include <boost/serialization/access.hpp>
 #include <boost/serialization/vector.hpp>
 #include <boost/serialization/unordered_map.hpp>
+
+// Forward declarations
+namespace NEAT
+{
+	class Network;
+	class NNode;
+	class Link;
+}
 
 namespace agio
 {

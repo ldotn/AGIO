@@ -999,6 +999,9 @@ int main()
 	vector<float> avg_fitness_carnivore;
 	vector<float> avg_progress_carnivore;
 
+	vector<float> avg_fitness_carnivore_random;
+	vector<float> avg_fitness_herbivore_random;
+
 	vector<float> avg_fitness_difference;
 	vector<float> avg_fitness_network;
 	vector<float> avg_fitness_random;
@@ -1125,15 +1128,28 @@ int main()
 				//float avg_n_hervibore = accumulate(novelty_vec_hervibore.begin(), novelty_vec_hervibore.begin() + min<int>(novelty_vec_hervibore.size(), 5), 0.0f) / 5.0f;
 				float avg_f_carnivore = accumulate(fitness_vec_carnivore.begin(), fitness_vec_carnivore.begin() + min<int>(fitness_vec_carnivore.size(), 5), 0.0f) / 5.0f;
 				//float avg_n_carnivore = accumulate(novelty_vec_carnivore.begin(), novelty_vec_carnivore.begin() + min<int>(novelty_vec_carnivore.size(), 5), 0.0f) / 5.0f;
-				float progress_carnivore, progress_herbivore;
+				float progress_carnivore, progress_herbivore, rand_f_carnivore, rand_f_hervibore;
+
+				pop.ComputeDevMetrics(&world);
 
 				for (auto[_, s] : pop.GetSpecies())
 				{
 					if (pop.GetIndividuals()[s.IndividualsIDs[0]].GetState<OrgState>()->IsCarnivore)
+					{
 						progress_carnivore = s.ProgressMetric;
+						avg_f_carnivore = s.DevMetrics.RealFitness;
+						rand_f_carnivore = s.DevMetrics.RandomFitness;
+					}
 					else
+					{
 						progress_herbivore = s.ProgressMetric;
+						avg_f_hervibore = s.DevMetrics.RealFitness;
+						rand_f_hervibore = s.DevMetrics.RandomFitness;
+					}	
 				}
+
+				avg_fitness_carnivore_random.push_back(rand_f_carnivore);
+				avg_fitness_herbivore_random.push_back(rand_f_hervibore);
 
 				avg_fitness.push_back((avg_f_hervibore));
 				avg_fitness_carnivore.push_back((avg_f_carnivore));
@@ -1145,11 +1161,15 @@ int main()
 				//cout << metrics.AverageFitnessDifference << endl;
 
 
-				plt::subplot(2, 1, 1);
+				plt::subplot(2, 2, 1);
 				plt::plot(avg_fitness, "b");
-				plt::plot(avg_fitness_carnivore, "k");
+				plt::plot(avg_fitness_herbivore_random, "r");
 
-				plt::subplot(2, 1, 2);
+				plt::subplot(2, 2, 2);
+				plt::plot(avg_fitness_carnivore, "k");
+				plt::plot(avg_fitness_carnivore_random, "r");
+
+				plt::subplot(2, 2, 3);
 				plt::plot(avg_progress_herbivore, "b");
 				plt::plot(avg_progress_carnivore, "k");
 

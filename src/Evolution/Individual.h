@@ -98,6 +98,11 @@ namespace agio
 
 		// Allows to override the network and just select actions randomly. Used to compute the progress metrics
 		bool UseNetwork = true;
+
+		struct
+		{
+			float PrevFitness;
+		} DevMetrics;
 	private:
 		// The current id, across all individuals and all populations
 		// Used to generate a global, unique id for the individuals

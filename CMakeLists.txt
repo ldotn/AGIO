@@ -23,6 +23,7 @@ set(project_sources
 	src/Serialization/SPopulation.cpp
 	src/Serialization/SIndividual.cpp
 	src/Serialization/SNetwork.cpp
+	src/Evolution/Globals.cpp
 	${neat_sources})
 
 add_library(agio_lib STATIC ${project_sources})

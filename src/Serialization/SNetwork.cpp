@@ -1,6 +1,7 @@
 #include <unordered_map>
 
 #include "SNetwork.h"
+#include "network.h"
 
 using namespace std;
 using namespace agio;
@@ -89,6 +90,8 @@ bool SNetwork::activate()
 
         one_time = true;
     }
+
+	return true;
 }
 
 
