@@ -1,6 +1,6 @@
 #include "Interface.h"
 #include "../../Evolution/Population.h"
-#include <math>
+#include <math.h>
 #include <chrono>
 
 using namespace std;
@@ -20,7 +20,7 @@ ExperimentInterface::ExperimentInterface()
 {
 }
 
-void * ExperimentInterface::ResetState(void * State)
+void ExperimentInterface::ResetState(void * State)
 {
 	auto state_ptr = (OrgState*)State;
 	
@@ -30,14 +30,14 @@ void * ExperimentInterface::ResetState(void * State)
 
 	// Set a random initial orientation
 	{
-		float theta = uniform_real_distribution<float>(0, 2 * 3.1416f)(rng);
+		float theta = uniform_real_distribution<float>(0, 2 * 3.1416f)(RNG);
 		state_ptr->Orientation.x = cosf(theta);
 		state_ptr->Orientation.y = sinf(theta);
 	}
 
 	// Find a random spawn area and spawn inside it
-	int spawn_idx = uniform_int_distribution<>(0, World.SpawnAreas.size())(rng);
-	state_ptr->Position = World.SpawnAreas[spawn_idx].GetSamplePoint(rng);
+	int spawn_idx = uniform_int_distribution<>(0, World.SpawnAreas.size())(RNG);
+	state_ptr->Position = World.SpawnAreas[spawn_idx].GetSamplePoint(RNG);
 }
 
 void * ExperimentInterface::MakeState(const Individual * org)
@@ -59,7 +59,7 @@ void * ExperimentInterface::DuplicateState(void * State)
 {
 	auto new_state = new OrgState;
 
-	*OrgState = *(OrgState*)State;
+	*new_state = *(OrgState*)State;
 
 	return new_state;
 }
@@ -73,7 +73,7 @@ void ExperimentInterface::ComputeFitness(Population * Pop, void *)
 	for (auto& area : World.PlantsAreas)
 		area.NumEatingInside = 0;
 
-	for (int i = 0; i < MaxSimulationSteps; i++)
+	for (int i = 0; i < ExperimentParams::MaxSimulationSteps; i++)
 	{
 		for (auto& org : Pop->GetIndividuals())
 		{
@@ -88,7 +88,7 @@ void ExperimentInterface::ComputeFitness(Population * Pop, void *)
 				continue;
 			}
 
-			org.DecideAndExecute(World, Pop);
+			org.DecideAndExecute(&World, Pop);
 
 			state_ptr->Score += state_ptr->Life;
 			org.Fitness = state_ptr->Score;
@@ -98,9 +98,10 @@ void ExperimentInterface::ComputeFitness(Population * Pop, void *)
 
 void ExperimentInterface::Init()
 {
-	ActionRegistry.resize((int)ActionsIDs::NumberOfActions);
+	// Fill actions
+	ActionRegistry.resize((int)ActionID::Count);
 
-	ActionRegistry[(int)ActionsIDs::Walk] = Action
+	ActionRegistry[(int)ActionID::Walk] = Action
 	(
 		[&](void * State, const Population * Pop,Individual * Org, void * World) 
 		{
@@ -110,7 +111,7 @@ void ExperimentInterface::Init()
 			state_ptr->Position = GameplayParams::GameArea.ClampPos(state_ptr->Position);
 		}
 	);
-	ActionRegistry[(int)ActionsIDs::Run] = Action
+	ActionRegistry[(int)ActionID::Run] = Action
 	(
 		[&](void * State, const Population * Pop,Individual * Org, void * World) 
 		{
@@ -120,7 +121,7 @@ void ExperimentInterface::Init()
 			state_ptr->Position = GameplayParams::GameArea.ClampPos(state_ptr->Position);
 		}
 	);
-	ActionRegistry[(int)ActionsIDs::TurnLeft] = Action
+	ActionRegistry[(int)ActionID::TurnLeft] = Action
 	(
 		[&](void * State, const Population * Pop,Individual * Org, void * World) 
 		{
@@ -128,11 +129,11 @@ void ExperimentInterface::Init()
 
 			// TODO : This could be precomputed
 			float th = -GameplayParams::TurnRadians; // Left = counterclockwise
-			state_ptr->Position.x = state_ptr->Position.dot(float2(cosf(th), -sinf(th));
-			state_ptr->Position.y = state_ptr->Position.dot(float2(sinf(th), cosf(th));
+			state_ptr->Position.x = state_ptr->Position.dot(float2(cosf(th), -sinf(th)));
+			state_ptr->Position.y = state_ptr->Position.dot(float2(sinf(th), cosf(th)));
 		}
 	);
-	ActionRegistry[(int)ActionsIDs::TurnRight] = Action
+	ActionRegistry[(int)ActionID::TurnRight] = Action
 	(
 		[&](void * State, const Population * Pop,Individual * Org, void * World) 
 		{
@@ -140,11 +141,11 @@ void ExperimentInterface::Init()
 
 			// TODO : This could be precomputed
 			float th = GameplayParams::TurnRadians; // Right = clockwise
-			state_ptr->Position.x = state_ptr->Position.dot(float2(cosf(th), -sinf(th));
-			state_ptr->Position.y = state_ptr->Position.dot(float2(sinf(th), cosf(th));
+			state_ptr->Position.x = state_ptr->Position.dot(float2(cosf(th), -sinf(th)));
+			state_ptr->Position.y = state_ptr->Position.dot(float2(sinf(th), cosf(th)));
 		}
 	);
-	ActionRegistry[(int)ActionsIDs::EatCorpse] = Action
+	ActionRegistry[(int)ActionID::EatCorpse] = Action
 	(
 		[&](void * State, const Population * Pop,Individual * Org, void * World) 
 		{
@@ -189,7 +190,7 @@ void ExperimentInterface::Init()
 				state_ptr->Score -= GameplayParams::WastedActionPenalty;
 		}
 	);
-	ActionRegistry[(int)ActionsIDs::EatPlant] = Action
+	ActionRegistry[(int)ActionID::EatPlant] = Action
 	(
 		[&](void * State, const Population * Pop,Individual * Org, void*) 
 		{
@@ -212,7 +213,7 @@ void ExperimentInterface::Init()
 				state_ptr->Score -= GameplayParams::WastedActionPenalty;
 		}
 	);
-	ActionRegistry[(int)ActionsIDs::Attack] = Action
+	ActionRegistry[(int)ActionID::Attack] = Action
 	(
 		[&](void * State, const Population * Pop,Individual * Org, void * World) 
 		{
@@ -256,4 +257,389 @@ void ExperimentInterface::Init()
 				state_ptr->Score -= GameplayParams::WastedActionPenalty;
 		}
 	);
+
+	// Fill sensors
+	SensorRegistry.resize((int)SensorID::Count);
+
+	SensorRegistry[(int)SensorID::CurrentLife] = Sensor
+	(
+		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		{
+			return ((OrgState*)State)->Life;
+		}
+	);
+	// Normalized position
+	SensorRegistry[(int)SensorID::CurrentPosX] = Sensor
+	(
+		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		{
+			return GameplayParams::GameArea.Normalize(((OrgState*)State)->Position).x;
+		}
+	);
+	SensorRegistry[(int)SensorID::CurrentPosY] = Sensor
+	(
+		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		{
+			return GameplayParams::GameArea.Normalize(((OrgState*)State)->Position).y;
+		}
+	);
+	SensorRegistry[(int)SensorID::CurrentOrientationX] = Sensor
+	(
+		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		{
+			return ((OrgState*)State)->Orientation.x;
+		}
+	);
+	SensorRegistry[(int)SensorID::CurrentOrientationY] = Sensor
+	(
+		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		{
+			return ((OrgState*)State)->Orientation.y;
+		}
+	);
+	SensorRegistry[(int)SensorID::DistanceNearestPartner] = Sensor
+	(
+		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		{
+			auto state_ptr = (OrgState*)State;
+
+			// Find an organism of a the same species
+			const auto& tag = Org->GetMorphologyTag();
+			const auto& species = (*Pop->GetSpecies().find(tag)).second;
+
+			// TODO : All this "search nearest" queries could be made much faster by using a KD-tree
+
+			float min_dist = numeric_limits<float>::max();
+			bool any_eaten = false;
+			for (int id : species.IndividualsIDs)
+			{
+				const auto& individual = Pop->GetIndividuals()[id];
+
+				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
+					continue;
+
+				auto other_state_ptr = individual.GetState<OrgState>();
+				if (other_state_ptr->Life <= 0)
+					continue;
+
+				float dist = (other_state_ptr->Position - state_ptr->Position).length();
+				min_dist = min(min_dist, dist);
+			}
+
+			return min_dist;
+		}
+	);
+	SensorRegistry[(int)SensorID::DistanceNearestCompetidor] = Sensor
+	(
+		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		{
+			auto state_ptr = (OrgState*)State;
+
+			// Find an organism of a different species that's not dead
+			const auto& tag = Org->GetMorphologyTag();
+			
+			float min_dist = numeric_limits<float>::max();
+			bool any_eaten = false;
+			for (auto& individual : Pop->GetIndividuals())
+			{
+				// Ignore individuals that aren't being simulated right now
+				// Also, don't do all the other stuff against yourself. 
+				// You already know you don't want to eat yourself
+				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
+					continue;
+
+				auto other_state_ptr = individual.GetState<OrgState>();
+				if (other_state_ptr->Life <= 0)
+					continue;
+
+				float dist = (other_state_ptr->Position - state_ptr->Position).length();
+				min_dist = min(min_dist, dist);
+			}
+
+			return min_dist;
+		}
+	);
+	SensorRegistry[(int)SensorID::DistanceNearestCorpse] = Sensor
+	(
+		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		{
+			auto state_ptr = (OrgState*)State;
+
+			// Find an organism of a different species that's dead
+			const auto& tag = Org->GetMorphologyTag();
+			
+			float min_dist = numeric_limits<float>::max();
+			bool any_eaten = false;
+			for (auto& individual : Pop->GetIndividuals())
+			{
+				// Ignore individuals that aren't being simulated right now
+				// Also, don't do all the other stuff against yourself. 
+				// You already know you don't want to eat yourself
+				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
+					continue;
+
+				// Check first if it hasn't been eaten too many times or if it's life is > 0
+				// You can only eat dead organisms that haven't been eaten too many times
+				auto other_state_ptr = individual.GetState<OrgState>();
+				if (other_state_ptr->Life > 0 || other_state_ptr->EatenCount >= GameplayParams::CorpseBitesDuration)
+					continue;
+
+				float dist = (other_state_ptr->Position - state_ptr->Position).length();
+				min_dist = min(min_dist, dist);
+			}
+
+			return min_dist;
+		}
+	);
+	SensorRegistry[(int)SensorID::DistanceNearestPlantArea] = Sensor
+	(
+		[](void * State, void * WorldPtr, const Population* Pop, const Individual * Org)
+		{
+			auto state_ptr = (OrgState*)State;
+
+			float min_dist = numeric_limits<float>::max();
+			for (const auto& [area,_] : ((WorldData*)WorldPtr)->PlantsAreas)
+			{
+				float dist = (area.Center - state_ptr->Position).length();
+				min_dist = min(min_dist, dist);
+			}
+
+			return min_dist;
+		}
+	);
+
+	SensorRegistry[(int)SensorID::LifeNearestCompetidor] = Sensor
+	(
+		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		{
+			auto state_ptr = (OrgState*)State;
+
+			// Find an organism of a different species that's not dead
+			const auto& tag = Org->GetMorphologyTag();
+			
+			float life_nearest = 0;
+			float min_dist = numeric_limits<float>::max();
+			bool any_eaten = false;
+			for (auto& individual : Pop->GetIndividuals())
+			{
+				// Ignore individuals that aren't being simulated right now
+				// Also, don't do all the other stuff against yourself. 
+				// You already know you don't want to eat yourself
+				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
+					continue;
+
+				auto other_state_ptr = individual.GetState<OrgState>();
+				if (other_state_ptr->Life <= 0)
+					continue;
+
+				float dist = (other_state_ptr->Position - state_ptr->Position).length();
+				if (dist < min_dist)
+				{
+					min_dist = dist;
+					life_nearest = other_state_ptr->Life;
+				}
+			}
+
+			return life_nearest;
+		}
+	);
+
+	SensorRegistry[(int)SensorID::AngleNearestPartner] = Sensor
+	(
+		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		{
+			auto state_ptr = (OrgState*)State;
+
+			// Find an organism of a the same species
+			const auto& tag = Org->GetMorphologyTag();
+			const auto& species = (*Pop->GetSpecies().find(tag)).second;
+
+			// TODO : All this "search nearest" queries could be made much faster by using a KD-tree
+
+			float2 nearest_pos;
+			float min_dist = numeric_limits<float>::max();
+			bool any_eaten = false;
+			for (int id : species.IndividualsIDs)
+			{
+				const auto& individual = Pop->GetIndividuals()[id];
+
+				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
+					continue;
+
+				auto other_state_ptr = individual.GetState<OrgState>();
+				if (other_state_ptr->Life <= 0)
+					continue;
+
+				float dist = (other_state_ptr->Position - state_ptr->Position).length();
+				if (dist < min_dist)
+				{
+					min_dist = dist;
+					nearest_pos = other_state_ptr->Position;
+				}
+			}
+
+			return acosf((nearest_pos - state_ptr->Position).normalize().dot(state_ptr->Orientation));
+		}
+	);
+	SensorRegistry[(int)SensorID::AngleNearestCompetidor] = Sensor
+	(
+		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		{
+			auto state_ptr = (OrgState*)State;
+
+			// Find an organism of a different species that's not dead
+			const auto& tag = Org->GetMorphologyTag();
+			
+			float2 nearest_pos;
+			float min_dist = numeric_limits<float>::max();
+			bool any_eaten = false;
+			for (auto& individual : Pop->GetIndividuals())
+			{
+				// Ignore individuals that aren't being simulated right now
+				// Also, don't do all the other stuff against yourself. 
+				// You already know you don't want to eat yourself
+				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
+					continue;
+
+				auto other_state_ptr = individual.GetState<OrgState>();
+				if (other_state_ptr->Life <= 0)
+					continue;
+
+				float dist = (other_state_ptr->Position - state_ptr->Position).length();
+				if (dist < min_dist)
+				{
+					min_dist = dist;
+					nearest_pos = other_state_ptr->Position;
+				}
+			}
+
+			return acosf((nearest_pos - state_ptr->Position).normalize().dot(state_ptr->Orientation));
+		}
+	);
+	SensorRegistry[(int)SensorID::AngleNearestCorpse] = Sensor
+	(
+		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		{
+			auto state_ptr = (OrgState*)State;
+
+			// Find an organism of a different species that's dead
+			const auto& tag = Org->GetMorphologyTag();
+			
+			float2 nearest_pos;
+			float min_dist = numeric_limits<float>::max();
+			bool any_eaten = false;
+			for (auto& individual : Pop->GetIndividuals())
+			{
+				// Ignore individuals that aren't being simulated right now
+				// Also, don't do all the other stuff against yourself. 
+				// You already know you don't want to eat yourself
+				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
+					continue;
+
+				// Check first if it hasn't been eaten too many times or if it's life is > 0
+				// You can only eat dead organisms that haven't been eaten too many times
+				auto other_state_ptr = individual.GetState<OrgState>();
+				if (other_state_ptr->Life > 0 || other_state_ptr->EatenCount >= GameplayParams::CorpseBitesDuration)
+					continue;
+
+				float dist = (other_state_ptr->Position - state_ptr->Position).length();
+				if (dist < min_dist)
+				{
+					min_dist = dist;
+					nearest_pos = other_state_ptr->Position;
+				}
+			}
+
+			return acosf((nearest_pos - state_ptr->Position).normalize().dot(state_ptr->Orientation));
+		}
+	);
+	SensorRegistry[(int)SensorID::AngleNearestPlantArea] = Sensor
+	(
+		[](void * State, void * WorldPtr, const Population* Pop, const Individual * Org)
+		{
+			auto state_ptr = (OrgState*)State;
+
+			float2 nearest_pos;
+			float min_dist = numeric_limits<float>::max();
+			for (const auto& [area,_] : ((WorldData*)WorldPtr)->PlantsAreas)
+			{
+				float dist = (area.Center - state_ptr->Position).length();
+				if (dist < min_dist)
+				{
+					min_dist = dist;
+					nearest_pos = area.Center;
+				}
+			}
+
+			return acosf((nearest_pos - state_ptr->Position).normalize().dot(state_ptr->Orientation));
+		}
+	);
+	
+
+	// Fill components
+	// Similar to the PreyPredator demo, but on 3D
+	ComponentRegistry.push_back
+	({
+		1,1, // "Mouth"
+		{
+			// Herbivore
+			{
+				{(int)ActionID::EatPlant},
+				{
+					(int)SensorID::AngleNearestPlantArea,
+					(int)SensorID::DistanceNearestPlantArea
+				},
+			},
+			// Carnivore
+			{
+				{
+					(int)ActionID::Attack,
+					(int)ActionID::EatCorpse
+				},
+				{
+					(int)SensorID::AngleNearestCorpse,
+					(int)SensorID::DistanceNearestCorpse,
+					(int)SensorID::LifeNearestCompetidor
+				}
+			}
+		}
+	});
+
+	ComponentRegistry.push_back
+	({
+		1,1, // This sensors and actions are common for all organisms
+		{
+			{
+				{
+					(int)ActionID::Walk,
+					(int)ActionID::Run,
+					(int)ActionID::TurnLeft,
+					(int)ActionID::TurnRight
+				},
+				{
+					(int)SensorID::CurrentLife,
+					(int)SensorID::CurrentPosX,
+					(int)SensorID::CurrentPosY,
+					(int)SensorID::CurrentOrientationX,
+					(int)SensorID::CurrentOrientationY,
+					(int)SensorID::DistanceNearestPartner,
+					(int)SensorID::DistanceNearestCompetidor,
+					(int)SensorID::AngleNearestPartner,
+					(int)SensorID::AngleNearestCompetidor,
+				}
+			}
+		}
+	});
 }
+
+float GameplayParams::WalkSpeed;
+float GameplayParams::RunSpeed;
+Rect GameplayParams::GameArea;
+float GameplayParams::TurnRadians;
+float GameplayParams::EatDistance;
+int GameplayParams::WastedActionPenalty;
+int GameplayParams::CorpseBitesDuration;
+float GameplayParams::EatCorpseLifeGained;
+float GameplayParams::EatPlantLifeGained;
+float GameplayParams::AttackDamage;
+float GameplayParams::LifeLostPerTurn;

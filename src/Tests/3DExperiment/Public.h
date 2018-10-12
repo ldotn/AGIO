@@ -19,7 +19,7 @@ namespace agio
 		int EatenCount;
 	};
 
-	enum class ActionsIDs
+	enum class ActionID
 	{
 		Walk,
 		Run,
@@ -29,11 +29,34 @@ namespace agio
 		TurnLeft,
 		TurnRight,
 
-		NumberOfActions
+		Count
+	};
+
+	enum class SensorID
+	{
+		CurrentLife,
+		CurrentPosX,
+		CurrentPosY,
+		CurrentOrientationX,
+		CurrentOrientationY,
+
+		DistanceNearestPartner,
+		DistanceNearestCompetidor,
+		DistanceNearestCorpse,
+		DistanceNearestPlantArea,
+		
+		LifeNearestCompetidor,
+
+		AngleNearestPartner,
+		AngleNearestCompetidor,
+		AngleNearestCorpse,
+		AngleNearestPlantArea,
+
+		Count
 	};
 
 	// Used to represent areas where there are things
-	// Things inside the circle are spawned following a gaussian distribution, with mean in the center
+	// Organisms inside the circle are spawned following a gaussian distribution, with mean in the center
 	struct Circle
 	{
 		float2 Center;
@@ -63,29 +86,34 @@ namespace agio
 		float2 Min;
 		float2 Max;
 
-		float2 ClampPos(float2 InPos)
+		float2 ClampPos(float2 Pos)
 		{
-			return InPos.clamp(Min, Max);
+			return Pos.clamp(Min, Max);
+		}
+
+		// Normalizes a position inside the rect to be in [0,1] range
+		float2 Normalize(float2 Pos)
+		{
+			return (Pos - Min) / (Max - Min);
 		}
 	};
 
 	struct GameplayParams
 	{
-		// TODO : Use the real values, based on the UE4 level
-		static float WalkSpeed = 1.0f;
-		static float RunSpeed = 2.0f;
-		static Rect GameArea = { {0,0}, {100,100} };
-		static float TurnRadians = 10.0f * (3.14159f/180.0f);
-		static float EatDistance = 0.5f;
+		static float WalkSpeed;
+		static float RunSpeed;
+		static Rect GameArea;
+		static float TurnRadians;
+		static float EatDistance;
 		
-		static int WastedActionPenalty = 10;
+		static int WastedActionPenalty;
 
-		static int CorpseBitesDuration = 5;
-		static float EatCorpseLifeGained = 10;
-		static float EatPlantLifeGained = 20;
+		static int CorpseBitesDuration;
+		static float EatCorpseLifeGained;
+		static float EatPlantLifeGained;
 
-		static float AttackDamage = 40;
+		static float AttackDamage;
 		
-		static float LifeLostPerTurn = 5;
+		static float LifeLostPerTurn;
 	};
 }

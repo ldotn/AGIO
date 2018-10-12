@@ -27,7 +27,7 @@ namespace agio
 
 		// Minimum progress that an species has to be making. 
 		// Less than this is considered to be stuck and it may be removed if it keeps stuck
-		inline static float ProgressThreshold = 0.01f;
+		inline static float ProgressThreshold = 0.005f;
 
 		// Number of consecutive epochs that an species must have a progress lower than the threshold to be removed
 		inline static int SpeciesStagnancyChances = 10;

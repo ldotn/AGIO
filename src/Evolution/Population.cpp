@@ -182,7 +182,7 @@ void Population::Spawn(int SizeMult,int SimSize)
 	// TODO :  Separate organisms by distance in the world too
 }
 
-void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
+void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, bool MuteNEAT)
 {
 	// First version : The species are fixed and created at the start. Also no parameters
 
@@ -195,6 +195,10 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 	// Advance generation
 	CurrentGeneration++;
 	
+	// [https://stackoverflow.com/questions/30184998/how-to-disable-cout-output-in-the-runtime]
+	if(MuteNEAT)
+		cout.setstate(ios_base::failbit);
+
 	// Now do the epoch
 	for (auto & [tag, s] : SpeciesMap)
 	{
@@ -319,6 +323,9 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 		}
 	}
 
+	if (MuteNEAT)
+		cout.clear();
+
 	// With the species updated, check if there are stagnant ones
 	for(auto iter = SpeciesMap.begin();iter != SpeciesMap.end();)
 	{
@@ -393,14 +400,14 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback)
 					// Finally delete the old neat pop
 					delete old_pop_ptr;
 
-					cout << "\n\n\n\n!! RESETED SPECIES !!\n\n\n\n" << endl;
+					cout << "!! RESETED SPECIES !!" << endl;
 				}
 				else
 				{
 					// "Steal" the ids of the old individuals for the new species
 					// For those objects, you'll need to call the destructors, and create new ones in place
 					// Also, instead of erasing and inserting, just replace this species in-place for the new one
-					cout << "\n\n\n\n## NEW SPECIES ##\n\n\n\n" << endl;
+					cout << "## NEW SPECIES ##" << endl;
 
 					unordered_set<int> actions_set;
 					unordered_set<int> sensors_set;
@@ -552,8 +559,6 @@ SPopulation Population::load(std::string filename)
 	return sPopulation;
 }
 
-
-#if 1
 void Population::ComputeDevMetrics(void * World)
 {
 	ProgressMetrics metrics;
@@ -599,4 +604,3 @@ void Population::ComputeDevMetrics(void * World)
 		species.DevMetrics.RealFitness /= min((float)orgs_f.size(), 5.0f);
 	}
 }
-#endif

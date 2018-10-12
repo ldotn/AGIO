@@ -59,8 +59,9 @@ namespace agio
 		void Spawn(int PopulationSizeMultiplier, int SimulationSize);
 
 		// Computes a single evolutive step
-		// The callback is called just before replacement
-		void Epoch(void * World, std::function<void(int)> EpochCallback = [](int){});
+		// The callback is called right after evaluation
+		// The MuteNEAT parameter disables console output from neat
+		void Epoch(void * World, std::function<void(int)> EpochCallback = [](int){}, bool MuteNEAT = false);
 
 		const auto& GetIndividuals() const { return Individuals; }
 		auto& GetIndividuals() { return Individuals; }

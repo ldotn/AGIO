@@ -45,8 +45,17 @@ if (build_tests)
 	find_package(PythonLibs 3.5)
 	include_directories(${PYTHON_INCLUDE_DIRS})
 
-	add_executable(agio_tests src/Tests/PreyPredator/PreyPredator.cpp)
-	target_link_libraries(agio_tests
+	add_executable(prey_predator src/Tests/PreyPredator/PreyPredator.cpp)
+	target_link_libraries(prey_predator
+		agio_lib
+		${PYTHON_LIBRARIES}
+		Boost::serialization)
+	
+	add_executable(experiment_3d 
+		src/Tests/3DExperiment/Interface.cpp
+		src/Tests/3DExperiment/main.cpp)
+
+	target_link_libraries(experiment_3d
 		agio_lib
 		${PYTHON_LIBRARIES}
 		Boost::serialization)
@@ -65,7 +74,7 @@ if (build_tests)
 		set(PYTHON_DLL ${REGEX_OUTPUT})
 
         add_custom_command(
-            TARGET agio_tests
+            TARGET agio_lib
             POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_DLL} ${CMAKE_SOURCE_DIR}/bin
             COMMENT "Copying the Python DLL to the binaries directory.")
