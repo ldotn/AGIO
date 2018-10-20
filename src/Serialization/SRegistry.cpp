@@ -31,7 +31,7 @@ void SRegistry::save(const std::string& filename)
     std::ofstream ofs(filename);
     {
         boost::archive::text_oarchive oa(ofs);
-        oa << *this;
+        oa << this;
     }
 }
 

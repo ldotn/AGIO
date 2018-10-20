@@ -23,6 +23,7 @@ namespace agio
 	public:
 		std::unordered_map<int, SParameter> parameters;
 		SNetwork brain;
+		void *state;
 
 		SIndividual();
 		SIndividual(NEAT::Genome *genome);
