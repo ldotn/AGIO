@@ -1,3 +1,6 @@
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
+
 #include "SPopulation.h"
 #include "../Evolution/Population.h"
 
@@ -25,4 +28,17 @@ SPopulation::SPopulation(Population *population)
         species_map.emplace(speciesId, speciesIndividuals);
         speciesId++;
     }
+}
+
+SPopulation SPopulation::load(std::string filename)
+{
+    SPopulation sPopulation;
+    {
+        std::ifstream ifs(filename);
+        boost::archive::text_iarchive ia(ifs);
+
+        ia >> sPopulation;
+    }
+
+    return sPopulation;
 }

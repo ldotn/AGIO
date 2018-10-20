@@ -11,11 +11,8 @@
 #include <boost/archive/text_iarchive.hpp>
 #include "../Serialization/SPopulation.h"
 
-
 // REMOVE!
 #include <iostream>
-
-
 
 // NEAT
 #include "innovation.h"

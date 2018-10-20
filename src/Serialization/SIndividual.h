@@ -4,6 +4,7 @@
 
 #include <boost/serialization/access.hpp>
 #include <boost/serialization/unordered_map.hpp>
+#include <boost/serialization/vector.hpp>
 
 
 #include "SParameter.h"
@@ -17,9 +18,12 @@ using namespace agio;
 
 class SIndividual {
 public:
-    int species_id;
+    std::vector<int> Actions;
+    std::vector<int> Sensors;
     std::unordered_map<int, SParameter> parameters;
     SNetwork brain;
+    void * state;
+    int species_id;
 
     SIndividual();
     SIndividual(Individual &individual);
@@ -31,5 +35,7 @@ public:
         ar & species_id;
         ar & parameters;
         ar & brain;
+        ar & Actions;
+        ar & Sensors;
     }
 };

@@ -23,10 +23,12 @@ set(project_sources
 	src/Utils/Utils.cpp
 	src/Evolution/Individual.cpp
 	src/Evolution/Population.cpp
-	src/Tests/PreyPredator/PreyPredator.cpp
 	src/Serialization/SPopulation.cpp
 	src/Serialization/SIndividual.cpp
 	src/Serialization/SNetwork.cpp
+    src/Tests/PreyPredator/PreyPredatorEvolution.cpp
+	src/Tests/PreyPredator/PreyPredator.cpp
+	src/Tests/PreyPredator/PublicInterfaceImpl.cpp
 	${neat_sources})
 
 add_executable(agio ${project_sources} )
