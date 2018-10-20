@@ -6,20 +6,23 @@
 #include "../../Evolution/Globals.h"
 #include "../../Core/Config.h"
 #include <iostream>
+#include "zip.h"
+#include "enumerate.h"
 
 namespace plt = matplotlibcpp;
 using namespace agio;
 using namespace std;
+using namespace fpp;
 
 // Does the evolution loop and saves the evolved networks to a file
 int main()
 {
 	// Values hardcoded from the UE4 level
 	// TODO : Find a better way to set the values
-	GameplayParams::WalkSpeed = 100.0f;
-	GameplayParams::RunSpeed = 200.0f;
+	GameplayParams::WalkSpeed = 75.0f;
+	GameplayParams::RunSpeed = 175.0f;
 	GameplayParams::GameArea = { {-2840,-8000}, {3200,2900} };
-	GameplayParams::TurnRadians = 10.0f * (3.14159f / 180.0f);
+	GameplayParams::TurnRadians = 22.5f * (3.14159f / 180.0f);
 	GameplayParams::EatDistance = 35.0f;
 	GameplayParams::WastedActionPenalty = 10;
 	GameplayParams::CorpseBitesDuration = 5;
@@ -27,6 +30,7 @@ int main()
 	GameplayParams::EatPlantLifeGained = 20;
 	GameplayParams::AttackDamage = 40;
 	GameplayParams::LifeLostPerTurn = 5;
+	GameplayParams::StartingLife = 100;
 
 	NEAT::load_neat_params("../cfg/neat_test_config.txt");
 	NEAT::mutate_morph_param_prob = Settings::ParameterMutationProb;
@@ -42,8 +46,8 @@ int main()
 	world_ptr->PlantsAreas = 
 	{
 		{{
-			float2(2350.0,-670.0),
-			500.0f
+			float2(2350.0,-640.0),
+			360.0f
 		}},
 		{{
 			float2(2560.0,-4810.0),
@@ -53,11 +57,11 @@ int main()
 	world_ptr->SpawnAreas = 
 	{
 		{
-			float2(-80,400),
-			820.0f
+			float2(750,-1040),
+			1900.0f
 		},
 		{
-			float2(260.0,-4240.0),
+			float2(620.0,-4240.0),
 			2300.0f
 		}
 	};
@@ -75,6 +79,15 @@ int main()
 	vector<float> avg_progress_carnivore;
 
 	plt::ion();
+	
+	bool show_simulation = false;
+	{
+		char c;
+		cout << "Show simulation (y/n) ? ";
+		cin >> c;
+		if (c == 'y')
+			show_simulation = true;
+	}
 
 	for (int g = 0; g < ExperimentParams::GenerationsCount; g++)
 	{
@@ -124,6 +137,82 @@ int main()
 			}
 		});
 	}
+	
+	// TODO : Save the registry to file
+
+	// If needed, show the simulation
+	if (show_simulation)
+	{
+		// TODO :  Use the registry, this is just keeping the first N
+		for (auto& org : pop.GetIndividuals())
+		{
+			org.InSimulation = false;
+			Interface->ResetState(org.GetState());
+		}
+
+		for (int i = 0; i < ExperimentParams::SimulationSize;i++)
+			pop.GetIndividuals()[i].InSimulation = true;
+
+		plt::figure();
+		while (true)
+		{
+			plt::clf();
+
+			plt::xlim(GameplayParams::GameArea.Min.x, GameplayParams::GameArea.Max.x);
+			plt::ylim(GameplayParams::GameArea.Min.y, GameplayParams::GameArea.Max.y);
+
+			for (auto& org : pop.GetIndividuals())
+				if(org.InSimulation && org.GetState<OrgState>()->Life >= 0)
+					org.DecideAndExecute(world_ptr, &pop);
+			
+			for (auto [area,_] : world_ptr->PlantsAreas)
+			{
+				// Generate points to plot the circle
+				float count = 1000;
+				vector<float> x_vec(count);
+				vector<float> y_vec(count);
+
+				float th = 0;
+				for (auto [x, y] : zip(x_vec, y_vec))
+				{
+					x = cosf(th * 2 * 3.14159f)*area.Radius + area.Center.x;
+					y = sinf(th * 2 * 3.14159f)*area.Radius + area.Center.y;
+					th += 1.0f / count;
+				}
+				plt::plot(x_vec, y_vec, "g");
+			}
+
+			// Plot the individuals with different colors per species
+			vector<float> org_x, org_y;
+			for (auto [species_idx,entry] : enumerate(pop.GetSpecies()))
+			{
+				auto [_, species] = entry;
+				org_x.resize(0);
+				org_y.resize(0);
+
+				for (int org_idx : species.IndividualsIDs)
+				{
+					auto state_ptr = (OrgState*)pop.GetIndividuals()[org_idx].GetState();
+					if (state_ptr->Life >= 0)
+					{
+						org_x.push_back(state_ptr->Position.x);
+						org_y.push_back(state_ptr->Position.y);
+					}
+				}
+
+				plt::plot(org_x, org_y, string("x") + string("C") + to_string(species_idx));
+			}
+
+			plt::pause(0.1);
+		}
+	}
+
+	// NOTE! : Explictely leaking the interface here!
+	// There's a good reason for it
+	// The objects in the system need the interface to delete themselves
+	//  so I can't delete it, as I don't know the order in which destructors are called
+	// In any case, this is not a problem, because on program exit the SO should (will?) release the memory anyway
+	//delete Interface;
 
 	return 0;
 }

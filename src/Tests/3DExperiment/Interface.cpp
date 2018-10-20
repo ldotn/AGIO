@@ -9,10 +9,7 @@ using namespace agio;
 float2 Circle::GetSamplePoint(minstd_rand0 RNG)
 {
 	float th = uniform_real<float>(0, 2 * 3.1416f)(RNG);
-	float r = normal_distribution<float>()(RNG);
-	r = atanf(r) * 2 / 3.1416f;
-
-	return float2(cosf(th), sinf(th)) * r;
+	return float2(cosf(th), sinf(th)) * uniform_real<float>(0,Radius)(RNG);
 }
 
 ExperimentInterface::ExperimentInterface()
@@ -25,8 +22,9 @@ void ExperimentInterface::ResetState(void * State)
 	auto state_ptr = (OrgState*)State;
 	
 	state_ptr->EatenCount = 0;
-	state_ptr->Life = 100;
+	state_ptr->Life = GameplayParams::StartingLife;
 	state_ptr->Score = 0;
+	state_ptr->HasDied = false;
 
 	// Set a random initial orientation
 	{
@@ -82,16 +80,26 @@ void ExperimentInterface::ComputeFitness(Population * Pop, void *)
 
 			auto state_ptr = (OrgState*)org.GetState();
 			state_ptr->Life -= GameplayParams::LifeLostPerTurn;
+			org.Fitness = state_ptr->Score;
+
 			if (state_ptr->Life <= 0)
 			{
-				org.Fitness = state_ptr->Score;
-				continue;
+				// Reset it
+				float old_score = state_ptr->Score;
+				ResetState(state_ptr);
+
+				// Remember that the org died and it's score
+				state_ptr->Score = old_score;
+				state_ptr->HasDied = true;
 			}
 
 			org.DecideAndExecute(&World, Pop);
 
-			state_ptr->Score += state_ptr->Life;
-			org.Fitness = state_ptr->Score;
+			if (!state_ptr->HasDied)
+			{
+				state_ptr->Score += state_ptr->Life;
+				org.Fitness = state_ptr->Score;
+			}
 		}
 	}
 }
@@ -163,22 +171,32 @@ void ExperimentInterface::Init()
 				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
 					continue;
 
-				// Check first if it hasn't been eaten too many times or if it's life is > 0
-				// You can only eat dead organisms that haven't been eaten too many times
+				// Check first if it's dead
 				auto other_state_ptr = individual.GetState<OrgState>();
-				if (other_state_ptr->Life > 0 || other_state_ptr->EatenCount >= GameplayParams::CorpseBitesDuration)
+				if (other_state_ptr->Life > 0)
 					continue;
 
 				// Check if it's within range
 				if ((other_state_ptr->Position - state_ptr->Position).length() < GameplayParams::EatDistance) // TODO : Use squared distance to save a sqrt call
 				{
-					// Now that we know it's in range, change if it's from a different species
+					// Now that we know it's in range, check if it's from a different species
 					// Doing this at last because it requires iterating over the component list
 					if (tag != individual.GetMorphologyTag())
 					{
 						any_eaten = true;
 						other_state_ptr->EatenCount++;
 						state_ptr->Life += GameplayParams::EatCorpseLifeGained;
+
+						if (other_state_ptr->EatenCount > GameplayParams::CorpseBitesDuration)
+						{
+							// Reset it
+							float old_score = other_state_ptr->Score;
+							ResetState(other_state_ptr);
+
+							// Remember that the org died and it's score
+							other_state_ptr->Score = old_score;
+							other_state_ptr->HasDied = true;
+						}
 
 						break;
 					}
@@ -643,3 +661,4 @@ float GameplayParams::EatCorpseLifeGained;
 float GameplayParams::EatPlantLifeGained;
 float GameplayParams::AttackDamage;
 float GameplayParams::LifeLostPerTurn;
+float GameplayParams::StartingLife;

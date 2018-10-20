@@ -24,6 +24,7 @@ set(project_sources
 	src/Serialization/SIndividual.cpp
 	src/Serialization/SNetwork.cpp
 	src/Evolution/Globals.cpp
+	src/Tests/3DExperiment/Interface.cpp
 	${neat_sources})
 
 add_library(agio_lib STATIC ${project_sources})

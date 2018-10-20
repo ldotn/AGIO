@@ -17,7 +17,12 @@ namespace agio
 		// This is used when the organism is dead, and someone else is eating the corpse
 		// Corpses are ignored after they have been eaten N times
 		int EatenCount;
-	};
+
+		// After an organism dies,
+		// or the corpse has been eaten in the case of herbivore, reset it
+		// Organisms that died once no longer update score
+		bool HasDied;
+	};	
 
 	enum class ActionID
 	{
@@ -56,13 +61,12 @@ namespace agio
 	};
 
 	// Used to represent areas where there are things
-	// Organisms inside the circle are spawned following a gaussian distribution, with mean in the center
 	struct Circle
 	{
 		float2 Center;
 		float Radius;
 
-		// Gets a point in the circle following a gaussian distribution
+		// Gets a point in the circle
 		float2 GetSamplePoint(std::minstd_rand0 RNG);
 
 		// Checks if a point is inside or not
@@ -115,5 +119,6 @@ namespace agio
 		static float AttackDamage;
 		
 		static float LifeLostPerTurn;
+		static float StartingLife;
 	};
 }

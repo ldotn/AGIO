@@ -37,6 +37,6 @@ namespace agio
 		inline static const int MaxSimulationSteps = 50;
 		inline static const int PopSizeMultiplier = 4;
 		inline static const int SimulationSize = 50;
-		inline static const int GenerationsCount = 1000;
+		inline static const int GenerationsCount = 250;
 	};
 }

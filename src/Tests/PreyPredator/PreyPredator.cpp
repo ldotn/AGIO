@@ -1335,7 +1335,7 @@ int main()
 	// NOTE! : Explictely leaking the interface here!
 	// There's a good reason for it
 	// The objects in the system need the interface to delete themselves
-	//  so I can delete it, as I don't know the order in which destructors are called
-	// In any case, this is not a problem, because on program exit the SO will (should?) release memory anyway
+	//  so I can't delete it, as I don't know the order in which destructors are called
+	// In any case, this is not a problem, because on program exit the SO should (will?) release the memory anyway
 	//delete Interface;
 }
