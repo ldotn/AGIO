@@ -173,7 +173,7 @@ void ExperimentInterface::Init()
 					continue;
 
 				// Check first if it's dead
-				auto other_state_ptr = individual.GetState<OrgState>();
+				auto other_state_ptr = ((OrgState*)individual.GetState());
 				if (other_state_ptr->Life > 0)
 					continue;
 
@@ -251,7 +251,7 @@ void ExperimentInterface::Init()
 					continue;
 
 				// Check first if the individual is alive
-				auto other_state_ptr = individual.GetState<OrgState>();
+				auto other_state_ptr = ((OrgState*)individual.GetState());
 				if (other_state_ptr->Life <= 0)
 					continue;
 
@@ -337,7 +337,7 @@ void ExperimentInterface::Init()
 				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
 					continue;
 
-				auto other_state_ptr = individual.GetState<OrgState>();
+				auto other_state_ptr = ((OrgState*)individual.GetState());
 				if (other_state_ptr->Life <= 0)
 					continue;
 
@@ -367,7 +367,7 @@ void ExperimentInterface::Init()
 				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
 					continue;
 
-				auto other_state_ptr = individual.GetState<OrgState>();
+				auto other_state_ptr = ((OrgState*)individual.GetState());
 				if (other_state_ptr->Life <= 0)
 					continue;
 
@@ -399,7 +399,7 @@ void ExperimentInterface::Init()
 
 				// Check first if it hasn't been eaten too many times or if it's life is > 0
 				// You can only eat dead organisms that haven't been eaten too many times
-				auto other_state_ptr = individual.GetState<OrgState>();
+				auto other_state_ptr = ((OrgState*)individual.GetState());
 				if (other_state_ptr->Life > 0 || other_state_ptr->EatenCount >= GameplayParams::CorpseBitesDuration)
 					continue;
 
@@ -447,7 +447,7 @@ void ExperimentInterface::Init()
 				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
 					continue;
 
-				auto other_state_ptr = individual.GetState<OrgState>();
+				auto other_state_ptr = ((OrgState*)individual.GetState());
 				if (other_state_ptr->Life <= 0)
 					continue;
 
@@ -485,7 +485,7 @@ void ExperimentInterface::Init()
 				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
 					continue;
 
-				auto other_state_ptr = individual.GetState<OrgState>();
+				auto other_state_ptr = ((OrgState*)individual.GetState());
 				if (other_state_ptr->Life <= 0)
 					continue;
 
@@ -520,7 +520,7 @@ void ExperimentInterface::Init()
 				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
 					continue;
 
-				auto other_state_ptr = individual.GetState<OrgState>();
+				auto other_state_ptr = ((OrgState*)individual.GetState());
 				if (other_state_ptr->Life <= 0)
 					continue;
 
@@ -557,7 +557,7 @@ void ExperimentInterface::Init()
 
 				// Check first if it hasn't been eaten too many times or if it's life is > 0
 				// You can only eat dead organisms that haven't been eaten too many times
-				auto other_state_ptr = individual.GetState<OrgState>();
+				auto other_state_ptr = ((OrgState*)individual.GetState());
 				if (other_state_ptr->Life > 0 || other_state_ptr->EatenCount >= GameplayParams::CorpseBitesDuration)
 					continue;
 

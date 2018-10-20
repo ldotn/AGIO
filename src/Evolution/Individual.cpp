@@ -517,3 +517,42 @@ Individual::~Individual()
 
     if (State) Interface->DestroyState(State);
 }
+
+int Individual::DecideAction(const std::unordered_map<int, float>& ValuesMap)
+{
+	if (!UseNetwork)
+	{
+		uniform_int_distribution<int> action_dist(0, Actions.size() - 1);
+		return Actions[action_dist(RNG)];
+	}
+
+	// Load sensors
+	for (auto[value, idx] : zip(SensorsValues, Sensors))
+		value = ValuesMap.find(idx)->second; // TODO : Check if the value exists first
+
+	// Send sensors to brain and activate
+	Brain->load_sensors(SensorsValues);
+	bool sucess = Brain->activate(); // TODO : Handle failure
+
+	// Select action based on activations
+	float act_sum = 0;
+	for (auto[idx, v] : enumerate(Brain->outputs))
+		act_sum += ActivationsBuffer[idx] = v->activation; // The activation function is in [0, 1], check line 461 of neat.cpp
+
+	int action;
+	if (act_sum > 1e-6)
+	{
+		discrete_distribution<int> action_dist(begin(ActivationsBuffer), end(ActivationsBuffer));
+		action = action_dist(RNG);
+	}
+	else
+	{
+		// Can't decide on an action because all activations are 0
+		// Select one action at random
+		uniform_int_distribution<int> action_dist(0, Actions.size() - 1);
+		action = action_dist(RNG);
+	}
+
+	// Return final action id
+	return Actions[action];
+}

@@ -8,11 +8,11 @@
 #include <unordered_map>
 #include "genome.h"
 #include "MorphologyTag.h"
-
+#include "../Interface/BaseIndividual.h"
 namespace agio
 {
 	// Represents an individual in the population
-	class Individual
+	class Individual : public BaseIndividual
 	{
 		friend class Population;
 	public:
@@ -46,18 +46,27 @@ namespace agio
 		//	  4) Calls the selected action
 		void DecideAndExecute(void * World, const class Population*);
 
+		// "Lower level" version of the decide functionality
+		// It expects as input the values for the sensors (as an id->value map) and returns the action ID
+		int DecideAction(const std::unordered_map<int, float>& SensorsValues) override;
+
 		// Reset the state and set fitness to -1
 		// Also flush the neural network
 		// Should be called before evaluating fitness
-		void Reset();
+		void Reset() override;
 
 		// Standard interface
-		auto GetState() const { return State; }
-		template<typename T>
-		T * GetState() const { return (T*)State; }
-		const auto& GetParameters() const { return Parameters; }
+		//auto GetState() override const { return State; }
+		void * GetState() const override { return State; }
+		//template<typename T>
+		//T * GetState() const { return (T*)State; }
+		//const auto& GetParameters() const { return Parameters; }
+		const std::unordered_map<int, Parameter>& GetParameters() const override { return Parameters; }
+		
 		const auto& GetGenome() const { return Genome; }
-		const auto& GetMorphologyTag() const { return Morphology;  }
+		
+		const MorphologyTag& GetMorphologyTag() const override { return Morphology;  }
+		
 		int GetGlobalID() const { return GlobalID; }
 		int GetOriginalID() const { return OriginalID; }
 

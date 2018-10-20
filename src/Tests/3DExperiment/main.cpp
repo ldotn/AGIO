@@ -161,7 +161,7 @@ int main()
 			plt::ylim(GameplayParams::GameArea.Min.y, GameplayParams::GameArea.Max.y);
 
 			for (auto& org : pop.GetIndividuals())
-				if(org.InSimulation && org.GetState<OrgState>()->Life >= 0)
+				if(org.InSimulation && ((OrgState*)org.GetState())->Life >= 0)
 					org.DecideAndExecute(world_ptr, &pop);
 			
 			for (auto [area,_] : world_ptr->PlantsAreas)
