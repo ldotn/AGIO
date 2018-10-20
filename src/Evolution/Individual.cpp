@@ -19,22 +19,18 @@ using namespace agio;
 using namespace std;
 using namespace fpp;
 
-Individual::Individual() : RNG(chrono::high_resolution_clock::now().time_since_epoch().count())
+Individual::Individual() noexcept : RNG(chrono::high_resolution_clock::now().time_since_epoch().count())
 {
     State = nullptr;
     Genome = nullptr;
     Brain = nullptr;
     Fitness = 0;
-    LastNoveltyMetric = 0;
     OriginalID = GlobalID = CurrentGlobalID.fetch_add(1);
-    SpeciesPtr = nullptr;
-    LastDominationCount = -1;
-
-
     AccumulatedFitness = 0;
-    //AccumulatedNovelty = 0;
+	NeedGenomeDeletion = false;
 }
 
+#if 0
 void Individual::Spawn(int ID)
 {
     assert(Interface->GetActionRegistry().size() > 0);
@@ -148,6 +144,7 @@ void Individual::Spawn(int ID)
     for (auto[gene_id, gene] : zip(Morphology.GenesIDs, Genome->genes))
         gene_id = gene->innovation_num;*/
 }
+#endif
 
 void Individual::DecideAndExecute(void *World, const class Population *PopulationPtr)
 {
@@ -176,7 +173,8 @@ void Individual::DecideAndExecute(void *World, const class Population *Populatio
     {
         discrete_distribution<int> action_dist(begin(ActivationsBuffer), end(ActivationsBuffer));
         action = action_dist(RNG);
-    } else
+    } 
+	else
     {
         // Can't decide on an action because all activations are 0
         // Select one action at random
@@ -193,10 +191,8 @@ void Individual::Reset()
     Interface->ResetState(State);
     if (Brain) Brain->flush();
     Fitness = 0;
-    LastNoveltyMetric = 0;
-    LastDominationCount = -1;
 }
-
+#if 0
 Individual::Individual(const Individual &Parent, Individual::Make) : Individual()
 {
     OriginalID = Parent.OriginalID;
@@ -223,207 +219,6 @@ Individual::Individual(const Individual &Parent, Individual::Make) : Individual(
 
 	SpeciesPtr = Parent.SpeciesPtr;
 };
-
-Individual::Individual(const Individual &Mom, const Individual &Dad, int ChildID) : Individual()
-{
-	assert(Mom.SpeciesPtr == Dad.SpeciesPtr);
-	SpeciesPtr = Mom.SpeciesPtr;
-
-    // TODO : Check if this is correct
-    // Because now we can have old individuals mixed with the new ones, let's use the global id as child id
-    ChildID = GlobalID;
-
-    // TODO : Use the other mating functions, and test which is better
-    // We don't do inter-species mating
-    Genome = Mom.Genome->mate_multipoint_avg(Dad.Genome, ChildID, Mom.Fitness, Dad.Fitness, false);
-    Brain = Genome->genesis(ChildID);
-
-    // This vectors are the same for both parents
-    Actions = Mom.Actions;
-    Sensors = Mom.Sensors;
-    ActivationsBuffer.resize(Mom.Actions.size());
-    SensorsValues.resize(Mom.Sensors.size());
-
-    // TODO : Find a way to mix the components.
-    // You can't trivially swap because you need to respect groups cardinalities
-    // For now, just take the components of one parent randomly
-    // Usually this vectors are equal between parents, so it shouldn't be that much of a difference
-    if (uniform_int_distribution<int>(0, 1)(RNG))
-        Components = Mom.Components;
-    else
-        Components = Dad.Components;
-
-    // Cross parameters using the historical markers
-    // Taking as base the parameters of the first
-    // That decision is arbitrary
-    // TODO : Randomly choose between mom or dad?
-    Parameters = Mom.Parameters;
-    for (auto &[idx, cparam] : Parameters)
-    {
-        // Search for this parameter in the other individual
-        auto param_iter = Dad.Parameters.find(idx);
-        if (param_iter != Dad.Parameters.end())
-        {
-            // Also check that the parameters have the same historical marker
-            // This way you don't cross parameters that are far apart
-            if (param_iter->second.HistoricalMarker == cparam.HistoricalMarker)
-            {
-                // Average the value of this parent with the other parent
-                cparam.Value = 0.5f * (cparam.Value + param_iter->second.Value);
-            }
-        }
-    }
-
-    // Build morphology
-    Morphology.NumberOfActions = Mom.Morphology.NumberOfActions;
-    Morphology.NumberOfSensors = Mom.Morphology.NumberOfSensors;
-    Morphology.ActionsBitfield = Mom.Morphology.ActionsBitfield;
-    Morphology.SensorsBitfield = Mom.Morphology.SensorsBitfield;
-    Morphology.Parameters = Parameters;
-	Morphology.Genes.reset(Genome->duplicate(Genome->genome_id));
-    /*Morphology.GenesIDs.resize(Genome->genes.size());
-    for (auto[gene_id, gene] : zip(Morphology.GenesIDs, Genome->genes))
-        gene_id = gene->innovation_num;*/
-
-    // Finally construct a new state
-    State = Interface->MakeState(this);
-}
-
-bool Individual::MorphologyTag::IsCompatible(const Individual::MorphologyTag &Other) const
-{
-    // Two organisms are compatible if they have the same set of actions and sensors and the parameters match up
-    if (NumberOfActions != Other.NumberOfActions)
-        return false;
-
-    if (NumberOfSensors != Other.NumberOfSensors)
-        return false;
-
-    // Check bitfields
-	// Optimization : Partial unroll. You usually have less than 32 actions or sensors
-	if (ActionsBitfield[0] != Other.ActionsBitfield[0])
-		return false;
-	for (int i = 1; i < ActionsBitfield.size(); i++)
-		if (ActionsBitfield[i] != Other.ActionsBitfield[i]) return false;
-
-	if (SensorsBitfield[0] != Other.SensorsBitfield[0])
-		return false;
-	for (int i = 1; i < SensorsBitfield.size(); i++)
-		if (SensorsBitfield[i] != Other.SensorsBitfield[i]) return false;
-
-    /*for (auto[bf0, bf1] : zip(ActionsBitfield, Other.ActionsBitfield))
-        if (bf0 != bf1) return false;
-    for (auto[bf0, bf1] : zip(SensorsBitfield, Other.SensorsBitfield))
-        if (bf0 != bf1) return false;*/
-
-    // Everything is equal, so they are compatible
-    return true;
-}
-
-bool Individual::MorphologyTag::operator==(const Individual::MorphologyTag &Other) const
-{
-	// TODO : Maybe instead of considering action and sensors one should just consider the components
-	//    it would avoid problems with components that provide the same actions & sensors but work differently
-
-    // Check first if the are compatible
-    if (!IsCompatible(Other))
-        return false;
-
-	/*
-    // They are compatible, so check that the parameters line up
-    if (Parameters.size() != Other.Parameters.size())
-        return false;
-
-    for (const auto &[idx, param] : Parameters)
-    {
-        auto param_iter = Other.Parameters.find(idx);
-
-        // Check that the parameters are the same and that they have the same historical origin
-        // TODO : Maybe instead of this one should use a distance threshold
-        if (param_iter == Other.Parameters.end() || param.HistoricalMarker != param_iter->second.HistoricalMarker)
-            return false;
-    }*/
-
-    return true;
-}
-
-float Individual::MorphologyTag::Distance(const Individual::MorphologyTag &Other) const
-{
-    float dist = 0;
-
-	// Find number of different actions
-    for (auto[bf0, bf1] : zip(ActionsBitfield, Other.ActionsBitfield))
-        dist += std::bitset<sizeof(bf0)>(bf0 ^ bf1).count();
-
-	// Find number of different sensors
-    for (auto[bf0, bf1] : zip(SensorsBitfield, Other.SensorsBitfield))
-        dist += std::bitset<sizeof(bf0)>(bf0 ^ bf1).count();
-
-	// Find mismatching parameters
-	for (const auto &[idx, p0] : Parameters)
-    {
-        auto param_iter = Other.Parameters.find(idx);
-
-        // Check that the parameter exists
-        if (param_iter != Other.Parameters.end())
-        {
-			// Add one if the historical markers are different
-            if (p0.HistoricalMarker != param_iter->second.HistoricalMarker)
-                dist += 1;
-        } 
-		else
-            // Mismatching parameter
-            dist += 1;
-    }
-
-    // Traverse the parameters of the other individual to see if there are some that don't exist on this
-    for (const auto &[idx, p1] : Other.Parameters)
-    {
-        auto param_iter = Parameters.find(idx);
-        if (param_iter == Parameters.end())
-            dist += 1;
-    }
-
-	// TODO : TO USE THIS YOU MUST LOAD THE NEAT PARAMETERS !!
-	dist += logf(Genes->compatibility(Other.Genes.get()) + 1.0f);
-
-    // Finally check number of mismatching genes on the genome of the control network
-    /*for (const auto &gene : GenesIDs)
-    {
-        bool found = false;
-
-        for (const auto &other_gene : Other.GenesIDs)
-        {
-            if (gene == other_gene)
-            {
-                found = true;
-                break;
-            }
-        }
-
-        if (!found)
-            dist += 1;
-    }
-
-	for (const auto &gene : Other.GenesIDs)
-	{
-		bool found = false;
-
-		for (const auto &other_gene : GenesIDs)
-		{
-			if (gene == other_gene)
-			{
-				found = true;
-				break;
-			}
-		}
-
-		if (!found)
-			dist += 1;
-	}*/
-
-
-    return dist;
-}
 
 void Individual::Mutate(Population *population, int generation)
 {
@@ -654,13 +449,12 @@ void Individual::Mutate(Population *population, int generation)
 	}
         
 }
-
+#endif
 Individual::Individual(Individual &&other) noexcept
 {
     OriginalID = other.OriginalID;
     GlobalID = other.GlobalID;
     State = other.State;
-    Components = move(other.Components);
     Parameters = move(other.Parameters);
     Genome = other.Genome;
     Brain = other.Brain;
@@ -670,34 +464,56 @@ Individual::Individual(Individual &&other) noexcept
     ActivationsBuffer = move(other.ActivationsBuffer);
     RNG = other.RNG;
     Morphology = move(other.Morphology);
-
-    LastDominationCount = other.LastDominationCount;
     Fitness = other.Fitness;
-    LastNoveltyMetric = other.LastNoveltyMetric;
-
-
     AccumulatedFitness = other.AccumulatedFitness;
-    //AccumulatedNovelty = other.AccumulatedNovelty;
-    //EvaluationsCount = other.EvaluationsCount;
-	
-
-	DominatedSet = move(other.DominatedSet);
-	DominationCounter = other.DominationCounter;
-	DominationRank = other.DominationCounter;
-	LocalScore = other.LocalScore;
-	GenotypicDiversity = other.GenotypicDiversity;
-
-    // Careful with this, you don't exactly know if it's still valid
-    SpeciesPtr = other.SpeciesPtr;
 
     other.Genome = nullptr;
     other.Brain = nullptr;
     other.State = nullptr;
 }
 
+Individual::Individual(MorphologyTag Tag,NEAT::Genome * InGenome) : Individual()
+{
+	Morphology = move(Tag);
+	Genome = InGenome->duplicate(GlobalID);
+	Brain = Genome->genesis(Genome->genome_id);
+	Parameters = Genome->MorphParams;
+
+	unordered_set<int> actions_set;
+	unordered_set<int> sensors_set;
+
+	for (auto[gidx, cidx] : Morphology)
+	{
+		const auto &component = Interface->GetComponentRegistry()[gidx].Components[cidx];
+
+		actions_set.insert(component.Actions.begin(), component.Actions.end());
+		sensors_set.insert(component.Sensors.begin(), component.Sensors.end());
+	}
+
+	// Compute action and sensors vectors
+	Actions.resize(actions_set.size());
+	for (auto[idx, action] : enumerate(actions_set))
+		Actions[idx] = action;
+
+	Sensors.resize(sensors_set.size());
+	for (auto[idx, sensor] : enumerate(sensors_set))
+		Sensors[idx] = sensor;
+
+	ActivationsBuffer.resize(Actions.size());
+	NeedGenomeDeletion = true;
+
+	State = Interface->MakeState(this);
+}
+
 Individual::~Individual()
 {
-    delete Brain;
-    delete Genome;
+    if(Brain) delete Brain;
+
+	// Don't delete the genome here
+	// It's the same pointer that's stored on the (NEAT) population, so it'll be deleted when the population is deleted
+	// If you delete it here, it'll crash later on when the neat pop is deleted
+	// The only time you need to delete it, is when you are explicitly making a duplicate
+	if(NeedGenomeDeletion && Genome) delete Genome;
+
     if (State) Interface->DestroyState(State);
 }
