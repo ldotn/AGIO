@@ -9,6 +9,10 @@
 #include "SParameter.h"
 #include "SNetwork.h"
 
+namespace NEAT {
+	class Genome;
+}
+
 namespace agio
 {
 	class Individual;
@@ -16,18 +20,16 @@ namespace agio
 	class SIndividual 
 	{
 	public:
-		int species_id;
 		std::unordered_map<int, SParameter> parameters;
 		SNetwork brain;
 
 		SIndividual();
-		SIndividual(Individual &individual);
+		SIndividual(NEAT::Genome *genome);
 
 		friend class boost::serialization::access;
 		template<class Archive>
 		void serialize(Archive &ar, const unsigned int version)
 		{
-			ar & species_id;
 			ar & parameters;
 			ar & brain;
 		}

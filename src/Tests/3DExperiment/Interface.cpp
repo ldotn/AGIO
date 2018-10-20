@@ -1,6 +1,7 @@
 #include "Interface.h"
 #include "../../Evolution/Population.h"
 #include <math.h>
+#include <random>
 #include <chrono>
 
 using namespace std;
@@ -8,8 +9,8 @@ using namespace agio;
 
 float2 Circle::GetSamplePoint(minstd_rand0 RNG)
 {
-	float th = uniform_real<float>(0, 2 * 3.1416f)(RNG);
-	return float2(cosf(th), sinf(th)) * uniform_real<float>(0,Radius)(RNG);
+	float th = uniform_real_distribution<float>(0, 2 * 3.1416f)(RNG);
+	return float2(cosf(th), sinf(th)) * uniform_real_distribution<float>(0,Radius)(RNG);
 }
 
 ExperimentInterface::ExperimentInterface()

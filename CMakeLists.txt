@@ -20,11 +20,11 @@ set(project_sources
 	src/Utils/Utils.cpp
 	src/Evolution/Individual.cpp
 	src/Evolution/Population.cpp
-	src/Serialization/SPopulation.cpp
 	src/Serialization/SIndividual.cpp
 	src/Serialization/SNetwork.cpp
 	src/Evolution/Globals.cpp
 	src/Tests/3DExperiment/Interface.cpp
+	src/Serialization/SRegistry.cpp
 	${neat_sources})
 
 add_library(agio_lib STATIC ${project_sources})

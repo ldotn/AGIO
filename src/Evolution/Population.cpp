@@ -9,13 +9,8 @@
 
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
-#include "../Serialization/SPopulation.h"
 
-
-// REMOVE!
 #include <iostream>
-
-
 
 // NEAT
 #include "innovation.h"
@@ -537,29 +532,6 @@ void Population::EvaluatePopulation(void * WorldPtr)
 	for (auto& org : Individuals)
 		org.Fitness = org.AccumulatedFitness / (float)Settings::SimulationReplications;
 };
-
-void Population::save(std::string filename)
-{
-	std::ofstream ofs(filename);
-	{
-		boost::archive::text_oarchive oa(ofs);
-		SPopulation sPopulation(this);
-		oa << sPopulation;
-	}
-}
-
-SPopulation Population::load(std::string filename)
-{
-	SPopulation sPopulation;
-	{
-		std::ifstream ifs(filename);
-		boost::archive::text_iarchive ia(ifs);
-
-		ia >> sPopulation;
-	}
-
-	return sPopulation;
-}
 
 void Population::ComputeDevMetrics(void * World)
 {

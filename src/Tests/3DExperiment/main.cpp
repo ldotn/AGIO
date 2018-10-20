@@ -2,7 +2,6 @@
 #include <matplotlibcpp.h>
 #include "neat.h"
 #include "../../Evolution/Population.h"
-#include "../../Serialization/SPopulation.h"
 #include "../../Evolution/Globals.h"
 #include "../../Core/Config.h"
 #include <iostream>
