@@ -2,15 +2,18 @@
 #include "SParameter.h"
 #include "../Evolution/Individual.h"
 
+//NEAT
+#include "genome.h"
+
 using namespace std;
 using namespace agio;
 
 SIndividual::SIndividual() {}
 
-SIndividual::SIndividual(Individual &individual)
+SIndividual::SIndividual(NEAT::Genome *genome)
 {
-    for(auto const&[key, param] : individual.Parameters)
+    for(auto const&[key, param] : genome->MorphParams)
         parameters.emplace(key, SParameter(param.ID, param.Value));
 
-    brain = SNetwork(individual.Brain);
+    brain = SNetwork(genome->genesis(genome->genome_id));
 }

@@ -9,13 +9,8 @@
 
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
-#include "../Serialization/SPopulation.h"
 
-
-// REMOVE!
 #include <iostream>
-
-
 
 // NEAT
 #include "innovation.h"
@@ -484,9 +479,11 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 
 					// Change key
 					++iter; // Advance before changing the key, because that invalidates the iterator
-					auto handle = SpeciesMap.extract(tag);
+					/*auto handle = SpeciesMap.extract(tag);
 					handle.key() = new_tag;
-					SpeciesMap.insert(move(handle));
+					SpeciesMap.insert(move(handle));*/
+					SpeciesMap[new_tag] = move(s);
+					SpeciesMap.erase(tag);
 
 					// Finally delete the old neat pop
 					delete old_pop_ptr;
@@ -535,29 +532,6 @@ void Population::EvaluatePopulation(void * WorldPtr)
 	for (auto& org : Individuals)
 		org.Fitness = org.AccumulatedFitness / (float)Settings::SimulationReplications;
 };
-
-void Population::save(std::string filename)
-{
-	std::ofstream ofs(filename);
-	{
-		boost::archive::text_oarchive oa(ofs);
-		SPopulation sPopulation(this);
-		oa << sPopulation;
-	}
-}
-
-SPopulation Population::load(std::string filename)
-{
-	SPopulation sPopulation;
-	{
-		std::ifstream ifs(filename);
-		boost::archive::text_iarchive ia(ifs);
-
-		ia >> sPopulation;
-	}
-
-	return sPopulation;
-}
 
 void Population::ComputeDevMetrics(void * World)
 {

@@ -3,73 +3,50 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+
 #include "SIndividual.h"
+#include "../Evolution/MorphologyTag.h"
 
-// Need to define it first so that the map inside SRegistry sees the hash instanciation first
-namespace agio
-{
-	struct SComponent
-	{
-		int GroupID;
-		int ComponentID;
-
-		bool operator==(const SComponent & other) const
-		{
-			return GroupID == other.GroupID &&
-				ComponentID == other.ComponentID;
-		}
-	};
-
-	typedef std::vector<SComponent> SMorphologyTag;
-}
-
-// This needs to be outside of the agio namespace
-namespace std
-{
-	template <>
-	struct hash<agio::SMorphologyTag>
-	{
-		std::size_t operator()(const agio::SMorphologyTag& k) const
-		{
-			// Ref : [https://stackoverflow.com/questions/20511347/a-good-hash-function-for-a-vector]
-			std::size_t seed = k.size();
-
-			//for (auto[gid, cid] : k)
-			for (auto data : k) // No C++ 17 on UE4 :(
-			{
-				seed ^= data.GroupID + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-				seed ^= data.ComponentID + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-			}
-
-			return seed;
-		}
-	};
-}
+#include <boost/serialization/vector.hpp>
 
 namespace agio
 {
-	struct SRegistry
+	class SRegistry
 	{
+	public:
 		struct Entry
 		{
-			SMorphologyTag Morphology;
+		    Entry(){}
+		    Entry(MorphologyTag morphologyTag, std::vector<SIndividual> individuals) {
+		        this->Morphology = morphologyTag;
+		        this->Individuals = individuals;
+		    }
+
+			MorphologyTag Morphology;
 			std::vector<SIndividual> Individuals;
+
+            friend class boost::serialization::access;
+            template<class Archive>
+            void serialize(Archive &ar, const unsigned int version)
+            {
+                ar & Morphology;
+                ar & Individuals;
+            }
 		};
 		std::vector<Entry> Species;
-		//std::unordered_map<SMorphologyTag, std::vector<SIndividual>> Species;
 
-		
-		void LoadFromFile(const std::string& Path) 
-		{ 
-			/* TODO : Implement! 
-				tmp_species = map()
-				for record in StagnantSpecies
-					org = SIndividual(record.HistoricalBestGenome)
-					tmp_species[record.Morphology].push_back(org)
+		SRegistry();
+		SRegistry(class Population *pop);
 
-				species = to_array(tmp_species)
-			*/
-		};
+        void save(const std::string& filename);
+		void load(const std::string& filename);
+
+        friend class boost::serialization::access;
+        template<class Archive>
+        void serialize(Archive &ar, const unsigned int version)
+        {
+            ar & Species;
+        }
 	};
 }
 
