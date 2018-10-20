@@ -46,7 +46,9 @@ if (build_tests)
 	find_package(PythonLibs 3.5)
 	include_directories(${PYTHON_INCLUDE_DIRS})
 
-	add_executable(prey_predator src/Tests/PreyPredator/PreyPredator.cpp)
+	add_executable(prey_predator
+			src/Tests/PreyPredator/main.cpp
+			src/Tests/PreyPredator/PublicInterfaceImpl.cpp)
 	target_link_libraries(prey_predator
 		agio_lib
 		${PYTHON_LIBRARIES}
