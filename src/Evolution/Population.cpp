@@ -484,9 +484,11 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 
 					// Change key
 					++iter; // Advance before changing the key, because that invalidates the iterator
-					auto handle = SpeciesMap.extract(tag);
+					/*auto handle = SpeciesMap.extract(tag);
 					handle.key() = new_tag;
-					SpeciesMap.insert(move(handle));
+					SpeciesMap.insert(move(handle));*/
+					SpeciesMap[new_tag] = move(s);
+					SpeciesMap.erase(tag);
 
 					// Finally delete the old neat pop
 					delete old_pop_ptr;
