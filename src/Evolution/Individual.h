@@ -75,7 +75,7 @@ namespace agio
 		std::unordered_map<int, Parameter> Parameters;
 
 		// The genome and the neural network it generates
-		// Used to control de individual
+		// Used to control the individual
 		NEAT::Genome * Genome;
 		NEAT::Network * Brain;
 
@@ -87,7 +87,7 @@ namespace agio
 		float AccumulatedFitness;
 		//float AccumulatedNovelty;
 		//float EvaluationsCount;
-		bool InSimulation;
+		//bool InSimulation;
 		float BackupFitness;
 
 		// Serializes the individual to a file
