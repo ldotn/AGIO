@@ -583,3 +583,28 @@ void Population::ComputeDevMetrics(void * World)
 		species.DevMetrics.RealFitness /= min((float)orgs_f.size(), 5.0f);
 	}
 }
+
+void Population::CurrentSpeciesToRegistry()
+{
+	// Before serialization, put best individuals into the registry.
+	for (auto &[_,species] : SpeciesMap)
+	{
+		Individual *bestIndividual = nullptr;
+		for (auto &individualId : species.IndividualsIDs)
+		{
+			Individual &individual = Individuals[individualId];
+			if (!bestIndividual || individual.Fitness > bestIndividual->Fitness)
+				bestIndividual = &individual;
+		}
+
+		if (bestIndividual != nullptr)
+		{
+			SpeciesRecord entry;
+			entry.Age = species.Age;
+			entry.Morphology = bestIndividual->GetMorphologyTag();
+			entry.LastFitness = bestIndividual->Fitness;
+			entry.HistoricalBestGenome = bestIndividual->GetGenome();
+			StagnantSpecies.push_back(entry);
+		}
+	}
+}

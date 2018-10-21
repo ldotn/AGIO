@@ -46,6 +46,19 @@ namespace agio
 		} DevMetrics;
 	};
 
+	// Used to register the species that got stuck and where removed from the simulation
+	// The same species might be more than one time, because it may have become stagnant, got removed, and then later on created again
+	// That does make sense, because as the species change, some that was stuck might not be stuck anymore
+	struct SpeciesRecord
+	{
+		MorphologyTag Morphology;
+		NEAT::Genome * HistoricalBestGenome;
+		std::vector<NEAT::Genome*> LastGenomes;
+		int IndividualsSize;
+		int Age;
+		float LastFitness;
+	};
+
 	class Population
 	{
 	public:
@@ -91,9 +104,7 @@ namespace agio
 
 		// Evaluates the population
 		void EvaluatePopulation(void * WorldPtr);
-
-		void save(std::string filename);
-		SPopulation load(std::string filename);
+		void CurrentSpeciesToRegistry();
 	private:
 		friend SPopulation;
 		int CurrentGeneration;
@@ -106,19 +117,7 @@ namespace agio
 
 		// Used to keep track of the different morphologies that were tried
 		std::vector<MorphologyTag> MorphologyRegistry;
-	
-		// Used to register the species that got stuck and where removed from the simulation
-		// The same species might be more than one time, because it may have become stagnant, got removed, and then later on created again
-		// That does make sense, because as the species change, some that was stuck might not be stuck anymore
-		struct SpeciesRecord
-		{
-			MorphologyTag Morphology;
-			NEAT::Genome * HistoricalBestGenome;
-			std::vector<NEAT::Genome*> LastGenomes;
-			int IndividualsSize;
-			int Age;
-			float LastFitness;
-		};
+
 		std::vector<SpeciesRecord> StagnantSpecies;
 
 		// Number of individuals simulated at the same time. 

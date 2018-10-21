@@ -251,22 +251,7 @@ void runEvolution()
 
     }
 
-    // Before serialization, put best individuals into the registry.
-    for (auto &[_,species] : pop.GetSpecies())
-    {
-        Individual *bestIndividual = nullptr;
-        for (auto &individualId : species.IndividualsIDs)
-        {
-            Individual &individual = pop.GetIndividuals()[individualId];
-            if (!bestIndividual || individual.Fitness > bestIndividual->Fitness)
-                bestIndividual = &individual;
-        }
-
-        if (bestIndividual != nullptr)
-        {
-//            pop.regis
-        }
-    }
+   pop.CurrentSpeciesToRegistry();
 
     SRegistry registry(&pop);
     registry.save("serialization.txt");
