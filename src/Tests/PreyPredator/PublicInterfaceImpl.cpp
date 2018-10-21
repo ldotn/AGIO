@@ -1,5 +1,5 @@
 #include "PublicInterfaceImpl.h"
-#include "ExperimentConfig.h"
+#include "PreyPredator.h"
 #include <enumerate.h>
 #include <assert.h>
 
@@ -838,7 +838,7 @@ void* PublicInterfaceImpl::DuplicateState(void *State)
 
 }
 
-void PublicInterfaceImpl::ComputeFitness(std::vector<class BaseIndividual*> Individuals, void *World)
+void PublicInterfaceImpl::ComputeFitness(const std::vector<class BaseIndividual*>& Individuals, void *World)
 {
     for (auto& org : Individuals)
         ((Individual*)org)->Reset();

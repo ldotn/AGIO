@@ -21,7 +21,7 @@ SIndividual::SIndividual(NEAT::Genome *genome, MorphologyTag morphologyTag)
     this->morphologyTag = move(morphologyTag);
 
     for(auto const&[key, param] : genome->MorphParams)
-        parameters.emplace(key, Parameter(param.ID, param.Value));
+		parameters[key] = { param.ID, param.Value };
 
     brain = SNetwork(genome->genesis(genome->genome_id));
 

@@ -8,7 +8,7 @@
 #include <enumerate.h>
 #include <queue>
 #include "../../Core/Config.h"
-#include "ExperimentConfig.h"
+#include "PreyPredator.h"
 #include "PublicInterfaceImpl.h"
 #include "../../Serialization/SRegistry.h"
 
@@ -19,7 +19,7 @@ using namespace fpp;
 
 
 #include "neat.h"
-int runSimulation() {
+void runSimulation() {
     minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
     // Create and fill the world

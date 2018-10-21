@@ -48,6 +48,8 @@ if (build_tests)
 
 	add_executable(prey_predator
 			src/Tests/PreyPredator/main.cpp
+			src/Tests/PreyPredator/PreyPredatorEvolution.cpp
+			src/Tests/PreyPredator/PreyPredator.cpp
 			src/Tests/PreyPredator/PublicInterfaceImpl.cpp)
 	target_link_libraries(prey_predator
 		agio_lib

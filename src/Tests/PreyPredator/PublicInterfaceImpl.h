@@ -90,5 +90,5 @@ public:
     int LastSimulationStepCount = 0;
 
     // This computes fitness for the entire population
-    void ComputeFitness(std::vector<class BaseIndividual*> Individuals, void * World) override;
+    void ComputeFitness(const std::vector<class BaseIndividual*>& Individuals, void * World) override;
 };

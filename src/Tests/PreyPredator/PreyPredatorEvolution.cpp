@@ -8,7 +8,7 @@
 #include <enumerate.h>
 #include <queue>
 #include "../../Core/Config.h"
-#include "ExperimentConfig.h"
+#include "PreyPredator.h"
 #include "PublicInterfaceImpl.h"
 #include "../../Serialization/SRegistry.h"
 
@@ -17,7 +17,7 @@ using namespace std;
 using namespace agio;
 using namespace fpp;
 
-int runEvolution()
+void runEvolution()
 {
     minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 

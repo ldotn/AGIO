@@ -1,8 +1,9 @@
 #include <iostream>
-#include "ExperimentConfig.h"
+#include "PreyPredator.h"
 #include "../../Core/Config.h"
-#include "PreyPredatorEvolution.cpp"
-#include "PreyPredator.cpp"
+
+using namespace agio;
+using namespace std;
 
 // Need to define them somewhere
 int WorldSizeX;
@@ -21,7 +22,7 @@ float BorderPenalty;
 float WastedActionPenalty;
 
 int main() {
-	ConfigLoader loader("../Tests/PreyPredator/Config.cfg");
+	ConfigLoader loader("../bin/Tests/PreyPredator/Config.cfg");
 	loader.LoadValue(WorldSizeX,"WorldSizeX");
 	loader.LoadValue(WorldSizeY,"WorldSizeY");
 	loader.LoadValue(FoodScoreGain,"FoodScoreGain");
