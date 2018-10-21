@@ -126,7 +126,7 @@ void SIndividual::DecideAndExecute(void *World, const std::vector<BaseIndividual
 
     // Select action based on activations
     float act_sum = 0;
-    for (auto[idx, v] : enumerate(brain.outputs)
+    for (auto[idx, v] : enumerate(brain.outputs))
         act_sum += ActivationsBuffer[idx] = v->activation; // The activation function is in [0, 1], check line 461 of neat.cpp
 
     std::minstd_rand RNG = minstd_rand(chrono::high_resolution_clock::now().time_since_epoch().count());
