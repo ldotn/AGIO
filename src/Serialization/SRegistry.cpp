@@ -19,7 +19,7 @@ SRegistry::SRegistry(agio::Population *pop)
     unordered_map<MorphologyTag,vector<SIndividual>> individuals;
 
     for (auto speciesRecord: pop->GetSpeciesRegistry())
-        individuals[speciesRecord.Morphology].emplace_back(speciesRecord.HistoricalBestGenome);
+        individuals[speciesRecord.Morphology].emplace_back(speciesRecord.HistoricalBestGenome, speciesRecord.Morphology);
 
 
     for (auto & [morphology, individual] : individuals)

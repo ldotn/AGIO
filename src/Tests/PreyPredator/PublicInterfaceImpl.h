@@ -78,13 +78,11 @@ public:
 
     void Init() override;
 
-    void * MakeState(const Individual * org) override;
+    void * MakeState(const BaseIndividual * org) override;
 
     void ResetState(void * State) override;
 
     void DestroyState(void * State) override;
-
-    float Distance(class Individual *, class Individual *, void * World) override;
 
     void * DuplicateState(void * State) override;
 
@@ -92,5 +90,5 @@ public:
     int LastSimulationStepCount = 0;
 
     // This computes fitness for the entire population
-    void ComputeFitness(Population * Pop, void * World) override;
+    void ComputeFitness(std::vector<class BaseIndividual*> Individuals, void * World) override;
 };

@@ -93,7 +93,7 @@ int runSimulation()
 
                 for (auto[idx, org] : enumerate(pop.GetIndividuals()))
                 {
-                    if (org.GetState<OrgState>()->IsCarnivore)
+                    if (((OrgState*)org.GetState())->IsCarnivore)
                         fitness_vec_carnivore.push_back(org.Fitness);
                     else
                         fitness_vec_hervibore.push_back(org.Fitness);
@@ -197,7 +197,8 @@ int runSimulation()
 
                 for (auto[_, s] : pop.GetSpecies())
                 {
-                    if (pop.GetIndividuals()[s.IndividualsIDs[0]].GetState<OrgState>()->IsCarnivore)
+                    auto org_state = (OrgState*)pop.GetIndividuals()[s.IndividualsIDs[0]].GetState();
+                    if (org_state->IsCarnivore)
                     {
                         progress_carnivore = s.ProgressMetric;
                         avg_f_carnivore = s.DevMetrics.RealFitness;

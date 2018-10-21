@@ -791,7 +791,7 @@ void PublicInterfaceImpl::Init()
 
 }
 
-void* PublicInterfaceImpl::MakeState(const Individual *org)
+void* PublicInterfaceImpl::MakeState(const BaseIndividual *org)
 {
     auto state = new OrgState;
 
@@ -829,12 +829,6 @@ void PublicInterfaceImpl::DestroyState(void *State)
     delete state_ptr;
 }
 
-float PublicInterfaceImpl::Distance(struct Individual *, struct Individual *, void *World)
-{
-    assert(false);
-    return 0; // Not used
-}
-
 void* PublicInterfaceImpl::DuplicateState(void *State)
 {
     auto new_state = new OrgState;
@@ -843,24 +837,24 @@ void* PublicInterfaceImpl::DuplicateState(void *State)
 
 }
 
-void PublicInterfaceImpl::ComputeFitness(Population *Pop, void *World)
+void PublicInterfaceImpl::ComputeFitness(std::vector<class BaseIndividual*> Individuals, void *World)
 {
-    for (auto& org : Pop->GetIndividuals())
-        org.Reset();
+    for (auto& org : Individuals)
+        ((Individual*)org)->Reset();
 
     LastSimulationStepCount = 0;
     for (int i = 0; i < MaxSimulationSteps; i++)
     {
-        for (auto& org : Pop->GetIndividuals())
+        for (auto& org : Individuals)
         {
-            if (!org.InSimulation)
+            if (!org->InSimulation)
                 continue;
 
-            auto state_ptr = (OrgState*)org.GetState();
+            auto state_ptr = (OrgState*)org->GetState();
 
-            org.DecideAndExecute(World, Pop);
+            org->DecideAndExecute(World, Individuals);
 
-            org.Fitness = state_ptr->Score;
+            ((Individual*)org)->Fitness = state_ptr->Score;
         }
         LastSimulationStepCount++;
     }

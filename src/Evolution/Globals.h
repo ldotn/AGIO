@@ -107,16 +107,13 @@ namespace agio
 		//virtual bool IsAlive(class Individual *, void * World) = 0;
 
 		// Creates a new, possibly random, state
-		virtual void * MakeState(const class Individual *) = 0;
+		virtual void * MakeState(const class BaseIndividual *) = 0;
 
 		// Sets an state back into it's initial form
 		virtual void ResetState(void * State) = 0;
 
 		// Destroys an state
 		virtual void DestroyState(void * State) = 0;
-
-		// Computes the distance in the world for two individuals
-		virtual float Distance(class Individual *, class Individual *, void * World) = 0;
 
 		// Creates a new state that has the same values as the provided state
 		virtual void * DuplicateState(void * State) = 0;

@@ -35,18 +35,18 @@ int runEvolution() {
     registry.load("serialization.txt");
 
     // Create the individuals that are gonna be used in the simulation
-    vector<SIndividual> individuals;
+    vector<BaseIndividual*> individuals;
     for(auto &entry : registry.Species)
         for(auto &individual: entry.Individuals)
-            individuals.push_back(individual);
+            individuals.push_back(&individual);
 
 	for(auto &individual : individuals)
-		individual.state = Interface->MakeState(individual);
+		individual->State = Interface->MakeState(individual);
 
     while (true)
 	{
 		for (auto& org : individuals)
-			org.Reset();
+			org->Reset();
 
 		vector<int> food_x, food_y;
 		food_x.resize(world.FoodPositions.size());
@@ -67,7 +67,7 @@ int runEvolution() {
 
 			any_alive = false;
 			for (auto& org : individuals)
-				org.DecideAndExecute(&world, &pop);
+				org->DecideAndExecute(&world, individuals);
 
 			// Plot food
 			plt::clf();
@@ -104,7 +104,7 @@ int runEvolution() {
 
 			for (const auto& org : individuals)
 			{
-				auto state_ptr = (OrgState*)org.GetState();
+				auto state_ptr = (OrgState*)org->GetState();
 
 				any_alive = true;
 				if (state_ptr->IsCarnivore)

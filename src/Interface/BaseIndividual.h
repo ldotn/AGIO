@@ -12,6 +12,7 @@ namespace agio
 	{
 	public:
 		bool InSimulation = false;
+		void * State;
 		// Does 4 steps
 		//    1) Load the sensors from the world
 		//    2) Input that values to the network and compute actions probabilities

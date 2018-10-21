@@ -23,7 +23,7 @@ set(project_sources
 	src/Serialization/SIndividual.cpp
 	src/Serialization/SNetwork.cpp
 	src/Evolution/Globals.cpp
-	src/Tests/3DExperiment/Interface.cpp
+	#src/Tests/3DExperiment/Interface.cpp
 	src/Serialization/SRegistry.cpp
 	${neat_sources})
 

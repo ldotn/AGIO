@@ -107,10 +107,6 @@ namespace agio
 		int OriginalID; // This is usually equal to the GlobalID, except when an individual is cloned. Then it's equal to the original individual ID
 		inline static std::atomic<int> CurrentGlobalID = 0;
 
-		// The state is defined by the user
-		// For this code, it's a black box
-		void * State;
-
 		// On individual creation, this lists are filled from the components
 		// They make the action decision faster,
 		// because otherwise you would need to recreate them on each call

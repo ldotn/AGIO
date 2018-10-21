@@ -62,6 +62,7 @@ namespace agio
 
 	class SNode 
 	{
+	public:
 		NodeType type;
 		double activation;
 
@@ -92,9 +93,13 @@ namespace agio
 		}
 	};
 
-	class SNetwork 
+	class SNetwork
 	{
 	public:
+		std::vector<SNode*> inputs;
+		std::vector<SNode*> outputs;
+		std::vector<SNode*> all_nodes;
+
 		void flush();
 		bool activate();
 		void load_sensors(const std::vector<double> &sensorsValues);
@@ -102,9 +107,6 @@ namespace agio
 		SNetwork();
 		SNetwork(NEAT::Network *network);
 	private:
-		std::vector<SNode*> all_nodes;
-		std::vector<SNode*> inputs;
-		std::vector<SNode*> outputs;
 
 		// variables used for internal logic
 		std::unordered_map<NEAT::Link*, SLink*> linkMap;
