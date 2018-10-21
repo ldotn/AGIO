@@ -22,7 +22,7 @@ void PublicInterfaceImpl::Init()
 
     ActionRegistry[(int)ActionsIDs::MoveForward] = Action
             (
-                    [&](void * State, const Population * Pop,Individual * Org, void * World)
+                    [&](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
                     {
                         auto state_ptr = (OrgState*)State;
 
@@ -39,7 +39,7 @@ void PublicInterfaceImpl::Init()
             );
     ActionRegistry[(int)ActionsIDs::MoveBackwards] = Action
             (
-                    [&](void * State, const Population * Pop,Individual * Org, void * World)
+                    [&](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
                     {
                         auto state_ptr = (OrgState*)State;
 
@@ -56,7 +56,7 @@ void PublicInterfaceImpl::Init()
             );
     ActionRegistry[(int)ActionsIDs::MoveRight] = Action
             (
-                    [&](void * State, const Population * Pop,Individual * Org, void * World)
+                    [&](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
                     {
                         auto state_ptr = (OrgState*)State;
 
@@ -73,7 +73,7 @@ void PublicInterfaceImpl::Init()
             );
     ActionRegistry[(int)ActionsIDs::MoveLeft] = Action
             (
-                    [&](void * State, const Population * Pop,Individual * Org, void * World)
+                    [&](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
                     {
                         auto state_ptr = (OrgState*)State;
 
@@ -92,7 +92,7 @@ void PublicInterfaceImpl::Init()
     // "Jump". Move more than one cell at a time. Jump distance is a parameter
     ActionRegistry[(int)ActionsIDs::JumpForward] = Action
             (
-                    [&](void * State, const Population * Pop,Individual * Org, void * World)
+                    [&](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
                     {
                         auto param_iter = Org->GetParameters().find((int)ParametersIDs::JumpDistance);
                         assert(param_iter != Org->GetParameters().end());
@@ -106,7 +106,7 @@ void PublicInterfaceImpl::Init()
             );
     ActionRegistry[(int)ActionsIDs::JumpBackwards] = Action
             (
-                    [&](void * State, const Population * Pop,Individual * Org, void * World)
+                    [&](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
                     {
                         auto param_iter = Org->GetParameters().find((int)ParametersIDs::JumpDistance);
                         assert(param_iter != Org->GetParameters().end());
@@ -119,7 +119,7 @@ void PublicInterfaceImpl::Init()
             );
     ActionRegistry[(int)ActionsIDs::JumpLeft] = Action
             (
-                    [&](void * State, const Population * Pop,Individual * Org, void * World)
+                    [&](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
                     {
                         auto param_iter = Org->GetParameters().find((int)ParametersIDs::JumpDistance);
                         assert(param_iter != Org->GetParameters().end());
@@ -132,7 +132,7 @@ void PublicInterfaceImpl::Init()
             );
     ActionRegistry[(int)ActionsIDs::JumpRight] = Action
             (
-                    [&](void * State, const Population * Pop,Individual * Org, void * World)
+                    [&](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
                     {
                         auto param_iter = Org->GetParameters().find((int)ParametersIDs::JumpDistance);
                         assert(param_iter != Org->GetParameters().end());
@@ -147,7 +147,7 @@ void PublicInterfaceImpl::Init()
     // Eat any food that's at most one cell away
     ActionRegistry[(int)ActionsIDs::EatFood] = Action
             (
-                    [this](void * State, const Population * Pop, Individual * Org, void * World)
+                    [this](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
                     {
                         auto world_ptr = (WorldData*)World;
                         auto state_ptr = (OrgState*)State;
@@ -177,7 +177,7 @@ void PublicInterfaceImpl::Init()
     // This is a simple test, so no fighting is simulated
     ActionRegistry[(int)ActionsIDs::KillAndEat] = Action
             (
-                    [this](void * State, const Population * Pop, Individual * Org, void * World)
+                    [this](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
                     {
                         auto state_ptr = (OrgState*)State;
 
@@ -187,20 +187,20 @@ void PublicInterfaceImpl::Init()
                         // Find an individual of a DIFFERENT species.
                         // The species map is not really useful here
                         bool any_eaten = false;
-                        for (const auto& individual : Pop->GetIndividuals())
+                        for (const auto& individual : Individuals)
                         {
                             // Ignore individuals that aren't being simulated right now
                             // Also, don't do all the other stuff against yourself.
                             // You already know you don't want to kill yourself
-                            if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
+                            if (!individual->InSimulation || individual == Org)
                                 continue;
 
-                            auto other_state_ptr = (OrgState*)individual.GetState();
+                            auto other_state_ptr = (OrgState*)individual->GetState();
                             auto diff = abs >> (other_state_ptr->Position - state_ptr->Position);
                             if (diff.x <= 1 && diff.y <= 1)
                             {
                                 // Check if they are from different species by comparing tags
-                                const auto& other_tag = individual.GetMorphologyTag();
+                                const auto& other_tag = individual->GetMorphologyTag();
 
                                 if (!(tag == other_tag))
                                 {
@@ -225,7 +225,7 @@ void PublicInterfaceImpl::Init()
 
     SensorRegistry[(int)SensorsIDs::CurrentLife] = Sensor
             (
-                    [](void * State, void * World, const Population* Pop, const Individual * Org)
+                    [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
                     {
                         return ((OrgState*)State)->Score;
                     }
@@ -233,21 +233,21 @@ void PublicInterfaceImpl::Init()
     // Normalized position
     SensorRegistry[(int)SensorsIDs::CurrentPosX] = Sensor
             (
-                    [](void * State, void * World, const Population* Pop, const Individual * Org)
+                    [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
                     {
                         return((OrgState*)State)->Position.x / (float)WorldSizeX;
                     }
             );
     SensorRegistry[(int)SensorsIDs::CurrentPosY] = Sensor
             (
-                    [](void * State, void * World, const Population* Pop, const Individual * Org)
+                    [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
                     {
                         return ((OrgState*)State)->Position.y / (float)WorldSizeY;
                     }
             );
     SensorRegistry[(int)SensorsIDs::NearestFoodAngle] = Sensor
             (
-                    [](void * State, void * World, const Population* Pop, const Individual * Org)
+                    [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
                     {
                         auto world_ptr = (WorldData*)World;
                         auto state_ptr = (OrgState*)State;
@@ -272,7 +272,7 @@ void PublicInterfaceImpl::Init()
             );
     SensorRegistry[(int)SensorsIDs::NearestFoodDistance] = Sensor
             (
-                    [](void * State, void * World, const Population* Pop, const Individual * Org)
+                    [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
                     {
                         auto world_ptr = (WorldData*)World;
                         auto state_ptr = (OrgState*)State;
@@ -294,7 +294,7 @@ void PublicInterfaceImpl::Init()
             );
     SensorRegistry[(int)SensorsIDs::NearestPartnerAngle] = Sensor
             (
-                    [](void * State, void * World,const Population* Pop, const Individual * Org)
+                    [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
                     {
                         // TODO : USE THE SPECIES MAP HERE!
                         const auto & tag = Org->GetMorphologyTag();
@@ -304,22 +304,22 @@ void PublicInterfaceImpl::Init()
 
                         float nearest_dist = numeric_limits<float>::max();
                         float2 nearest_pos;
-                        for (const auto& other_org : Pop->GetIndividuals())
+                        for (const auto& other_org : Individuals)
                         {
                             // Ignore individuals that aren't being simulated right now
                             // Also, don't do all the other stuff against yourself.
-                            if (!other_org.InSimulation || other_org.GetGlobalID() == Org->GetGlobalID())
+                            if (!other_org->InSimulation || other_org == Org)
                                 continue;
 
-                            float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
+                            float dist = (((OrgState*)other_org->GetState())->Position - state_ptr->Position).length_sqr();
                             if (dist < nearest_dist)
                             {
-                                const auto & other_tag = other_org.GetMorphologyTag();
+                                const auto & other_tag = other_org->GetMorphologyTag();
 
                                 if (tag == other_tag)
                                 {
                                     nearest_dist = dist;
-                                    nearest_pos = ((OrgState*)other_org.GetState())->Position;
+                                    nearest_pos = ((OrgState*)other_org->GetState())->Position;
                                 }
                             }
                         }
@@ -332,7 +332,7 @@ void PublicInterfaceImpl::Init()
             );
     SensorRegistry[(int)SensorsIDs::NearestCompetidorAngle] = Sensor
             (
-                    [](void * State, void * World,const Population* Pop, const Individual * Org)
+                    [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
                     {
                         const auto& tag = Org->GetMorphologyTag();
 
@@ -341,22 +341,22 @@ void PublicInterfaceImpl::Init()
 
                         float nearest_dist = numeric_limits<float>::max();
                         float2 nearest_pos;
-                        for (const auto& other_org : Pop->GetIndividuals())
+                        for (const auto& other_org : Individuals)
                         {
                             // Ignore individuals that aren't being simulated right now
                             // Also, don't do all the other stuff against yourself.
-                            if (!other_org.InSimulation || other_org.GetGlobalID() == Org->GetGlobalID())
+                            if (!other_org->InSimulation || other_org == Org)
                                 continue;
 
-                            float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
+                            float dist = (((OrgState*)other_org->GetState())->Position - state_ptr->Position).length_sqr();
                             if (dist < nearest_dist)
                             {
-                                const auto& other_tag = other_org.GetMorphologyTag();
+                                const auto& other_tag = other_org->GetMorphologyTag();
 
                                 if (!(tag == other_tag))
                                 {
                                     nearest_dist = dist;
-                                    nearest_pos = ((OrgState*)other_org.GetState())->Position;
+                                    nearest_pos = ((OrgState*)other_org->GetState())->Position;
                                 }
                             }
                         }
@@ -369,7 +369,7 @@ void PublicInterfaceImpl::Init()
             );
     SensorRegistry[(int)SensorsIDs::NearestPartnerDistance] = Sensor
             (
-                    [](void * State, void * World,const Population* Pop, const Individual * Org)
+                    [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
                     {
                         // TODO : USE THE SPECIES MAP HERE!
                         const auto & tag = Org->GetMorphologyTag();
@@ -379,22 +379,22 @@ void PublicInterfaceImpl::Init()
 
                         float nearest_dist = numeric_limits<float>::max();
                         float2 nearest_pos;
-                        for (const auto& other_org : Pop->GetIndividuals())
+                        for (const auto& other_org : Individuals)
                         {
                             // Ignore individuals that aren't being simulated right now
                             // Also, don't do all the other stuff against yourself.
-                            if (!other_org.InSimulation || other_org.GetGlobalID() == Org->GetGlobalID())
+                            if (!other_org->InSimulation || other_org == Org)
                                 continue;
 
-                            float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
+                            float dist = (((OrgState*)other_org->GetState())->Position - state_ptr->Position).length_sqr();
                             if (dist < nearest_dist)
                             {
-                                const auto & other_tag = other_org.GetMorphologyTag();
+                                const auto & other_tag = other_org->GetMorphologyTag();
 
                                 if (tag == other_tag)
                                 {
                                     nearest_dist = dist;
-                                    nearest_pos = ((OrgState*)other_org.GetState())->Position;
+                                    nearest_pos = ((OrgState*)other_org->GetState())->Position;
                                 }
                             }
                         }
@@ -404,7 +404,7 @@ void PublicInterfaceImpl::Init()
             );
     SensorRegistry[(int)SensorsIDs::NearestCompetidorDistance] = Sensor
             (
-                    [](void * State, void * World,const Population* Pop, const Individual * Org)
+                    [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
                     {
                         const auto& tag = Org->GetMorphologyTag();
 
@@ -413,22 +413,22 @@ void PublicInterfaceImpl::Init()
 
                         float nearest_dist = numeric_limits<float>::max();
                         float2 nearest_pos;
-                        for (const auto& other_org : Pop->GetIndividuals())
+                        for (const auto& other_org : Individuals)
                         {
                             // Ignore individuals that aren't being simulated right now
                             // Also, don't do all the other stuff against yourself.
-                            if (!other_org.InSimulation || other_org.GetGlobalID() == Org->GetGlobalID())
+                            if (!other_org->InSimulation || other_org == Org)
                                 continue;
 
-                            float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
+                            float dist = (((OrgState*)other_org->GetState())->Position - state_ptr->Position).length_sqr();
                             if (dist < nearest_dist)
                             {
-                                const auto& other_tag = other_org.GetMorphologyTag();
+                                const auto& other_tag = other_org->GetMorphologyTag();
 
                                 if (!(tag == other_tag))
                                 {
                                     nearest_dist = dist;
-                                    nearest_pos = ((OrgState*)other_org.GetState())->Position;
+                                    nearest_pos = ((OrgState*)other_org->GetState())->Position;
                                 }
                             }
                         }
@@ -441,7 +441,7 @@ void PublicInterfaceImpl::Init()
 
     SensorRegistry[(int)SensorsIDs::NearestFoodX] = Sensor
             (
-                    [](void * State, void * World, const Population* Pop, const Individual * Org)
+                    [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
                     {
                         auto world_ptr = (WorldData*)World;
                         auto state_ptr = (OrgState*)State;
@@ -463,7 +463,7 @@ void PublicInterfaceImpl::Init()
             );
     SensorRegistry[(int)SensorsIDs::NearestFoodY] = Sensor
             (
-                    [](void * State, void * World, const Population* Pop, const Individual * Org)
+                    [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
                     {
                         auto world_ptr = (WorldData*)World;
                         auto state_ptr = (OrgState*)State;
@@ -485,7 +485,7 @@ void PublicInterfaceImpl::Init()
             );
     SensorRegistry[(int)SensorsIDs::NearestPartnerX] = Sensor
             (
-                    [](void * State, void * World,const Population* Pop, const Individual * Org)
+                    [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
                     {
                         // TODO : USE THE SPECIES MAP HERE!
                         const auto & tag = Org->GetMorphologyTag();
@@ -495,22 +495,22 @@ void PublicInterfaceImpl::Init()
 
                         float nearest_dist = numeric_limits<float>::max();
                         float2 nearest_pos;
-                        for (const auto& other_org : Pop->GetIndividuals())
+                        for (const auto& other_org : Individuals)
                         {
                             // Ignore individuals that aren't being simulated right now
                             // Also, don't do all the other stuff against yourself.
-                            if (!other_org.InSimulation || other_org.GetGlobalID() == Org->GetGlobalID())
+                            if (!other_org->InSimulation || other_org == Org)
                                 continue;
 
-                            float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
+                            float dist = (((OrgState*)other_org->GetState())->Position - state_ptr->Position).length_sqr();
                             if (dist < nearest_dist)
                             {
-                                const auto & other_tag = other_org.GetMorphologyTag();
+                                const auto & other_tag = other_org->GetMorphologyTag();
 
                                 if (tag == other_tag)
                                 {
                                     nearest_dist = dist;
-                                    nearest_pos = ((OrgState*)other_org.GetState())->Position;
+                                    nearest_pos = ((OrgState*)other_org->GetState())->Position;
                                 }
                             }
                         }
@@ -520,7 +520,7 @@ void PublicInterfaceImpl::Init()
             );
     SensorRegistry[(int)SensorsIDs::NearestPartnerY] = Sensor
             (
-                    [](void * State, void * World,const Population* Pop, const Individual * Org)
+                    [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
                     {
                         // TODO : USE THE SPECIES MAP HERE!
                         const auto & tag = Org->GetMorphologyTag();
@@ -530,22 +530,22 @@ void PublicInterfaceImpl::Init()
 
                         float nearest_dist = numeric_limits<float>::max();
                         float2 nearest_pos;
-                        for (const auto& other_org : Pop->GetIndividuals())
+                        for (const auto& other_org : Individuals)
                         {
                             // Ignore individuals that aren't being simulated right now
                             // Also, don't do all the other stuff against yourself.
-                            if (!other_org.InSimulation || other_org.GetGlobalID() == Org->GetGlobalID())
+                            if (!other_org->InSimulation || other_org == Org)
                                 continue;
 
-                            float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
+                            float dist = (((OrgState*)other_org->GetState())->Position - state_ptr->Position).length_sqr();
                             if (dist < nearest_dist)
                             {
-                                const auto & other_tag = other_org.GetMorphologyTag();
+                                const auto & other_tag = other_org->GetMorphologyTag();
 
                                 if (tag == other_tag)
                                 {
                                     nearest_dist = dist;
-                                    nearest_pos = ((OrgState*)other_org.GetState())->Position;
+                                    nearest_pos = ((OrgState*)other_org->GetState())->Position;
                                 }
                             }
                         }
@@ -555,7 +555,7 @@ void PublicInterfaceImpl::Init()
             );
     SensorRegistry[(int)SensorsIDs::NearestCompetidorX] = Sensor
             (
-                    [](void * State, void * World,const Population* Pop, const Individual * Org)
+                    [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
                     {
                         const auto& tag = Org->GetMorphologyTag();
 
@@ -564,22 +564,22 @@ void PublicInterfaceImpl::Init()
 
                         float nearest_dist = numeric_limits<float>::max();
                         float2 nearest_pos;
-                        for (const auto& other_org : Pop->GetIndividuals())
+                        for (const auto& other_org : Individuals)
                         {
                             // Ignore individuals that aren't being simulated right now
                             // Also, don't do all the other stuff against yourself.
-                            if (!other_org.InSimulation || other_org.GetGlobalID() == Org->GetGlobalID())
+                            if (!other_org->InSimulation || other_org== Org)
                                 continue;
 
-                            float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
+                            float dist = (((OrgState*)other_org->GetState())->Position - state_ptr->Position).length_sqr();
                             if (dist < nearest_dist)
                             {
-                                const auto& other_tag = other_org.GetMorphologyTag();
+                                const auto& other_tag = other_org->GetMorphologyTag();
 
                                 if (!(tag == other_tag))
                                 {
                                     nearest_dist = dist;
-                                    nearest_pos = ((OrgState*)other_org.GetState())->Position;
+                                    nearest_pos = ((OrgState*)other_org->GetState())->Position;
                                 }
                             }
                         }
@@ -589,7 +589,7 @@ void PublicInterfaceImpl::Init()
             );
     SensorRegistry[(int)SensorsIDs::NearestCompetidorY] = Sensor
             (
-                    [](void * State, void * World,const Population* Pop, const Individual * Org)
+                    [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
                     {
                         const auto& tag = Org->GetMorphologyTag();
 
@@ -598,22 +598,22 @@ void PublicInterfaceImpl::Init()
 
                         float nearest_dist = numeric_limits<float>::max();
                         float2 nearest_pos;
-                        for (const auto& other_org : Pop->GetIndividuals())
+                        for (const auto& other_org : Individuals)
                         {
                             // Ignore individuals that aren't being simulated right now
                             // Also, don't do all the other stuff against yourself.
-                            if (!other_org.InSimulation || other_org.GetGlobalID() == Org->GetGlobalID())
+                            if (!other_org->InSimulation || other_org == Org)
                                 continue;
 
-                            float dist = (((OrgState*)other_org.GetState())->Position - state_ptr->Position).length_sqr();
+                            float dist = (((OrgState*)other_org->GetState())->Position - state_ptr->Position).length_sqr();
                             if (dist < nearest_dist)
                             {
-                                const auto& other_tag = other_org.GetMorphologyTag();
+                                const auto& other_tag = other_org->GetMorphologyTag();
 
                                 if (!(tag == other_tag))
                                 {
                                     nearest_dist = dist;
-                                    nearest_pos = ((OrgState*)other_org.GetState())->Position;
+                                    nearest_pos = ((OrgState*)other_org->GetState())->Position;
                                 }
                             }
                         }

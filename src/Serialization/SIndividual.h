@@ -9,6 +9,7 @@
 #include "SParameter.h"
 #include "SNetwork.h"
 #include "../Interface/BaseIndividual.h"
+#include "../Evolution/MorphologyTag.h"
 
 namespace NEAT {
 	class Genome;
@@ -24,6 +25,7 @@ namespace agio
 		std::unordered_map<int, SParameter> parameters;
 		SNetwork brain;
 		void *state;
+		MorphologyTag morphologyTag;
 
 		SIndividual();
 		SIndividual(NEAT::Genome *genome);
@@ -36,7 +38,7 @@ namespace agio
 			ar & brain;
 		}
 
-		void DecideAndExecute(void * World, const class Population*) override;
+		void DecideAndExecute(void * World, const std::vector<BaseIndividual*> &Individuals) override;
 		int DecideAction(const std::unordered_map<int, float>& SensorsValues) override;
 		void Reset() override;
 

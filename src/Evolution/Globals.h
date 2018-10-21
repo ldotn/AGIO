@@ -64,13 +64,13 @@ namespace agio
 	// It executes the action, updating the state, the world and the population
 	struct Action : public RegistryEntry
 	{
-		std::function<void(void * State,const class Population *, class Individual *, void * World)> Execute;
+		std::function<void(void * State,const std::vector<class BaseIndividual*> &, class BaseIndividual*, void * World)> Execute;
 
 		Action() = default;
 		Action(decltype(Execute) ActionFunction, std::string Name = "")
 		{
-			Execute = ActionFunction;
-			FriendlyName = Name;
+			Execute = move(ActionFunction);
+			FriendlyName = move(Name);
 		}
 	};
 
@@ -79,13 +79,13 @@ namespace agio
 	{
 		// TODO : Maybe having it return only one value always is not the best idea
 		//  Refactor this to return a vector
-		std::function<float(void * State, void * World,const class Population*, const class Individual *)> Evaluate;
+		std::function<float(void * State, const std::vector<class BaseIndividual*> &, const class BaseIndividual *, void * World)> Evaluate;
 		
 		Sensor() = default;
 		Sensor(decltype(Evaluate) SensorFunction, std::string Name = "")
 		{
-			Evaluate = SensorFunction;
-			FriendlyName = Name;
+			Evaluate = move(SensorFunction);
+			FriendlyName = move(Name);
 		}
 	};
 

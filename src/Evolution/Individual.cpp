@@ -146,18 +146,18 @@ void Individual::Spawn(int ID)
 }
 #endif
 
-void Individual::DecideAndExecute(void *World, const class Population *PopulationPtr)
+void Individual::DecideAndExecute(void *World, const vector<BaseIndividual*> &Individuals)
 {
 	if (!UseNetwork)
 	{
 		uniform_int_distribution<int> action_dist(0, Actions.size() - 1);
-		Interface->GetActionRegistry()[Actions[action_dist(RNG)]].Execute(State, PopulationPtr, this, World);
+		Interface->GetActionRegistry()[Actions[action_dist(RNG)]].Execute(State, Individuals, this, World);
 		return;
 	}
 
     // Load sensors
     for (auto[value, idx] : zip(SensorsValues, Sensors))
-        value = Interface->GetSensorRegistry()[idx].Evaluate(State, World, PopulationPtr, this);
+        value = Interface->GetSensorRegistry()[idx].Evaluate(State, Individuals, this, World);
 
     // Send sensors to brain and activate
     Brain->load_sensors(SensorsValues);
@@ -183,7 +183,7 @@ void Individual::DecideAndExecute(void *World, const class Population *Populatio
     }
 
     // Finally execute the action
-    Interface->GetActionRegistry()[Actions[action]].Execute(State, PopulationPtr, this, World);
+    Interface->GetActionRegistry()[Actions[action]].Execute(State, Individuals, this, World);
 }
 
 void Individual::Reset()
