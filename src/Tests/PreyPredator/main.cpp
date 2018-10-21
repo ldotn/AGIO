@@ -28,11 +28,13 @@ int main() {
 	loader.LoadValue(FoodScoreGain,"FoodScoreGain");
 	loader.LoadValue(KillScoreGain,"KillScoreGain");
 	loader.LoadValue(DeathPenalty,"DeathPenalty");
-	loader.LoadValue(FoodCellCount,"FoodCellCount");
+	float food_proportion;
+	loader.LoadValue(food_proportion,"FoodProportion");
+	FoodCellCount = WorldSizeX * WorldSizeY*food_proportion;
 	loader.LoadValue(MaxSimulationSteps,"MaxSimulationSteps");
 	loader.LoadValue(SimulationSize,"SimulationSize");
 	loader.LoadValue(PopSizeMultiplier,"PopSizeMultiplier");
-	loader.LoadValue(PopulationSize,"PopulationSize");
+	PopulationSize = PopSizeMultiplier * SimulationSize;
 	loader.LoadValue(GenerationsCount,"GenerationsCount");
 	loader.LoadValue(LifeLostPerTurn,"LifeLostPerTurn");
 	loader.LoadValue(BorderPenalty,"BorderPenalty");
