@@ -98,6 +98,8 @@ namespace agio
 		friend SPopulation;
 		int CurrentGeneration;
 		std::vector<Individual> Individuals;
+		std::vector<class BaseIndividual*> IndividualsPtrs;
+
 		std::minstd_rand RNG;
 
 		// Map from the morphology tag (that's what separates species) to the species

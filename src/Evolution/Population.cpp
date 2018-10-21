@@ -504,6 +504,11 @@ void Population::EvaluatePopulation(void * WorldPtr)
 	for (auto& org : Individuals)
 		org.AccumulatedFitness = 0;
 
+	// Create pointer vector
+	std::vector<class BaseIndividual*> individuals_ptrs(Individuals.size());
+	for (auto [idx, ptr] : enumerate(individuals_ptrs))
+		ptr = &Individuals[idx];
+
 	// Simulate in batches of SimulationSize
 	// TODO : This is wrong, you need to take into account the proportion of each species when selecting what to simulate
 	// or maybe not, if the individuals are uniformly distributed it should work 
@@ -521,7 +526,7 @@ void Population::EvaluatePopulation(void * WorldPtr)
 		for (int i = 0; i < Settings::SimulationReplications; i++)
 		{
 			// Compute fitness of each individual
-			Interface->ComputeFitness(this, WorldPtr);
+			Interface->ComputeFitness(individuals_ptrs, WorldPtr);
 
 			// Update the fitness and novelty accumulators
 			for (auto& org : Individuals)

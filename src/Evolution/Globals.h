@@ -99,7 +99,7 @@ namespace agio
 		virtual void Init() = 0;
 
 		// Computes fitness for all the individuals in a population
-		virtual void ComputeFitness(class Population *, void * World) = 0;
+		virtual void ComputeFitness(std::vector<class BaseIndividual*> Individuals, void * World) = 0;
 
 		// Decides if an individual is alive or not
 		// "Alive" can refer to an abstract notion of active, depending on the user intention
