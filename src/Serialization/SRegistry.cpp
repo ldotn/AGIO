@@ -38,12 +38,11 @@ void SRegistry::save(const std::string& filename)
 void SRegistry::load(const std::string &filename)
 {
 
-    SRegistry registry;
     {
         std::ifstream ifs(filename);
         boost::archive::text_iarchive ia(ifs);
 
-        ia >> registry;
+        ia >> *this;
     }
 }
 

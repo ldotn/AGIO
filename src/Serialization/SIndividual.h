@@ -5,6 +5,7 @@
 
 #include <boost/serialization/access.hpp>
 #include <boost/serialization/unordered_map.hpp>
+#include <boost/serialization/vector.hpp>
 
 
 #include "SNetwork.h"
@@ -38,6 +39,8 @@ namespace agio
 		{
 			ar & parameters;
 			ar & brain;
+			ar & Actions;
+			ar & Sensors;
 		}
 
 		void DecideAndExecute(void * World, const std::vector<BaseIndividual*> &Individuals) override;

@@ -250,8 +250,8 @@ void runEvolution()
         });
 
     }
-
-   pop.CurrentSpeciesToRegistry();
+    pop.EvaluatePopulation(&world);
+    pop.CurrentSpeciesToRegistry();
 
     SRegistry registry(&pop);
     registry.save(SerializationFile);

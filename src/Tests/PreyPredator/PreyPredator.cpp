@@ -22,6 +22,9 @@ using namespace fpp;
 void runSimulation() {
     minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
+    Interface = new PublicInterfaceImpl();
+    Interface->Init();
+
     // Create and fill the world
     WorldData world;
     world.FoodPositions.resize(FoodCellCount);
