@@ -8,7 +8,7 @@ using namespace agio;
 
 double SNode::getActiveOut()
 {
-    if (activation_count > 0)
+    if (activation_count > 0 || type == NodeType::SENSOR)
         return activation;
     else
         return 0.0;
