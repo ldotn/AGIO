@@ -499,6 +499,12 @@ Individual::Individual(MorphologyTag Tag,NEAT::Genome * InGenome) : Individual()
 	for (auto[idx, sensor] : enumerate(sensors_set))
 		Sensors[idx] = sensor;
 
+	// Sort the actions and the sensors vectors
+	// This is important! Otherwise mating between individuals is meaningless, because the order is arbitrary
+	//  and the same input could mean different things for two individuals of the same species
+	sort(Actions.begin(), Actions.end());
+	sort(Sensors.begin(), Sensors.end());
+
 	ActivationsBuffer.resize(Actions.size());
 	NeedGenomeDeletion = true;
 

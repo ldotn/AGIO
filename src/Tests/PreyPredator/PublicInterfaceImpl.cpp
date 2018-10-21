@@ -1,6 +1,7 @@
 #include "PublicInterfaceImpl.h"
-#include "Config.h"
+#include "ExperimentConfig.h"
 #include <enumerate.h>
+#include <assert.h>
 
 using namespace fpp;
 using namespace std;
