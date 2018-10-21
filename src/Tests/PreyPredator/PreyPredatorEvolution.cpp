@@ -254,5 +254,5 @@ void runEvolution()
    pop.CurrentSpeciesToRegistry();
 
     SRegistry registry(&pop);
-    registry.save("serialization.txt");
+    registry.save(SerializationFile);
 }

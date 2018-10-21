@@ -32,7 +32,7 @@ void runSimulation() {
     }
 
     SRegistry registry;
-    registry.load("serialization.txt");
+    registry.load(SerializationFile);
 
     // Create the individuals that are gonna be used in the simulation
     vector<BaseIndividual*> individuals;

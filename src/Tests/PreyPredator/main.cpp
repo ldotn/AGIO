@@ -1,6 +1,7 @@
 #include <iostream>
 #include "PreyPredator.h"
 #include "../../Core/Config.h"
+#include <string>
 
 using namespace agio;
 using namespace std;
@@ -20,6 +21,7 @@ int GenerationsCount;
 float LifeLostPerTurn;
 float BorderPenalty;
 float WastedActionPenalty;
+string SerializationFile;
 
 int main() {
 	ConfigLoader loader("../src/Tests/PreyPredator/Config.cfg");
@@ -39,6 +41,7 @@ int main() {
 	loader.LoadValue(LifeLostPerTurn,"LifeLostPerTurn");
 	loader.LoadValue(BorderPenalty,"BorderPenalty");
 	loader.LoadValue(WastedActionPenalty,"WastedActionPenalty");
+	loader.LoadValue(SerializationFile, "SerializationFile");
 
     cout << "1 - Run Evolution" << endl;
     cout << "2 - Run Simulation" << endl;

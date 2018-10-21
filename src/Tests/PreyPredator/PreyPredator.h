@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 extern int WorldSizeX;
 extern int WorldSizeY;
 extern float FoodScoreGain;
@@ -14,6 +16,7 @@ extern int GenerationsCount;
 extern float LifeLostPerTurn;
 extern float BorderPenalty;
 extern float WastedActionPenalty;
+extern std::string SerializationFile;
 
 void runEvolution();
 void runSimulation();
