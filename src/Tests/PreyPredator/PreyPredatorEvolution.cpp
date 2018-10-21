@@ -93,7 +93,7 @@ int runSimulation()
 
                 for (auto[idx, org] : enumerate(pop.GetIndividuals()))
                 {
-                    if (org.GetState<OrgState>()->IsCarnivore)
+                    if (((OrgState*)org.GetState())->IsCarnivore)
                         fitness_vec_carnivore.push_back(org.Fitness);
                     else
                         fitness_vec_hervibore.push_back(org.Fitness);
@@ -197,7 +197,8 @@ int runSimulation()
 
                 for (auto[_, s] : pop.GetSpecies())
                 {
-                    if (pop.GetIndividuals()[s.IndividualsIDs[0]].GetState<OrgState>()->IsCarnivore)
+                    auto org_state = (OrgState*)pop.GetIndividuals()[s.IndividualsIDs[0]].GetState();
+                    if (org_state->IsCarnivore)
                     {
                         progress_carnivore = s.ProgressMetric;
                         avg_f_carnivore = s.DevMetrics.RealFitness;
@@ -248,62 +249,6 @@ int runSimulation()
             }
         });
 
-    }
-
-    // Generations finished, so visualize the individuals
-    {
-        char c;
-        cout << "Show simulation (y/n) ? ";
-        cin >> c;
-        if (c == 'n')
-            return 0;
-    }
-    pop.EvaluatePopulation(&world);
-    // After evolution is done, replace the population with the ones of the registry
-//	pop.BuildFinalPopulation();
-    //another interesting option would be to select 5 random individuals from the non dominated front, maybe for each species
-    // Find the best 5 prey and predator
-    {
-        auto comparator = [](pair<int, float> a, pair<int, float> b)
-        { return a.second > b.second; };
-        priority_queue < pair < int, float >, vector < pair < int, float >>, decltype(comparator) >
-                                                                             prey_queue(comparator), predator_queue(
-                comparator);
-
-        vector <Individual> tmp_pop;
-        for (auto[idx, species] : enumerate(pop.GetSpeciesRegistry()))
-        {
-            Individual org(species.Morphology, species.HistoricalBestGenome);
-
-            if (org.GetState<OrgState>()->IsCarnivore)
-                predator_queue.push({idx, species.LastFitness});
-            else
-                prey_queue.push({idx, species.LastFitness});
-
-            tmp_pop.push_back(move(org));
-        }
-
-        vector <Individual> tmp;
-        for (int i = 0; i < 5; i++)
-        {
-            if (predator_queue.size() == 0) break;
-
-            tmp.push_back(move(pop.GetIndividuals()[predator_queue.top().first]));
-            predator_queue.pop();
-        }
-
-        for (int i = 0; i < 5; i++)
-        {
-            if (prey_queue.size() == 0) break;
-
-            tmp.push_back(move(pop.GetIndividuals()[prey_queue.top().first]));
-            prey_queue.pop();
-        }
-
-        for (auto &org : tmp)
-            org.InSimulation = true;
-
-        pop.GetIndividuals() = move(tmp);
     }
 
     SRegistry registry(&pop);

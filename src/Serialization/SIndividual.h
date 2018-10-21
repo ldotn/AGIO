@@ -1,14 +1,15 @@
 #pragma once
 
 #include <unordered_map>
+#include <vector>
 
 #include <boost/serialization/access.hpp>
 #include <boost/serialization/unordered_map.hpp>
 
 
-#include "SParameter.h"
 #include "SNetwork.h"
 #include "../Interface/BaseIndividual.h"
+#include "../Evolution/MorphologyTag.h"
 
 namespace NEAT {
 	class Genome;
@@ -21,12 +22,15 @@ namespace agio
 	class SIndividual : public BaseIndividual
 	{
 	public:
-		std::unordered_map<int, SParameter> parameters;
+		std::unordered_map<int, Parameter> parameters;
 		SNetwork brain;
-		void *state;
+		MorphologyTag morphologyTag;
+
+		std::vector<int> Actions;
+		std::vector<int> Sensors;
 
 		SIndividual();
-		SIndividual(NEAT::Genome *genome);
+		SIndividual(NEAT::Genome *genome, MorphologyTag morphologyTag);
 
 		friend class boost::serialization::access;
 		template<class Archive>
@@ -36,7 +40,7 @@ namespace agio
 			ar & brain;
 		}
 
-		void DecideAndExecute(void * World, const class Population*) override;
+		void DecideAndExecute(void * World, const std::vector<BaseIndividual*> &Individuals) override;
 		int DecideAction(const std::unordered_map<int, float>& SensorsValues) override;
 		void Reset() override;
 

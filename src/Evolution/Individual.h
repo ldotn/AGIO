@@ -44,7 +44,7 @@ namespace agio
 		//    2) Input that values to the network and compute actions probabilities
 		//    3) Select the action to do at random based on the probabilities output by the network
 		//	  4) Calls the selected action
-		void DecideAndExecute(void * World, const class Population*);
+		void DecideAndExecute(void * World, const std::vector<BaseIndividual*> &Individuals);
 
 		// "Lower level" version of the decide functionality
 		// It expects as input the values for the sensors (as an id->value map) and returns the action ID
@@ -106,10 +106,6 @@ namespace agio
 		int GlobalID;
 		int OriginalID; // This is usually equal to the GlobalID, except when an individual is cloned. Then it's equal to the original individual ID
 		inline static std::atomic<int> CurrentGlobalID = 0;
-
-		// The state is defined by the user
-		// For this code, it's a black box
-		void * State;
 
 		// On individual creation, this lists are filled from the components
 		// They make the action decision faster,

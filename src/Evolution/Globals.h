@@ -64,13 +64,13 @@ namespace agio
 	// It executes the action, updating the state, the world and the population
 	struct Action : public RegistryEntry
 	{
-		std::function<void(void * State,const class Population *, class Individual *, void * World)> Execute;
+		std::function<void(void * State,const std::vector<class BaseIndividual*> &, class BaseIndividual*, void * World)> Execute;
 
 		Action() = default;
 		Action(decltype(Execute) ActionFunction, std::string Name = "")
 		{
-			Execute = ActionFunction;
-			FriendlyName = Name;
+			Execute = move(ActionFunction);
+			FriendlyName = move(Name);
 		}
 	};
 
@@ -79,13 +79,13 @@ namespace agio
 	{
 		// TODO : Maybe having it return only one value always is not the best idea
 		//  Refactor this to return a vector
-		std::function<float(void * State, void * World,const class Population*, const class Individual *)> Evaluate;
+		std::function<float(void * State, const std::vector<class BaseIndividual*> &, const class BaseIndividual *, void * World)> Evaluate;
 		
 		Sensor() = default;
 		Sensor(decltype(Evaluate) SensorFunction, std::string Name = "")
 		{
-			Evaluate = SensorFunction;
-			FriendlyName = Name;
+			Evaluate = move(SensorFunction);
+			FriendlyName = move(Name);
 		}
 	};
 
@@ -107,16 +107,13 @@ namespace agio
 		//virtual bool IsAlive(class Individual *, void * World) = 0;
 
 		// Creates a new, possibly random, state
-		virtual void * MakeState(const class Individual *) = 0;
+		virtual void * MakeState(const class BaseIndividual *) = 0;
 
 		// Sets an state back into it's initial form
 		virtual void ResetState(void * State) = 0;
 
 		// Destroys an state
 		virtual void DestroyState(void * State) = 0;
-
-		// Computes the distance in the world for two individuals
-		virtual float Distance(class Individual *, class Individual *, void * World) = 0;
 
 		// Creates a new state that has the same values as the provided state
 		virtual void * DuplicateState(void * State) = 0;
