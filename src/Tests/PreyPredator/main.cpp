@@ -22,7 +22,7 @@ float BorderPenalty;
 float WastedActionPenalty;
 
 int main() {
-	ConfigLoader loader("../bin/Tests/PreyPredator/Config.cfg");
+	ConfigLoader loader("../src/Tests/PreyPredator/Config.cfg");
 	loader.LoadValue(WorldSizeX,"WorldSizeX");
 	loader.LoadValue(WorldSizeY,"WorldSizeY");
 	loader.LoadValue(FoodScoreGain,"FoodScoreGain");

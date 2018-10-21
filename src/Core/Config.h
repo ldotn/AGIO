@@ -97,17 +97,22 @@ namespace agio
 		ConfigLoader(const std::string& Path)
 		{
 			std::ifstream file(Path);
-			while (!file.eof())
+			while (file.is_open() && !file.eof())
 			{
 				std::string name, dummy_, value;
 				file >> name;
 				if (std::find(name.begin(), name.end(), '#') != name.end())
-					continue; // lines starting with # are comments and ignored
+				{
+					while (!file.eof() && file.get() != '\n');
+					continue; // lines starting with # are comments and ignored	
+				}
 
 				file >> dummy_; // delimiter
 				file >> value;
-
+				
 				Values[name] = value;
+
+				while (!file.eof() && file.get() != '\n');
 			}
 		}
 
