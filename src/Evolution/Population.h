@@ -98,7 +98,6 @@ namespace agio
 		friend SPopulation;
 		int CurrentGeneration;
 		std::vector<Individual> Individuals;
-		std::vector<class BaseIndividual*> IndividualsPtrs;
 
 		std::minstd_rand RNG;
 

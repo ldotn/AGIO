@@ -8,7 +8,7 @@
 #include <enumerate.h>
 #include <queue>
 #include "../../Core/Config.h"
-#include "Config.h"
+#include "ExperimentConfig.h"
 #include "PublicInterfaceImpl.h"
 #include "../../Serialization/SRegistry.h"
 

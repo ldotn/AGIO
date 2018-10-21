@@ -1,5 +1,5 @@
 #include "PublicInterfaceImpl.h"
-#include "Config.h"
+#include "ExperimentConfig.h"
 #include <enumerate.h>
 
 using namespace fpp;
