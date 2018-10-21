@@ -17,7 +17,7 @@ using namespace std;
 using namespace agio;
 using namespace fpp;
 
-int runSimulation()
+int runEvolution()
 {
     minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
@@ -249,6 +249,23 @@ int runSimulation()
             }
         });
 
+    }
+
+    // Before serialization, put best individuals into the registry.
+    for (auto &[_,species] : pop.GetSpecies())
+    {
+        Individual *bestIndividual = nullptr;
+        for (auto &individualId : species.IndividualsIDs)
+        {
+            Individual &individual = pop.GetIndividuals()[individualId];
+            if (!bestIndividual || individual.Fitness > bestIndividual->Fitness)
+                bestIndividual = &individual;
+        }
+
+        if (bestIndividual != nullptr)
+        {
+//            pop.regis
+        }
     }
 
     SRegistry registry(&pop);

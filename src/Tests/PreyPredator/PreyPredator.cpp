@@ -19,7 +19,7 @@ using namespace fpp;
 
 
 #include "neat.h"
-int runEvolution() {
+int runSimulation() {
     minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
     // Create and fill the world
