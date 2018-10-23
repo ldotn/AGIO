@@ -57,7 +57,7 @@ if (build_tests)
 		Boost::serialization)
 	
 #	add_executable(experiment_3d
-#		src/Tests/3DExperiment/Interface.cpp
+#		src/Tests/3DExperiment/3DExperiment.cpp
 #		src/Tests/3DExperiment/main.cpp)
 
 #	target_link_libraries(experiment_3d

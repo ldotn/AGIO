@@ -18,17 +18,11 @@ namespace agio
 		virtual ~ExperimentInterface() override {};
 
 		virtual void Init() override;
-		virtual void * MakeState(const Individual * org) override;
+		virtual void * MakeState(const class BaseIndividual * org) override;
 		virtual void ResetState(void * State) override;
 		virtual void DestroyState(void * State) override;
 		virtual void * DuplicateState(void * State) override;
-		virtual void ComputeFitness(Population * Pop, void * World) override;
-
-		// TODO : Remove this
-		virtual float Distance(class Individual *, class Individual *, void * World) override
-		{
-			return 0; // Not used
-		}
+		virtual void ComputeFitness(const std::vector<class BaseIndividual*>& Individuals, void * World) override;
 	};
 
 	struct ExperimentParams

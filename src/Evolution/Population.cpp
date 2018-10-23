@@ -310,7 +310,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 			auto& org = Individuals[org_idx];
 
 			org.Genome = target_genome;
-			org.Brain = org.Genome->genesis(org.Genome->genome_id);
+			org.Brain = org.Genome->genesis(org.Genome->genome_id); // TODO : Check what actually IS the genome_id
 
 			// On the population creation, the parameters were set from agio -> neat
 			// Now the parameters have been evolved by neat, so do the inverse process
@@ -505,22 +505,25 @@ void Population::EvaluatePopulation(void * WorldPtr)
 		org.AccumulatedFitness = 0;
 
 	// Create pointer vector
-	std::vector<class BaseIndividual*> individuals_ptrs(Individuals.size());
-	for (auto [idx, ptr] : enumerate(individuals_ptrs))
-		ptr = &Individuals[idx];
+	std::vector<class BaseIndividual*> individuals_ptrs;
+	individuals_ptrs.reserve(SimulationSize);
 
 	// Simulate in batches of SimulationSize
-	// TODO : This is wrong, you need to take into account the proportion of each species when selecting what to simulate
+	// TODO : This is wrong (or not, see below), you need to take into account the proportion of each species when selecting what to simulate
 	// or maybe not, if the individuals are uniformly distributed it should work 
 	for (int j = 0; j < Individuals.size() / SimulationSize; j++)
 	{
 		// TODO : Optimize this, you could pass the current batch id and make the individuals aware of their index in the vector
+		individuals_ptrs.resize(0);
 		for (auto[idx, org] : enumerate(Individuals))
 		{
 			if (idx >= j * SimulationSize && idx < (j + 1)*SimulationSize)
 				org.InSimulation = true;
 			else
 				org.InSimulation = false;
+
+			if (org.InSimulation)
+				individuals_ptrs.push_back(&Individuals[idx]);
 		}
 
 		for (int i = 0; i < Settings::SimulationReplications; i++)
@@ -529,8 +532,8 @@ void Population::EvaluatePopulation(void * WorldPtr)
 			Interface->ComputeFitness(individuals_ptrs, WorldPtr);
 
 			// Update the fitness and novelty accumulators
-			for (auto& org : Individuals)
-				org.AccumulatedFitness += org.Fitness;
+			for (auto org_ptr : individuals_ptrs)
+				((Individual*)org_ptr)->AccumulatedFitness += ((Individual*)org_ptr)->Fitness;
 		}
 	}
 

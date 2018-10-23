@@ -1,4 +1,4 @@
-#include "Interface.h"
+#include "3DExperiment.h"
 #include "../../Evolution/Population.h"
 #include <math.h>
 #include <random>
@@ -39,7 +39,7 @@ void ExperimentInterface::ResetState(void * State)
 	state_ptr->Position = World.SpawnAreas[spawn_idx].GetSamplePoint(RNG);
 }
 
-void * ExperimentInterface::MakeState(const Individual * org)
+void * ExperimentInterface::MakeState(const BaseIndividual * org)
 {
 	auto state = new OrgState;
 	
@@ -63,7 +63,7 @@ void * ExperimentInterface::DuplicateState(void * State)
 	return new_state;
 }
 
-void ExperimentInterface::ComputeFitness(Population * Pop, void *)
+void ExperimentInterface::ComputeFitness(const std::vector<class BaseIndividual*>& Individuals, void *)
 {
 	for (auto& org : Pop->GetIndividuals())
 		org.Reset();
