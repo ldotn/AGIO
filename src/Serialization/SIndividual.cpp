@@ -23,7 +23,7 @@ SIndividual::SIndividual(NEAT::Genome *genome, MorphologyTag morphology)
     for(auto const&[key, param] : genome->MorphParams)
 		parameters[key] = { param.ID, param.Value };
 
-    brain = SNetwork(genome->genesis(genome->genome_id));
+    brain = move(SNetwork(genome->genesis(genome->genome_id)));
 
     // Reconstruct actions and sensors
     unordered_set<int> actions_set;

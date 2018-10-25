@@ -23,7 +23,6 @@ set(project_sources
 	src/Serialization/SIndividual.cpp
 	src/Serialization/SNetwork.cpp
 	src/Evolution/Globals.cpp
-	#src/Tests/3DExperiment/Interface.cpp
 	src/Serialization/SRegistry.cpp
 	${neat_sources})
 
@@ -56,14 +55,14 @@ if (build_tests)
 		${PYTHON_LIBRARIES}
 		Boost::serialization)
 	
-#	add_executable(experiment_3d
-#		src/Tests/3DExperiment/3DExperiment.cpp
-#		src/Tests/3DExperiment/main.cpp)
+	add_executable(experiment_3d
+		src/Tests/3DExperiment/3DExperiment.cpp
+		src/Tests/3DExperiment/main.cpp)
 
-#	target_link_libraries(experiment_3d
-#		agio_lib
-#		${PYTHON_LIBRARIES}
-#		Boost::serialization)
+	target_link_libraries(experiment_3d
+		agio_lib
+		${PYTHON_LIBRARIES}
+		Boost::serialization)
 
 	if (WIN32)
 		# Extract the python DLL path from the lib path

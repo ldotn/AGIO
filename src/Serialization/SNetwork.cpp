@@ -127,9 +127,9 @@ SLink::SLink(double weight, SNode *in_node, SNode *out_node)
     this->out_node = out_node;
 }
 
-SNetwork::SNetwork() {}
+SNetwork::SNetwork() { WasMoved = false; }
 
-SNetwork::SNetwork(NEAT::Network *network)
+SNetwork::SNetwork(NEAT::Network *network) : SNetwork()
 {
     for (auto node : network->all_nodes)
     {
@@ -155,6 +155,80 @@ SNetwork::SNetwork(NEAT::Network *network)
         for (auto link : node->outgoing)
             nodeMap[node]->outgoing.emplace_back(findLink(link));
     }
+}
+
+SNetwork::SNetwork(SNetwork&& rhs) : 
+	inputs(move(rhs.inputs)),
+	outputs(move(rhs.outputs)),
+	all_nodes(move(rhs.all_nodes)),
+	linkMap(move(rhs.linkMap)),
+	nodeMap(move(rhs.nodeMap))
+{
+	rhs.WasMoved = true;
+}
+
+SNetwork& SNetwork::operator=(SNetwork&& rhs)
+{
+	inputs = move(rhs.inputs);
+	outputs = move(rhs.outputs);
+	all_nodes = move(rhs.all_nodes);
+	linkMap = move(rhs.linkMap);
+	nodeMap = move(rhs.nodeMap);
+
+	return *this;
+}
+
+SNetwork::~SNetwork()
+{
+	if (WasMoved)
+		return;
+
+	for (auto node : all_nodes)
+	{
+		for (auto link : node->incoming)
+			delete link;
+		for (auto link : node->outgoing)
+			delete link;
+		delete node;
+	}
+}
+
+void SNetwork::Duplicate(SNetwork& Clone) const
+{
+	// Create a temporal map that converts from the old pointers to the new pointers
+	unordered_map<SNode*, SNode*> pointer_map;
+	for (SNode * node : all_nodes)
+	{
+		SNode * new_node = new SNode(node->type);
+		*new_node = *node; // There are pointers here that need to be corrected
+		pointer_map[node] = new_node;
+		Clone.all_nodes.push_back(new_node);
+	}
+
+	// Correct pointers
+	for (SNode * node : Clone.all_nodes)
+	{
+		for (auto& link_ptr : node->incoming)
+		{
+			SLink * new_link = new SLink;
+
+			new_link->in_node = pointer_map.find(link_ptr->in_node)->second;
+			new_link->out_node = pointer_map.find(link_ptr->out_node)->second;
+			new_link->weight = link_ptr->weight;
+
+			link_ptr = new_link;
+		}
+		for (auto& link_ptr : node->outgoing)
+		{
+			SLink * new_link = new SLink;
+
+			new_link->in_node = pointer_map.find(link_ptr->in_node)->second;
+			new_link->out_node = pointer_map.find(link_ptr->out_node)->second;
+			new_link->weight = link_ptr->weight;
+
+			link_ptr = new_link;
+		}
+	}
 }
 
 SLink* SNetwork::findLink(NEAT::Link *link)

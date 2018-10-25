@@ -95,6 +95,7 @@ namespace agio
 
 	class SNetwork
 	{
+		bool WasMoved;
 	public:
 		std::vector<SNode*> inputs;
 		std::vector<SNode*> outputs;
@@ -106,6 +107,13 @@ namespace agio
 
 		SNetwork();
 		SNetwork(NEAT::Network *network);
+		~SNetwork();
+		SNetwork(SNetwork&&);
+		SNetwork& operator=(SNetwork&&);
+
+		// Creates a new network that's a duplicate of this
+		// Can't just make a copy because there are pointers involved
+		void Duplicate(SNetwork& CloneTarget) const;
 	private:
 
 		// variables used for internal logic

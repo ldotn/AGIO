@@ -27,10 +27,9 @@ namespace agio
 
 	struct ExperimentParams
 	{
-		// TODO : Load this from a file or something. Maybe...
-		inline static const int MaxSimulationSteps = 50;
-		inline static const int PopSizeMultiplier = 4;
-		inline static const int SimulationSize = 50;
-		inline static const int GenerationsCount = 250;
+		static int MaxSimulationSteps;
+		static int PopSizeMultiplier;
+		static int SimulationSize;
+		static int GenerationsCount;
 	};
 }

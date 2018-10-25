@@ -1,4 +1,4 @@
-#include "Interface.h"
+#include "3DExperiment.h"
 #include <matplotlibcpp.h>
 #include "neat.h"
 #include "../../Evolution/Population.h"
@@ -7,6 +7,7 @@
 #include <iostream>
 #include "zip.h"
 #include "enumerate.h"
+#include "../../Serialization/SRegistry.h"
 
 namespace plt = matplotlibcpp;
 using namespace agio;
@@ -18,18 +19,31 @@ int main()
 {
 	// Values hardcoded from the UE4 level
 	// TODO : Find a better way to set the values
-	GameplayParams::WalkSpeed = 75.0f;
-	GameplayParams::RunSpeed = 175.0f;
 	GameplayParams::GameArea = { {-2840,-8000}, {3200,2900} };
-	GameplayParams::TurnRadians = 22.5f * (3.14159f / 180.0f);
-	GameplayParams::EatDistance = 35.0f;
-	GameplayParams::WastedActionPenalty = 10;
-	GameplayParams::CorpseBitesDuration = 5;
-	GameplayParams::EatCorpseLifeGained = 10;
-	GameplayParams::EatPlantLifeGained = 20;
-	GameplayParams::AttackDamage = 40;
-	GameplayParams::LifeLostPerTurn = 5;
-	GameplayParams::StartingLife = 100;
+
+	{
+		ConfigLoader cfg("../src/Tests/3DExperiment/Config.cfg");
+		cfg.LoadValue(GameplayParams::WalkSpeed,"WalkSpeed");
+		cfg.LoadValue(GameplayParams::RunSpeed,"RunSpeed");
+
+		int turn_degrees;
+		cfg.LoadValue(turn_degrees,"TurnDegress");
+		GameplayParams::TurnRadians = turn_degrees * 0.0174533f;
+
+		cfg.LoadValue(GameplayParams::EatDistance,"EatDistance");
+		cfg.LoadValue(GameplayParams::WastedActionPenalty,"WastedActionPenalty");
+		cfg.LoadValue(GameplayParams::CorpseBitesDuration,"CorpseBitesDuration");
+		cfg.LoadValue(GameplayParams::EatCorpseLifeGained,"EatCorpseLifeGained");
+		cfg.LoadValue(GameplayParams::EatPlantLifeGained,"EatPlantLifeGained");
+		cfg.LoadValue(GameplayParams::AttackDamage,"AttackDamage");
+		cfg.LoadValue(GameplayParams::LifeLostPerTurn,"LifeLostPerTurn");
+		cfg.LoadValue(GameplayParams::StartingLife,"StartingLife");
+
+		cfg.LoadValue(ExperimentParams::MaxSimulationSteps, "MaxSimulationSteps");
+		cfg.LoadValue(ExperimentParams::PopSizeMultiplier, "PopSizeMultiplier");
+		cfg.LoadValue(ExperimentParams::SimulationSize, "SimulationSize");
+		cfg.LoadValue(ExperimentParams::GenerationsCount, "GenerationsCount");
+	}
 
 	NEAT::load_neat_params("../cfg/neat_test_config.txt");
 	NEAT::mutate_morph_param_prob = Settings::ParameterMutationProb;
@@ -137,20 +151,42 @@ int main()
 		});
 	}
 	
-	// TODO : Save the registry to file
+	pop.EvaluatePopulation(world_ptr);
+	pop.CurrentSpeciesToRegistry();
+
+	SRegistry registry(&pop);
+	registry.save("evolved_3d_experiment.txt");
+	registry.load("evolved_3d_experiment.txt");
 
 	// If needed, show the simulation
 	if (show_simulation)
 	{
-		// TODO :  Use the registry, this is just keeping the first N
-		for (auto& org : pop.GetIndividuals())
+		vector<BaseIndividual*> individuals;
+		for (auto &entry : registry.Species)
+			for (int idx = 0;idx < entry.Individuals.size();idx++)
+				individuals.push_back(&entry.Individuals[idx]);
+
+		minstd_rand0 rng(42);
+		shuffle(individuals.begin(), individuals.end(),rng);
+
+		if (individuals.size() > ExperimentParams::SimulationSize)
 		{
-			org.InSimulation = false;
-			Interface->ResetState(org.GetState());
+			individuals.resize(ExperimentParams::SimulationSize);
+		}
+		else
+		{
+			// TODO : Duplicate to find new ones
 		}
 
-		for (int i = 0; i < ExperimentParams::SimulationSize;i++)
-			pop.GetIndividuals()[i].InSimulation = true;
+		for (auto org_ptr : individuals)
+		{
+			org_ptr->InSimulation = true; // Just in case
+			org_ptr->State = Interface->MakeState(org_ptr);
+		}
+
+		unordered_map<MorphologyTag, vector<BaseIndividual*>> species_map;
+		for (auto org_ptr : individuals)
+			species_map[org_ptr->GetMorphologyTag()].push_back(org_ptr);
 
 		plt::figure();
 		while (true)
@@ -160,9 +196,9 @@ int main()
 			plt::xlim(GameplayParams::GameArea.Min.x, GameplayParams::GameArea.Max.x);
 			plt::ylim(GameplayParams::GameArea.Min.y, GameplayParams::GameArea.Max.y);
 
-			for (auto& org : pop.GetIndividuals())
-				if(org.InSimulation && ((OrgState*)org.GetState())->Life >= 0)
-					org.DecideAndExecute(world_ptr, &pop);
+			for (auto& org : individuals)
+				if(((OrgState*)org->GetState())->Life >= 0)
+					org->DecideAndExecute(world_ptr, individuals);
 			
 			for (auto [area,_] : world_ptr->PlantsAreas)
 			{
@@ -183,15 +219,15 @@ int main()
 
 			// Plot the individuals with different colors per species
 			vector<float> org_x, org_y;
-			for (auto [species_idx,entry] : enumerate(pop.GetSpecies()))
+			for (auto [species_idx,entry] : enumerate(species_map))
 			{
 				auto [_, species] = entry;
 				org_x.resize(0);
 				org_y.resize(0);
 
-				for (int org_idx : species.IndividualsIDs)
+				for (auto org_ptr : entry.second)
 				{
-					auto state_ptr = (OrgState*)pop.GetIndividuals()[org_idx].GetState();
+					auto state_ptr = (OrgState*)org_ptr->GetState();
 					if (state_ptr->Life >= 0)
 					{
 						org_x.push_back(state_ptr->Position.x);
@@ -215,3 +251,8 @@ int main()
 
 	return 0;
 }
+
+int ExperimentParams::MaxSimulationSteps;
+int ExperimentParams::PopSizeMultiplier;
+int ExperimentParams::SimulationSize;
+int ExperimentParams::GenerationsCount;

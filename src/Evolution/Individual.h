@@ -28,7 +28,7 @@ namespace agio
 		Individual(const Individual&) = delete;
 
 		// Clears all the resources used by the individual
-		~Individual();
+		~Individual() override;
 
 		// Move constructor that sets the resources to nullptr of the moved from object after the move
 		// That's necessary so that the destructor doesn't try to release a moved resource
