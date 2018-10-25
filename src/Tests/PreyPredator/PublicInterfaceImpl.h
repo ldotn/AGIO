@@ -31,10 +31,7 @@ enum class ActionsIDs
     MoveBackwards,
     MoveLeft,
     MoveRight,
-    JumpForward,
-    JumpBackwards,
-    JumpLeft,
-    JumpRight,
+
     EatFood,
     KillAndEat,
 
@@ -43,23 +40,11 @@ enum class ActionsIDs
 
 enum class SensorsIDs
 {
-    CurrentLife,
-    NearestPartnerAngle,
     NearestCompetidorAngle, // Angle to the nearest individual of another species
-    NearestFoodAngle,
-    NearestPartnerDistance,
     NearestCompetidorDistance,
+
+    NearestFoodAngle,
     NearestFoodDistance,
-
-    NearestPartnerX,
-    NearestPartnerY,
-    NearestCompetidorX,
-    NearestCompetidorY,
-    NearestFoodX,
-    NearestFoodY,
-
-    CurrentPosX,
-    CurrentPosY,
 
     NumberOfSensors
 };
