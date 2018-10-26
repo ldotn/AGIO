@@ -118,7 +118,7 @@ SNode::SNode(NodeType type) : SNode()
     this->type = type;
 }
 
-SLink::SLink() {}
+SLink::SLink() { RefCount = 1; }
 
 SLink::SLink(double weight, SNode *in_node, SNode *out_node)
 {
@@ -186,9 +186,11 @@ SNetwork::~SNetwork()
 	for (auto node : all_nodes)
 	{
 		for (auto link : node->incoming)
-			delete link;
+			if(--link->RefCount == 0) delete link;
+
 		for (auto link : node->outgoing)
-			delete link;
+			if (--link->RefCount == 0) delete link;
+
 		delete node;
 	}
 }
@@ -204,8 +206,16 @@ void SNetwork::Duplicate(SNetwork& Clone) const
 		pointer_map[node] = new_node;
 		Clone.all_nodes.push_back(new_node);
 	}
+	Clone.inputs = inputs;
+	Clone.outputs = outputs;
 
 	// Correct pointers
+	for (SNode * node : Clone.inputs)
+		node = pointer_map.find(node)->second;
+
+	for (SNode * node : Clone.outputs)
+		node = pointer_map.find(node)->second;
+
 	for (SNode * node : Clone.all_nodes)
 	{
 		for (auto& link_ptr : node->incoming)
@@ -243,6 +253,7 @@ SLink* SNetwork::findLink(NEAT::Link *link)
         linkMap.emplace(link, slink);
     } else {
         slink = linkMap[link];
+		slink->RefCount++;
     }
 
     return slink;

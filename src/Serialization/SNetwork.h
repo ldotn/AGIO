@@ -38,6 +38,10 @@ namespace agio
 
 	class SLink 
 	{
+		// Ref counter used to prevent double deletions
+		//	SLinks are either loaded from file, where there's no problem with duplicates, or created from findLink
+		// on the second case, there may be duplicates.
+		int RefCount;
 	public:
 		friend SNode;
 		friend SNetwork;
@@ -56,7 +60,6 @@ namespace agio
 			ar & weight;
 			ar & in_node;
 			ar & out_node;
-
 		}
 	};
 
