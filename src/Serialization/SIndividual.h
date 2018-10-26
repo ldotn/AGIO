@@ -32,18 +32,18 @@ namespace agio
 
 		SIndividual();
 		SIndividual(NEAT::Genome *genome, MorphologyTag morphologyTag);
-		~SIndividual() override = default; // SNetworks know how to clean themselves
-		SIndividual(SIndividual&&) = default; // Only SNetwork is not trivially moved, and that implements it's own move operators
+		//~SIndividual() override = default; // SNetworks know how to clean themselves
+		//SIndividual(SIndividual&&) = default; // Only SNetwork is not trivially moved, and that implements it's own move operators
 
 		// Creates a clone
 		// Can't just make a copy because there are pointers involved
-		void Duplicate(SIndividual& CloneTarget) const
+		/*void Duplicate(SIndividual& CloneTarget) const
 		{
 			CloneTarget.parameters = parameters;
 			CloneTarget.Actions = Actions;
 			CloneTarget.Sensors = Sensors;
 			brain.Duplicate(CloneTarget.brain);
-		}
+		}*/
 
 		friend class boost::serialization::access;
 		template<class Archive>
