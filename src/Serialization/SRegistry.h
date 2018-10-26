@@ -17,9 +17,10 @@ namespace agio
 		struct Entry
 		{
 		    Entry(){}
-		    Entry(MorphologyTag morphologyTag, std::vector<SIndividual> individuals) {
-		        this->Morphology = morphologyTag;
-		        this->Individuals = individuals;
+		    Entry(MorphologyTag morphologyTag, std::vector<SIndividual>&& individuals) :
+				Individuals(move(individuals)),
+				Morphology(move(morphologyTag))
+			{
 		    }
 
 			MorphologyTag Morphology;

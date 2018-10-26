@@ -1,8 +1,10 @@
-#include "Interface.h"
+#include "../../Interface/BaseIndividual.h"
+#include "3DExperiment.h"
 #include "../../Evolution/Population.h"
 #include <math.h>
 #include <random>
 #include <chrono>
+#include <vector>
 
 using namespace std;
 using namespace agio;
@@ -35,11 +37,11 @@ void ExperimentInterface::ResetState(void * State)
 	}
 
 	// Find a random spawn area and spawn inside it
-	int spawn_idx = uniform_int_distribution<>(0, World.SpawnAreas.size())(RNG);
+	int spawn_idx = uniform_int_distribution<>(0, World.SpawnAreas.size()-1)(RNG);
 	state_ptr->Position = World.SpawnAreas[spawn_idx].GetSamplePoint(RNG);
 }
 
-void * ExperimentInterface::MakeState(const Individual * org)
+void * ExperimentInterface::MakeState(const BaseIndividual * org)
 {
 	auto state = new OrgState;
 	
@@ -63,10 +65,10 @@ void * ExperimentInterface::DuplicateState(void * State)
 	return new_state;
 }
 
-void ExperimentInterface::ComputeFitness(Population * Pop, void *)
+void ExperimentInterface::ComputeFitness(const std::vector<BaseIndividual*>& Individuals, void *)
 {
-	for (auto& org : Pop->GetIndividuals())
-		org.Reset();
+	for (BaseIndividual* org : Individuals)
+		org->Reset();
 
 	// Reset the number of individuals eating plants
 	for (auto& area : World.PlantsAreas)
@@ -74,14 +76,12 @@ void ExperimentInterface::ComputeFitness(Population * Pop, void *)
 
 	for (int i = 0; i < ExperimentParams::MaxSimulationSteps; i++)
 	{
-		for (auto& org : Pop->GetIndividuals())
+		for (BaseIndividual* org : Individuals)
 		{
-			if (!org.InSimulation)
-				continue;
-
-			auto state_ptr = (OrgState*)org.GetState();
+			auto state_ptr = (OrgState*)org->GetState();
 			state_ptr->Life -= GameplayParams::LifeLostPerTurn;
-			org.Fitness = state_ptr->Score;
+
+			((Individual*)org)->Fitness = state_ptr->Score;
 
 			if (state_ptr->Life <= 0)
 			{
@@ -94,12 +94,12 @@ void ExperimentInterface::ComputeFitness(Population * Pop, void *)
 				state_ptr->HasDied = true;
 			}
 
-			org.DecideAndExecute(&World, Pop);
+			org->DecideAndExecute(&World, Individuals);
 
 			if (!state_ptr->HasDied)
 			{
 				state_ptr->Score += state_ptr->Life;
-				org.Fitness = state_ptr->Score;
+				((Individual*)org)->Fitness = state_ptr->Score;
 			}
 		}
 	}
@@ -112,7 +112,7 @@ void ExperimentInterface::Init()
 
 	ActionRegistry[(int)ActionID::Walk] = Action
 	(
-		[&](void * State, const Population * Pop,Individual * Org, void * World) 
+		[&](void * State, const std::vector<BaseIndividual*>& Individuals,BaseIndividual * Org, void * World) 
 		{
 			auto state_ptr = (OrgState*)State;
 
@@ -122,7 +122,7 @@ void ExperimentInterface::Init()
 	);
 	ActionRegistry[(int)ActionID::Run] = Action
 	(
-		[&](void * State, const Population * Pop,Individual * Org, void * World) 
+		[&](void * State, const std::vector<BaseIndividual*>& Individuals,BaseIndividual * Org, void * World) 
 		{
 			auto state_ptr = (OrgState*)State;
 
@@ -132,7 +132,7 @@ void ExperimentInterface::Init()
 	);
 	ActionRegistry[(int)ActionID::TurnLeft] = Action
 	(
-		[&](void * State, const Population * Pop,Individual * Org, void * World) 
+		[&](void * State, const std::vector<BaseIndividual*>& Individuals,BaseIndividual * Org, void * World) 
 		{
 			auto state_ptr = (OrgState*)State;
 
@@ -144,7 +144,7 @@ void ExperimentInterface::Init()
 	);
 	ActionRegistry[(int)ActionID::TurnRight] = Action
 	(
-		[&](void * State, const Population * Pop,Individual * Org, void * World) 
+		[&](void * State, const std::vector<BaseIndividual*>& Individuals,BaseIndividual * Org, void * World) 
 		{
 			auto state_ptr = (OrgState*)State;
 
@@ -156,7 +156,7 @@ void ExperimentInterface::Init()
 	);
 	ActionRegistry[(int)ActionID::EatCorpse] = Action
 	(
-		[&](void * State, const Population * Pop,Individual * Org, void * World) 
+		[&](void * State, const std::vector<BaseIndividual*>& Individuals,BaseIndividual * Org, void * World) 
 		{
 			auto state_ptr = (OrgState*)State;
 
@@ -164,16 +164,15 @@ void ExperimentInterface::Init()
 			const auto& tag = Org->GetMorphologyTag();
 			
 			bool any_eaten = false;
-			for (auto& individual : Pop->GetIndividuals())
+			for (auto& individual : Individuals)
 			{
-				// Ignore individuals that aren't being simulated right now
-				// Also, don't do all the other stuff against yourself. 
+				// Don't do all the other stuff against yourself. 
 				// You already know you don't want to eat yourself
-				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
+				if (individual == Org)
 					continue;
 
 				// Check first if it's dead
-				auto other_state_ptr = ((OrgState*)individual.GetState());
+				auto other_state_ptr = ((OrgState*)individual->GetState());
 				if (other_state_ptr->Life > 0)
 					continue;
 
@@ -182,7 +181,7 @@ void ExperimentInterface::Init()
 				{
 					// Now that we know it's in range, check if it's from a different species
 					// Doing this at last because it requires iterating over the component list
-					if (tag != individual.GetMorphologyTag())
+					if (tag != individual->GetMorphologyTag())
 					{
 						any_eaten = true;
 						other_state_ptr->EatenCount++;
@@ -211,7 +210,7 @@ void ExperimentInterface::Init()
 	);
 	ActionRegistry[(int)ActionID::EatPlant] = Action
 	(
-		[&](void * State, const Population * Pop,Individual * Org, void*) 
+		[&](void * State, const std::vector<BaseIndividual*>& Individuals,BaseIndividual * Org, void*) 
 		{
 			auto state_ptr = (OrgState*)State;
 			bool any_eaten = false;
@@ -234,7 +233,7 @@ void ExperimentInterface::Init()
 	);
 	ActionRegistry[(int)ActionID::Attack] = Action
 	(
-		[&](void * State, const Population * Pop,Individual * Org, void * World) 
+		[&](void * State, const std::vector<BaseIndividual*>& Individuals,BaseIndividual * Org, void * World) 
 		{
 			auto state_ptr = (OrgState*)State;
 
@@ -242,16 +241,16 @@ void ExperimentInterface::Init()
 			const auto& tag = Org->GetMorphologyTag();
 			
 			bool any_attacked = false;
-			for (auto& individual : Pop->GetIndividuals())
+			for (auto& individual : Individuals)
 			{
 				// Ignore individuals that aren't being simulated right now
 				// Also, don't do all the other stuff against yourself. 
 				// You already know you don't want to eat yourself
-				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
+				if (!individual->InSimulation || individual == Org)
 					continue;
 
 				// Check first if the individual is alive
-				auto other_state_ptr = ((OrgState*)individual.GetState());
+				auto other_state_ptr = ((OrgState*)individual->GetState());
 				if (other_state_ptr->Life <= 0)
 					continue;
 
@@ -260,7 +259,7 @@ void ExperimentInterface::Init()
 				{
 					// Now that we know it's in range, change if it's from a different species
 					// Doing this at last because it requires iterating over the component list
-					if (tag != individual.GetMorphologyTag())
+					if (tag != individual->GetMorphologyTag())
 					{
 						any_attacked = true;
 
@@ -282,7 +281,7 @@ void ExperimentInterface::Init()
 
 	SensorRegistry[(int)SensorID::CurrentLife] = Sensor
 	(
-		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		[](void * State, const std::vector<BaseIndividual*>& Individuals, const BaseIndividual * Org, void * World)
 		{
 			return ((OrgState*)State)->Life;
 		}
@@ -290,59 +289,55 @@ void ExperimentInterface::Init()
 	// Normalized position
 	SensorRegistry[(int)SensorID::CurrentPosX] = Sensor
 	(
-		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		[](void * State, const std::vector<BaseIndividual*>& Individuals, const BaseIndividual * Org, void * World)
 		{
 			return GameplayParams::GameArea.Normalize(((OrgState*)State)->Position).x;
 		}
 	);
 	SensorRegistry[(int)SensorID::CurrentPosY] = Sensor
 	(
-		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		[](void * State, const std::vector<BaseIndividual*>& Individuals, const BaseIndividual * Org, void * World)
 		{
 			return GameplayParams::GameArea.Normalize(((OrgState*)State)->Position).y;
 		}
 	);
 	SensorRegistry[(int)SensorID::CurrentOrientationX] = Sensor
 	(
-		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		[](void * State, const std::vector<BaseIndividual*>& Individuals, const BaseIndividual * Org, void * World)
 		{
 			return ((OrgState*)State)->Orientation.x;
 		}
 	);
 	SensorRegistry[(int)SensorID::CurrentOrientationY] = Sensor
 	(
-		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		[](void * State, const std::vector<BaseIndividual*>& Individuals, const BaseIndividual * Org, void * World)
 		{
 			return ((OrgState*)State)->Orientation.y;
 		}
 	);
 	SensorRegistry[(int)SensorID::DistanceNearestPartner] = Sensor
 	(
-		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		[](void * State, const std::vector<BaseIndividual*>& Individuals, const BaseIndividual * Org, void * World)
 		{
 			auto state_ptr = (OrgState*)State;
 
 			// Find an organism of a the same species
-			const auto& tag = Org->GetMorphologyTag();
-			const auto& species = (*Pop->GetSpecies().find(tag)).second;
-
-			// TODO : All this "search nearest" queries could be made much faster by using a KD-tree
+			// TODO : All this "search nearest" queries could be made much faster by using a KD-tree or some kind of spacial structure
 
 			float min_dist = numeric_limits<float>::max();
 			bool any_eaten = false;
-			for (int id : species.IndividualsIDs)
+			const auto& tag = Org->GetMorphologyTag();
+			for (BaseIndividual* individual : Individuals)
 			{
-				const auto& individual = Pop->GetIndividuals()[id];
+				if (individual != Org && individual->GetMorphologyTag() == tag)
+				{
+					auto other_state_ptr = ((OrgState*)individual->GetState());
+					if (other_state_ptr->Life <= 0)
+						continue;
 
-				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
-					continue;
-
-				auto other_state_ptr = ((OrgState*)individual.GetState());
-				if (other_state_ptr->Life <= 0)
-					continue;
-
-				float dist = (other_state_ptr->Position - state_ptr->Position).length();
-				min_dist = min(min_dist, dist);
+					float dist = (other_state_ptr->Position - state_ptr->Position).length();
+					min_dist = min(min_dist, dist);
+				}
 			}
 
 			return min_dist;
@@ -350,7 +345,7 @@ void ExperimentInterface::Init()
 	);
 	SensorRegistry[(int)SensorID::DistanceNearestCompetidor] = Sensor
 	(
-		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		[](void * State, const std::vector<BaseIndividual*>& Individuals, const BaseIndividual * Org, void * World)
 		{
 			auto state_ptr = (OrgState*)State;
 
@@ -359,15 +354,15 @@ void ExperimentInterface::Init()
 			
 			float min_dist = numeric_limits<float>::max();
 			bool any_eaten = false;
-			for (auto& individual : Pop->GetIndividuals())
+			for (auto& individual : Individuals)
 			{
 				// Ignore individuals that aren't being simulated right now
 				// Also, don't do all the other stuff against yourself. 
 				// You already know you don't want to eat yourself
-				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
+				if (!individual->InSimulation || individual == Org)
 					continue;
 
-				auto other_state_ptr = ((OrgState*)individual.GetState());
+				auto other_state_ptr = ((OrgState*)individual->GetState());
 				if (other_state_ptr->Life <= 0)
 					continue;
 
@@ -380,7 +375,7 @@ void ExperimentInterface::Init()
 	);
 	SensorRegistry[(int)SensorID::DistanceNearestCorpse] = Sensor
 	(
-		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		[](void * State, const std::vector<BaseIndividual*>& Individuals, const BaseIndividual * Org, void * World)
 		{
 			auto state_ptr = (OrgState*)State;
 
@@ -389,17 +384,17 @@ void ExperimentInterface::Init()
 			
 			float min_dist = numeric_limits<float>::max();
 			bool any_eaten = false;
-			for (auto& individual : Pop->GetIndividuals())
+			for (auto& individual : Individuals)
 			{
 				// Ignore individuals that aren't being simulated right now
 				// Also, don't do all the other stuff against yourself. 
 				// You already know you don't want to eat yourself
-				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
+				if (!individual->InSimulation || individual == Org)
 					continue;
 
 				// Check first if it hasn't been eaten too many times or if it's life is > 0
 				// You can only eat dead organisms that haven't been eaten too many times
-				auto other_state_ptr = ((OrgState*)individual.GetState());
+				auto other_state_ptr = ((OrgState*)individual->GetState());
 				if (other_state_ptr->Life > 0 || other_state_ptr->EatenCount >= GameplayParams::CorpseBitesDuration)
 					continue;
 
@@ -412,12 +407,12 @@ void ExperimentInterface::Init()
 	);
 	SensorRegistry[(int)SensorID::DistanceNearestPlantArea] = Sensor
 	(
-		[](void * State, void * WorldPtr, const Population* Pop, const Individual * Org)
+		[](void * State, const std::vector<BaseIndividual*>& Individuals, const BaseIndividual * Org, void * World)
 		{
 			auto state_ptr = (OrgState*)State;
 
 			float min_dist = numeric_limits<float>::max();
-			for (const auto& [area,_] : ((WorldData*)WorldPtr)->PlantsAreas)
+			for (const auto& [area,_] : ((WorldData*)World)->PlantsAreas)
 			{
 				float dist = (area.Center - state_ptr->Position).length();
 				min_dist = min(min_dist, dist);
@@ -429,7 +424,7 @@ void ExperimentInterface::Init()
 
 	SensorRegistry[(int)SensorID::LifeNearestCompetidor] = Sensor
 	(
-		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		[](void * State, const std::vector<BaseIndividual*>& Individuals, const BaseIndividual * Org, void * World)
 		{
 			auto state_ptr = (OrgState*)State;
 
@@ -439,15 +434,15 @@ void ExperimentInterface::Init()
 			float life_nearest = 0;
 			float min_dist = numeric_limits<float>::max();
 			bool any_eaten = false;
-			for (auto& individual : Pop->GetIndividuals())
+			for (auto& individual : Individuals)
 			{
 				// Ignore individuals that aren't being simulated right now
 				// Also, don't do all the other stuff against yourself. 
 				// You already know you don't want to eat yourself
-				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
+				if (!individual->InSimulation || individual == Org)
 					continue;
 
-				auto other_state_ptr = ((OrgState*)individual.GetState());
+				auto other_state_ptr = ((OrgState*)individual->GetState());
 				if (other_state_ptr->Life <= 0)
 					continue;
 
@@ -465,35 +460,31 @@ void ExperimentInterface::Init()
 
 	SensorRegistry[(int)SensorID::AngleNearestPartner] = Sensor
 	(
-		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		[](void * State, const std::vector<BaseIndividual*>& Individuals, const BaseIndividual * Org, void * World)
 		{
 			auto state_ptr = (OrgState*)State;
 
 			// Find an organism of a the same species
-			const auto& tag = Org->GetMorphologyTag();
-			const auto& species = (*Pop->GetSpecies().find(tag)).second;
-
-			// TODO : All this "search nearest" queries could be made much faster by using a KD-tree
+			// TODO : All this "search nearest" queries could be made much faster by using a KD-tree or some kind of spacial structure
 
 			float2 nearest_pos;
 			float min_dist = numeric_limits<float>::max();
 			bool any_eaten = false;
-			for (int id : species.IndividualsIDs)
+			const auto& tag = Org->GetMorphologyTag();
+			for (BaseIndividual* individual : Individuals)
 			{
-				const auto& individual = Pop->GetIndividuals()[id];
-
-				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
-					continue;
-
-				auto other_state_ptr = ((OrgState*)individual.GetState());
-				if (other_state_ptr->Life <= 0)
-					continue;
-
-				float dist = (other_state_ptr->Position - state_ptr->Position).length();
-				if (dist < min_dist)
+				if (individual != Org && individual->GetMorphologyTag() == tag)
 				{
-					min_dist = dist;
-					nearest_pos = other_state_ptr->Position;
+					auto other_state_ptr = ((OrgState*)individual->GetState());
+					if (other_state_ptr->Life <= 0)
+						continue;
+
+					float dist = (other_state_ptr->Position - state_ptr->Position).length();
+					if (dist < min_dist)
+					{
+						min_dist = dist;
+						nearest_pos = other_state_ptr->Position;
+					}
 				}
 			}
 
@@ -502,7 +493,7 @@ void ExperimentInterface::Init()
 	);
 	SensorRegistry[(int)SensorID::AngleNearestCompetidor] = Sensor
 	(
-		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		[](void * State, const std::vector<BaseIndividual*>& Individuals, const BaseIndividual * Org, void * World)
 		{
 			auto state_ptr = (OrgState*)State;
 
@@ -512,15 +503,15 @@ void ExperimentInterface::Init()
 			float2 nearest_pos;
 			float min_dist = numeric_limits<float>::max();
 			bool any_eaten = false;
-			for (auto& individual : Pop->GetIndividuals())
+			for (auto& individual : Individuals)
 			{
 				// Ignore individuals that aren't being simulated right now
 				// Also, don't do all the other stuff against yourself. 
 				// You already know you don't want to eat yourself
-				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
+				if (!individual->InSimulation || individual == Org)
 					continue;
 
-				auto other_state_ptr = ((OrgState*)individual.GetState());
+				auto other_state_ptr = ((OrgState*)individual->GetState());
 				if (other_state_ptr->Life <= 0)
 					continue;
 
@@ -537,7 +528,7 @@ void ExperimentInterface::Init()
 	);
 	SensorRegistry[(int)SensorID::AngleNearestCorpse] = Sensor
 	(
-		[](void * State, void * World, const Population* Pop, const Individual * Org)
+		[](void * State, const std::vector<BaseIndividual*>& Individuals, const BaseIndividual * Org, void * World)
 		{
 			auto state_ptr = (OrgState*)State;
 
@@ -547,17 +538,17 @@ void ExperimentInterface::Init()
 			float2 nearest_pos;
 			float min_dist = numeric_limits<float>::max();
 			bool any_eaten = false;
-			for (auto& individual : Pop->GetIndividuals())
+			for (auto& individual : Individuals)
 			{
 				// Ignore individuals that aren't being simulated right now
 				// Also, don't do all the other stuff against yourself. 
 				// You already know you don't want to eat yourself
-				if (!individual.InSimulation || individual.GetGlobalID() == Org->GetGlobalID())
+				if (!individual->InSimulation || individual == Org)
 					continue;
 
 				// Check first if it hasn't been eaten too many times or if it's life is > 0
 				// You can only eat dead organisms that haven't been eaten too many times
-				auto other_state_ptr = ((OrgState*)individual.GetState());
+				auto other_state_ptr = ((OrgState*)individual->GetState());
 				if (other_state_ptr->Life > 0 || other_state_ptr->EatenCount >= GameplayParams::CorpseBitesDuration)
 					continue;
 
@@ -574,13 +565,13 @@ void ExperimentInterface::Init()
 	);
 	SensorRegistry[(int)SensorID::AngleNearestPlantArea] = Sensor
 	(
-		[](void * State, void * WorldPtr, const Population* Pop, const Individual * Org)
+		[](void * State, const std::vector<BaseIndividual*>& Individuals, const BaseIndividual * Org, void * World)
 		{
 			auto state_ptr = (OrgState*)State;
 
 			float2 nearest_pos;
 			float min_dist = numeric_limits<float>::max();
-			for (const auto& [area,_] : ((WorldData*)WorldPtr)->PlantsAreas)
+			for (const auto& [area,_] : ((WorldData*)World)->PlantsAreas)
 			{
 				float dist = (area.Center - state_ptr->Position).length();
 				if (dist < min_dist)

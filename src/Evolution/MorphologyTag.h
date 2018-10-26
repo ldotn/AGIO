@@ -39,10 +39,11 @@ namespace std
             // Ref : [https://stackoverflow.com/questions/20511347/a-good-hash-function-for-a-vector]
             std::size_t seed = k.size();
 
-            for (auto [gid, cid] : k)
+            //for (auto [gid, cid] : k)
+			for(auto component : k)
             {
-                seed ^= gid + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-                seed ^= cid + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                seed ^= component.GroupID + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                seed ^= component.ComponentID + 0x9e3779b9 + (seed << 6) + (seed >> 2);
             }
 
             return seed;

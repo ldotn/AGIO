@@ -23,7 +23,7 @@ SIndividual::SIndividual(NEAT::Genome *genome, MorphologyTag morphology)
     for(auto const&[key, param] : genome->MorphParams)
 		parameters[key] = { param.ID, param.Value };
 
-    brain = SNetwork(genome->genesis(genome->genome_id));
+    brain = move(SNetwork(genome->genesis(genome->genome_id)));
 
     // Reconstruct actions and sensors
     unordered_set<int> actions_set;
@@ -89,8 +89,8 @@ int SIndividual::DecideAction(const std::unordered_map<int, float> &ValuesMap)
 
     // Select action based on activations
     float act_sum = 0;
-    for (auto[idx, v] : enumerate(brain.outputs))
-        act_sum += ActivationsBuffer[idx] = v->activation; // The activation function is in [0, 1], check line 461 of neat.cpp
+    for (auto[idx, node_idx] : enumerate(brain.outputs))
+        act_sum += ActivationsBuffer[idx] = brain.all_nodes[node_idx].activation; // The activation function is in [0, 1], check line 461 of neat.cpp
 
     std::minstd_rand RNG = minstd_rand(chrono::high_resolution_clock::now().time_since_epoch().count());
     int action;
@@ -126,8 +126,8 @@ void SIndividual::DecideAndExecute(void *World, const std::vector<BaseIndividual
 
     // Select action based on activations
     float act_sum = 0;
-    for (auto[idx, v] : enumerate(brain.outputs))
-        act_sum += ActivationsBuffer[idx] = v->activation; // The activation function is in [0, 1], check line 461 of neat.cpp
+	for (auto[idx, node_idx] : enumerate(brain.outputs))
+		act_sum += ActivationsBuffer[idx] = brain.all_nodes[node_idx].activation; // The activation function is in [0, 1], check line 461 of neat.cpp
 
     std::minstd_rand RNG = minstd_rand(chrono::high_resolution_clock::now().time_since_epoch().count());
     int action;

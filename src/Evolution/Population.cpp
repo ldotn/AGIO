@@ -310,7 +310,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 			auto& org = Individuals[org_idx];
 
 			org.Genome = target_genome;
-			org.Brain = org.Genome->genesis(org.Genome->genome_id);
+			org.Brain = org.Genome->genesis(org.Genome->genome_id); // TODO : Check what actually IS the genome_id
 
 			// On the population creation, the parameters were set from agio -> neat
 			// Now the parameters have been evolved by neat, so do the inverse process
@@ -380,8 +380,27 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 					// No new species was found, so re-create this one
 					// Similar to the delta-encoding that neat does
 
-					// Create a new population starting with the historical best genome
-					s.NetworksPopulation = new NEAT::Population(old_pop_ptr->GetBestGenome(), s.IndividualsIDs.size());
+					// Create a new population starting with the historical best genome and all the other genomes from this species in the registry
+					//		First get all the genomes of the best individuals of all the entries on the registry
+					vector<NEAT::Genome*> start_genomes;
+					for (auto entry : StagnantSpecies)
+						if (entry.Morphology == tag)
+							start_genomes.push_back(entry.HistoricalBestGenome);
+
+					//		Always add a new genome that's the base one (no hidden, fully connected)
+					
+					auto base_genome = new NEAT::Genome(
+						Individuals[s.IndividualsIDs[0]].Sensors.size(), 
+						Individuals[s.IndividualsIDs[0]].Actions.size(), 0, 0);
+					start_genomes.push_back(base_genome);
+
+					//		No need to add the current best genome, it's already on the registry at this point
+					//		Then create population from the genome list
+					s.NetworksPopulation = new NEAT::Population(s.IndividualsIDs.size(), start_genomes);
+
+					//		After the population has been created, delete the new base genome
+					//			Don't delete the other as they are in the registry
+					delete base_genome;
 
 					// Important : You need to set the starting parameters by hand
 					// NEAT can evolve them, but has no knowledge of the registry, so it can't create them
@@ -430,8 +449,22 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 					int size = s.IndividualsIDs.size();
 
 					// Create NEAT population
-					auto start_genome = new NEAT::Genome(sensors.size(), actions.size(), 0, 0);
-					s.NetworksPopulation = new NEAT::Population(start_genome, size);
+					//		First get all the genomes of the best individuals of all the entries on the registry
+					vector<NEAT::Genome*> start_genomes;
+					for (auto entry : StagnantSpecies)
+						if(entry.Morphology == new_tag) 
+							start_genomes.push_back(entry.HistoricalBestGenome);
+
+					//		Always add a new genome that's the base one (no hidden, fully connected)
+					auto base_genome = new NEAT::Genome(sensors.size(), actions.size(), 0, 0);
+					start_genomes.push_back(base_genome);
+
+					//		Then create population from the genome list
+					s.NetworksPopulation = new NEAT::Population(size, start_genomes);
+
+					//		After the population has been created, delete the new base genome
+					//			Don't delete the other as they are in the registry
+					delete base_genome;
 
 					// Initialize individuals
 					for (int i = 0; i < size; i++)
@@ -505,22 +538,25 @@ void Population::EvaluatePopulation(void * WorldPtr)
 		org.AccumulatedFitness = 0;
 
 	// Create pointer vector
-	std::vector<class BaseIndividual*> individuals_ptrs(Individuals.size());
-	for (auto [idx, ptr] : enumerate(individuals_ptrs))
-		ptr = &Individuals[idx];
+	std::vector<class BaseIndividual*> individuals_ptrs;
+	individuals_ptrs.reserve(SimulationSize);
 
 	// Simulate in batches of SimulationSize
-	// TODO : This is wrong, you need to take into account the proportion of each species when selecting what to simulate
+	// TODO : This is wrong (or not, see below), you need to take into account the proportion of each species when selecting what to simulate
 	// or maybe not, if the individuals are uniformly distributed it should work 
 	for (int j = 0; j < Individuals.size() / SimulationSize; j++)
 	{
 		// TODO : Optimize this, you could pass the current batch id and make the individuals aware of their index in the vector
+		individuals_ptrs.resize(0);
 		for (auto[idx, org] : enumerate(Individuals))
 		{
 			if (idx >= j * SimulationSize && idx < (j + 1)*SimulationSize)
 				org.InSimulation = true;
 			else
 				org.InSimulation = false;
+
+			if (org.InSimulation)
+				individuals_ptrs.push_back(&Individuals[idx]);
 		}
 
 		for (int i = 0; i < Settings::SimulationReplications; i++)
@@ -529,8 +565,8 @@ void Population::EvaluatePopulation(void * WorldPtr)
 			Interface->ComputeFitness(individuals_ptrs, WorldPtr);
 
 			// Update the fitness and novelty accumulators
-			for (auto& org : Individuals)
-				org.AccumulatedFitness += org.Fitness;
+			for (auto org_ptr : individuals_ptrs)
+				((Individual*)org_ptr)->AccumulatedFitness += ((Individual*)org_ptr)->Fitness;
 		}
 	}
 

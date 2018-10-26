@@ -11,7 +11,9 @@ namespace agio
 	class BaseIndividual
 	{
 	public:
-		bool InSimulation = false;
+		virtual ~BaseIndividual() = default;
+
+		bool InSimulation = false; // TODO : Remove this!
 		void * State;
 		// Does 4 steps
 		//    1) Load the sensors from the world

@@ -43,20 +43,22 @@ namespace agio
 		friend SNetwork;
 
 		double weight;
-		SNode *in_node;
-		SNode *out_node;
+		int in_node_idx;
+		int out_node_idx;
+		//SNode *in_node;
+		//SNode *out_node;
 
 		SLink();
-		SLink(double weight, SNode *in_node, SNode *out_node);
+		//SLink(double weight, SNode *in_node, SNode *out_node);
+		SLink(double weight, int in_node_idx, int out_node_idx);
 
 		friend class boost::serialization::access;
 		template<class Archive>
 		void serialize(Archive &ar, const unsigned int version)
 		{
 			ar & weight;
-			ar & in_node;
-			ar & out_node;
-
+			ar & in_node_idx;
+			ar & out_node_idx;
 		}
 	};
 
@@ -66,8 +68,8 @@ namespace agio
 		NodeType type;
 		double activation;
 
-		std::vector<SLink*> incoming;
-		std::vector<SLink*> outgoing;
+		std::vector<SLink> incoming;
+		std::vector<SLink> outgoing;
 
 		SNode();
 		SNode(NodeType type);
@@ -80,7 +82,7 @@ namespace agio
 		int activation_count;
 
 		double getActiveOut();
-		void flushback();
+		void flushback(SNetwork& Network);
 
 		friend class boost::serialization::access;
 		template<class Archive>
@@ -96,9 +98,9 @@ namespace agio
 	class SNetwork
 	{
 	public:
-		std::vector<SNode*> inputs;
-		std::vector<SNode*> outputs;
-		std::vector<SNode*> all_nodes;
+		std::vector<int> inputs;
+		std::vector<int> outputs;
+		std::vector<SNode> all_nodes;
 
 		void flush();
 		bool activate();
@@ -106,14 +108,18 @@ namespace agio
 
 		SNetwork();
 		SNetwork(NEAT::Network *network);
+
+		// Networks can now be copyed without problem as they don't directly own heap resources
+		//~SNetwork();
+		// Specifying as default to prevent copy but allow move
+		//SNetwork(SNetwork&&) = default;
+		//SNetwork& operator=(SNetwork&&) = default;
+
+		// Creates a new network that's a duplicate of this
+		// Can't just make a copy because there are pointers involved
+		//void Duplicate(SNetwork& CloneTarget) const;
 	private:
-
-		// variables used for internal logic
-		std::unordered_map<NEAT::Link*, SLink*> linkMap;
-		std::unordered_map<NEAT::NNode*, SNode*> nodeMap;
-
 		bool outputsOff();
-		SLink* findLink(NEAT::Link *link);
 
 		friend class boost::serialization::access;
 		template<class Archive>
