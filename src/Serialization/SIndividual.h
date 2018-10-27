@@ -53,6 +53,7 @@ namespace agio
 			ar & brain;
 			ar & Actions;
 			ar & Sensors;
+			ar & morphologyTag;
 		}
 
 		void DecideAndExecute(void * World, const std::vector<BaseIndividual*> &Individuals) override;
