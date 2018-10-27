@@ -1,11 +1,8 @@
 #pragma once
 
-#include <vector>
 #include <math.h>
 #include <unordered_map>
-
-//#include "../../NEAT/include/network.h"
-//#include "../../NEAT/include/nnode.h"
+#include <vector>
 
 #include <boost/serialization/access.hpp>
 #include <boost/serialization/vector.hpp>
@@ -45,11 +42,8 @@ namespace agio
 		double weight;
 		int in_node_idx;
 		int out_node_idx;
-		//SNode *in_node;
-		//SNode *out_node;
 
 		SLink();
-		//SLink(double weight, SNode *in_node, SNode *out_node);
 		SLink(double weight, int in_node_idx, int out_node_idx);
 
 		friend class boost::serialization::access;
@@ -109,15 +103,6 @@ namespace agio
 		SNetwork();
 		SNetwork(NEAT::Network *network);
 
-		// Networks can now be copyed without problem as they don't directly own heap resources
-		//~SNetwork();
-		// Specifying as default to prevent copy but allow move
-		//SNetwork(SNetwork&&) = default;
-		//SNetwork& operator=(SNetwork&&) = default;
-
-		// Creates a new network that's a duplicate of this
-		// Can't just make a copy because there are pointers involved
-		//void Duplicate(SNetwork& CloneTarget) const;
 	private:
 		bool outputsOff();
 
