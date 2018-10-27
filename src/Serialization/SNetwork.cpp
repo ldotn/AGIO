@@ -124,12 +124,6 @@ SLink::SLink(double w, int in_idx, int out_idx) : SLink()
 	in_node_idx = in_idx;
 	out_node_idx = out_idx;
 }
-/*SLink::SLink(double weight, SNode *in_node, SNode *out_node) : SLink()
-{
-    this->weight = weight;
-    this->in_node = in_node;
-    this->out_node = out_node;
-}*/
 
 SNetwork::SNetwork() { }
 
@@ -182,63 +176,3 @@ SNetwork::SNetwork(NEAT::Network *network) : SNetwork()
 			all_nodes[nodeMap[node]].outgoing.emplace_back(findLink(link));
     }
 }
-
-/*
-SNetwork::~SNetwork()
-{
-	// If the org was moved, all this vectors are empty
-	for (auto node : all_nodes)
-	{
-		for (auto link : node.incoming)
-			if(--link.RefCount == 0) delete link;
-
-		for (auto link : node.outgoing)
-			if (--link.RefCount == 0) delete link;
-
-		delete node;
-	}
-}*/
-
-/*
-void SNetwork::Duplicate(SNetwork& Clone) const
-{
-	// Create a temporal map that converts from the old pointers to the new pointers
-	unordered_map<const SNode*, SNode*> pointer_map;
-
-	int current_node_idx = 0;
-	Clone.all_nodes.resize(all_nodes.size());
-	for (const SNode& node : all_nodes)
-	{
-		Clone.all_nodes[current_node_idx++] = node;
-		pointer_map[&node] = &Clone.all_nodes[current_node_idx];
-	}
-	Clone.inputs = inputs;
-	Clone.outputs = outputs;
-
-	// Correct pointers
-	for (SNode * node : Clone.inputs)
-		node = pointer_map.find(node)->second;
-
-	for (SNode * node : Clone.outputs)
-		node = pointer_map.find(node)->second;
-
-	for (SNode& node : Clone.all_nodes)
-	{
-		for (auto& link : node.incoming)
-		{
-			link.in_node = pointer_map.find(link.in_node)->second;
-			link.out_node = pointer_map.find(link.out_node)->second;
-		}
-		for (auto& link : node.outgoing)
-		{
-			link.in_node = pointer_map.find(link.in_node)->second;
-			link.out_node = pointer_map.find(link.out_node)->second;
-		}
-	}
-}*/
-
-
-
-
-
-
