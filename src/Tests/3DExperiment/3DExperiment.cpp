@@ -187,6 +187,9 @@ void ExperimentInterface::Init()
 						other_state_ptr->EatenCount++;
 						state_ptr->Life += GameplayParams::EatCorpseLifeGained;
 
+						// Make this organism face the target
+						state_ptr->Orientation = (other_state_ptr->Position - state_ptr->Position).normalize();
+
 						if (other_state_ptr->EatenCount > GameplayParams::CorpseBitesDuration)
 						{
 							// Reset it
@@ -262,6 +265,9 @@ void ExperimentInterface::Init()
 					if (tag != individual->GetMorphologyTag())
 					{
 						any_attacked = true;
+
+						// Make this organism face the target
+						state_ptr->Orientation = (other_state_ptr->Position - state_ptr->Position).normalize();
 
 						other_state_ptr->Life -= GameplayParams::AttackDamage;
 
