@@ -15,14 +15,12 @@ file(GLOB neat_sources NEAT/src/*.cpp)
 list(FILTER neat_sources EXCLUDE REGEX ".*neatmain.cpp$")
 list(FILTER neat_sources EXCLUDE REGEX ".*experiments.cpp$")
 set(project_sources 
-	src/Tests/test.cpp
-	src/Tests/neat_test.cpp
 	src/Utils/Utils.cpp
 	src/Evolution/Individual.cpp
 	src/Evolution/Population.cpp
+	src/Evolution/Globals.cpp
 	src/Serialization/SIndividual.cpp
 	src/Serialization/SNetwork.cpp
-	src/Evolution/Globals.cpp
 	src/Serialization/SRegistry.cpp
 	${neat_sources})
 
@@ -63,6 +61,16 @@ if (build_tests)
 		agio_lib
 		${PYTHON_LIBRARIES}
 		Boost::serialization)
+
+	add_executable(diversity_plot
+			src/Tests/DiversityPlot/main.cpp
+			src/Tests/DiversityPlot/DiversityPlot.cpp
+			src/Tests/DiversityPlot/DiversityPlotEvolution.cpp)
+
+	target_link_libraries(diversity_plot
+			agio_lib
+			${PYTHON_LIBRARIES}
+			Boost::serialization)
 
 	if (WIN32)
 		# Extract the python DLL path from the lib path

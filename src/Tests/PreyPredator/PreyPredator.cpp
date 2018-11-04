@@ -1,16 +1,18 @@
+#include <assert.h>
+#include <algorithm>
+#include <enumerate.h>
+#include <matplotlibcpp.h>
+#include <random>
+#include <queue>
+
+#include "../../Core/Config.h"
 #include "../../Evolution/Population.h"
 #include "../../Evolution/Globals.h"
-#include <assert.h>
+#include "../../Serialization/SRegistry.h"
 #include "../../Utils/Math/Float2.h"
-#include <algorithm>
-#include <random>
-#include <matplotlibcpp.h>
-#include <enumerate.h>
-#include <queue>
-#include "../../Core/Config.h"
+
 #include "PreyPredator.h"
 #include "PublicInterfaceImpl.h"
-#include "../../Serialization/SRegistry.h"
 
 namespace plt = matplotlibcpp;
 using namespace std;
