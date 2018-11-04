@@ -27,7 +27,7 @@ int main()
 		cfg.LoadValue(GameplayParams::RunSpeed,"RunSpeed");
 
 		int turn_degrees;
-		cfg.LoadValue(turn_degrees,"TurnDegress");
+		cfg.LoadValue(turn_degrees,"TurnDegrees");
 		GameplayParams::TurnRadians = turn_degrees * 0.0174533f;
 
 		cfg.LoadValue(GameplayParams::EatDistance,"EatDistance");
@@ -43,6 +43,20 @@ int main()
 		cfg.LoadValue(ExperimentParams::PopSizeMultiplier, "PopSizeMultiplier");
 		cfg.LoadValue(ExperimentParams::SimulationSize, "SimulationSize");
 		cfg.LoadValue(ExperimentParams::GenerationsCount, "GenerationsCount");
+
+		// The total population size must be >= Settings::MinIndividualsPerSpecies
+		if (ExperimentParams::SimulationSize*ExperimentParams::PopSizeMultiplier < Settings::MinIndividualsPerSpecies)
+		{
+			cout << "The total population size must be >= MinIndividualsPerSpecies" << endl;
+			cout << "Total population size is " << ExperimentParams::SimulationSize
+				<< " * " << ExperimentParams::PopSizeMultiplier << " = "
+				<< ExperimentParams::PopSizeMultiplier*ExperimentParams::SimulationSize
+				<< " but MinIndividualsPerSpecies = " << Settings::MinIndividualsPerSpecies << endl;
+			cout << "Press any key plus enter to exit" << endl;
+			string dummy_;
+			cin >> dummy_;
+			return 1;
+		}
 	}
 
 	NEAT::load_neat_params("../cfg/neat_test_config.txt");

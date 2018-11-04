@@ -56,13 +56,6 @@ void runSimulation() {
 	food_x.resize(world.FoodPositions.size());
 	food_y.resize(world.FoodPositions.size());
 
-
-	for (auto[idx, pos] : enumerate(world.FoodPositions))
-	{
-		food_x[idx] = pos.x;
-		food_y[idx] = pos.y;
-	}
-
 	while (true)
 	{
 		for (auto& org : individuals)
@@ -70,6 +63,11 @@ void runSimulation() {
 
 		// Plot food
 		plt::clf();
+		for (auto[idx, pos] : enumerate(world.FoodPositions))
+		{
+			food_x[idx] = pos.x;
+			food_y[idx] = pos.y;
+		}
 		plt::plot(food_x, food_y, "gx");
 
 		// Plot herbivores on blue and carnivores on black

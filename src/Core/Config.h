@@ -1,9 +1,6 @@
 #pragma once
+#include "ConfigLoader.h"
 #include <string>
-#include <sstream>
-#include <unordered_map>
-#include <fstream>
-#include <algorithm>
 
 namespace agio
 {
@@ -12,13 +9,7 @@ namespace agio
         Settings() = delete;
 
         // Loads the settings from a cfg file
-        static void LoadFromFile();
-
-        // Number of nearest individuals to consider for the novelty metric
-		inline static int NoveltyNearestK = 10;
-
-		// Number of nearest individuals inside the species to consider for the local competition
-		inline static int LocalCompetitionK = 15;
+        static void LoadFromFile(const std::string& FilePath);
 
 		// Minimum age before a species is considered to be removed
 		inline static int MinSpeciesAge = 20;
@@ -37,16 +28,6 @@ namespace agio
 		// Number of consecutive epochs that an species must have a progress lower than the threshold to be removed
 		inline static int SpeciesStagnancyChances = 10;
 
-        // Minimum novelty of an individual to add it to the morphology registry
-        // TODO : No idea what's the range of this. Maybe it can be automatically adjusted from the prev novelty?
-        inline static float NoveltyThreshold = 2.0;
-
-		// Probability of cloning an individual from the registry
-		inline static float RegistryCloneProb = 0.1f;
-
-		// Probability of selecting an individual from the registry as parent instead of one of the current population
-		inline static float RegistryParentProb = 0.25f;
-
 		// Minimum number of individuals allowed on a species
 		inline static int MinIndividualsPerSpecies = 50;
 
@@ -56,79 +37,11 @@ namespace agio
 		// Number of replications to do when simulating
 		inline static int SimulationReplications = 10;
 
-        // Probability of calling Mutate() on a child
-        // TODO : Docs
-		inline static float ChildMutationProb = 0.25f;
-        inline static float ComponentMutationProb = 0.00f;
-
-        // ComponentAddProbability + ComponentRemoveProbability + ComponentChangeProbability must sum 1
-        inline static float ComponentAddProbability = 0.3f;
-        inline static float ComponentRemoveProbability = 0.3f;
-        inline static float ComponentChangeProbability = 0.3f;
         inline static float ParameterMutationProb = 0.1f;
         inline static float ParameterDestructiveMutationProb = 0.1f;
+
 		// Controls the spread of the mutation of a parameter when shifting it
 		// TODO : better docs?
         inline static float ParameterMutationSpread = 0.025f;
-
-		// TODO : Refactor this so names are consistent
-        struct NEAT
-        {
-            inline static float MutateAddNodeProb = 0.03;
-            inline static float MutateAddLinkProb = 0.05;
-            inline static float MutateRandomTraitProb = 0.1;
-            inline static float MutateLinkTraitProb = 0.1;
-            inline static float MutateNodeTraitProb = 0.1;
-            inline static float MutateLinkWeightsProb = 0.9;
-            inline static float MutateToggleEnableProb = 0;
-            inline static float MutateGeneReenableProb = 0;
-            inline static float WeightMutPower = 2.5;
-
-        };
-
     };
-
-	// General base loader
-	// It loads settings from files in the format
-	// variable = value
-	class ConfigLoader
-	{
-	public:
-		ConfigLoader(const std::string& Path)
-		{
-			std::ifstream file(Path);
-			while (file.is_open() && !file.eof())
-			{
-				std::string name, dummy_, value;
-				file >> name;
-				if (std::find(name.begin(), name.end(), '#') != name.end())
-				{
-					while (!file.eof() && file.get() != '\n');
-					continue; // lines starting with # are comments and ignored	
-				}
-
-				file >> dummy_; // delimiter
-				file >> value;
-				
-				Values[name] = value;
-
-				while (!file.eof() && file.get() != '\n');
-			}
-		}
-
-		template<typename T>
-		void LoadValue(T& Value, const std::string& Name)
-		{
-			auto iter = Values.find(Name);
-			if (iter != Values.end())
-			{
-				std::stringstream ss;
-				ss << iter->second;
-				T ret;
-				ss >> Value;
-			}
-		}
-	private:
-		std::unordered_map<std::string, std::string> Values;
-	};
 }
