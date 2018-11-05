@@ -10,6 +10,3 @@
 [submodule "boost-cmake"]
 	path = boost-cmake
 	url = https://github.com/Orphis/boost-cmake.git
-[submodule "SFML"]
-	path = SFML
-	url = https://github.com/SFML/SFML.git
