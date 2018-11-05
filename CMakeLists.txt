@@ -10,6 +10,7 @@ add_subdirectory(boost-cmake)
 include_directories(${CMAKE_SOURCE_DIR}/matplotlib-cpp)
 include_directories(${CMAKE_SOURCE_DIR}/FPlusPlus/FPlusPlus)
 include_directories(${CMAKE_SOURCE_DIR}/NEAT/include)
+include_directories(${SFML_INCLUDE_DIR})
 
 file(GLOB neat_sources NEAT/src/*.cpp)
 list(FILTER neat_sources EXCLUDE REGEX ".*neatmain.cpp$")
@@ -62,6 +63,8 @@ if (build_tests)
 		${PYTHON_LIBRARIES}
 		Boost::serialization)
 
+	set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
+	find_package(SFML COMPONENTS graphics window system REQUIRED)
 	add_executable(diversity_plot
 			src/Tests/DiversityPlot/main.cpp
 			src/Tests/DiversityPlot/DiversityPlot.cpp
@@ -70,7 +73,8 @@ if (build_tests)
 	target_link_libraries(diversity_plot
 			agio_lib
 			${PYTHON_LIBRARIES}
-			Boost::serialization)
+			Boost::serialization
+			${SFML_LIBRARIES})
 
 	if (WIN32)
 		# Extract the python DLL path from the lib path
