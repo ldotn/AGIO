@@ -68,7 +68,10 @@ if (build_tests)
 	add_executable(diversity_plot
 			src/Tests/DiversityPlot/main.cpp
 			src/Tests/DiversityPlot/DiversityPlot.cpp
-			src/Tests/DiversityPlot/DiversityPlotEvolution.cpp)
+			src/Tests/DiversityPlot/DiversityPlotEvolution.cpp
+			src/Tests/DiversityPlot/Character.cpp
+			src/Tests/DiversityPlot/AnimatedSprite.cpp
+			src/Tests/DiversityPlot/Animation.cpp)
 
 	target_link_libraries(diversity_plot
 			agio_lib
