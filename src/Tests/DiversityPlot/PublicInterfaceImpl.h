@@ -49,9 +49,17 @@ enum class SensorsIDs
     NumberOfSensors
 };
 
+enum class CellType
+{
+    Grass,
+    Water,
+    Wall
+};
+
 struct WorldData
 {
     vector<float2> FoodPositions;
+    vector<vector<CellType>> CellTypes;
 };
 
 class PublicInterfaceImpl : public PublicInterface

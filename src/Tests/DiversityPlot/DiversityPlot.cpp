@@ -28,13 +28,7 @@ void runSimulation() {
     Interface->Init();
 
     // Create and fill the world
-    WorldData world;
-    world.FoodPositions.resize(FoodCellCount);
-    for (auto &pos : world.FoodPositions)
-    {
-        pos.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
-        pos.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
-    }
+    WorldData world = createWorld();
 
     SRegistry registry;
     registry.load(SerializationFile);
@@ -107,4 +101,53 @@ void runSimulation() {
 	//  so I can't delete it, as I don't know the order in which destructors are called
 	// In any case, this is not a problem, because on program exit the SO should (will?) release the memory anyway
 	// delete Interface;
+}
+
+
+#include <fstream>
+#include <string>
+WorldData createWorld() {
+    WorldData world;
+
+    // Load cell types
+    string line;
+    ifstream file("world.txt");
+    int i = 0;
+    while(!file.eof())
+    {
+        file >> line;
+        vector<CellType> cellTypes;
+        for (char &c : line)
+        {
+            CellType type;
+            if (c == '0')
+                type = CellType::Grass;
+            else if (c == '1')
+                type = CellType::Water;
+            else if (c == '2')
+                type = CellType::Wall;
+            else
+                throw 'Undefined cell type';
+            cellTypes.push_back(type);
+        }
+        world.CellTypes.push_back(cellTypes);
+        i++;
+    }
+
+    // Fill with food
+    minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
+    world.FoodPositions.resize(FoodCellCount);
+    for (auto &pos : world.FoodPositions)
+    {
+        bool valid_position = false;
+        while(!valid_position)
+        {
+            pos.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
+            pos.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
+
+            valid_position = world.CellTypes[pos.y][pos.x] != CellType::Wall;
+        }
+    }
+
+    return world;
 }

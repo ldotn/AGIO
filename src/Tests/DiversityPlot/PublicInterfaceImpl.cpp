@@ -1,5 +1,5 @@
 #include "PublicInterfaceImpl.h"
-#include "PreyPredator.h"
+#include "DiversityPlot.h"
 #include <enumerate.h>
 #include <assert.h>
 

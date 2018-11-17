@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include "PublicInterfaceImpl.h"
 
 extern int WorldSizeX;
 extern int WorldSizeY;
@@ -20,3 +21,5 @@ extern std::string SerializationFile;
 
 void runEvolution();
 void runSimulation();
+
+WorldData createWorld();
