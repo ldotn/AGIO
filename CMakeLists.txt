@@ -71,7 +71,8 @@ if (build_tests)
 			src/Tests/DiversityPlot/DiversityPlotEvolution.cpp
 			src/Tests/DiversityPlot/Character.cpp
 			src/Tests/DiversityPlot/AnimatedSprite.cpp
-			src/Tests/DiversityPlot/Animation.cpp)
+			src/Tests/DiversityPlot/Animation.cpp
+			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
 
 	target_link_libraries(diversity_plot
 			agio_lib
