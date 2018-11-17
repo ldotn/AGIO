@@ -1,65 +1,57 @@
 #include <iostream>
 #include "DiversityPlot.h"
-#include <SFML/Graphics.hpp>
+#include "../../Core/Config.h"
+#include <string>
 
-#include "Character.h"
+using namespace agio;
+using namespace std;
+
+// Need to define them somewhere
+int WorldSizeX;
+int WorldSizeY;
+float FoodScoreGain;
+float KillScoreGain;
+float DeathPenalty;
+int FoodCellCount;
+int MaxSimulationSteps;
+int SimulationSize;
+int PopSizeMultiplier;
+int PopulationSize;
+int GenerationsCount;
+float LifeLostPerTurn;
+float BorderPenalty;
+float WastedActionPenalty;
+string SerializationFile;
 
 int main() {
-    const int FPS = 12;
-    const int milliseconds_between_frames = 1000 / FPS;
+	ConfigLoader loader("../src/Tests/DiversityPlot/Config.cfg");
+	loader.LoadValue(WorldSizeX,"WorldSizeX");
+	loader.LoadValue(WorldSizeY,"WorldSizeY");
+	loader.LoadValue(FoodScoreGain,"FoodScoreGain");
+	loader.LoadValue(KillScoreGain,"KillScoreGain");
+	loader.LoadValue(DeathPenalty,"DeathPenalty");
+	float food_proportion;
+	loader.LoadValue(food_proportion,"FoodProportion");
+	FoodCellCount = WorldSizeX * WorldSizeY*food_proportion;
+	loader.LoadValue(MaxSimulationSteps,"MaxSimulationSteps");
+	loader.LoadValue(SimulationSize,"SimulationSize");
+	loader.LoadValue(PopSizeMultiplier,"PopSizeMultiplier");
+	PopulationSize = PopSizeMultiplier * SimulationSize;
+	loader.LoadValue(GenerationsCount,"GenerationsCount");
+	loader.LoadValue(LifeLostPerTurn,"LifeLostPerTurn");
+	loader.LoadValue(BorderPenalty,"BorderPenalty");
+	loader.LoadValue(WastedActionPenalty,"WastedActionPenalty");
+	loader.LoadValue(SerializationFile, "SerializationFile");
 
-    // create the window
-    sf::RenderWindow window(sf::VideoMode(800, 600), "My window");
+    cout << "1 - Run Evolution" << endl;
+    cout << "2 - Run Simulation" << endl;
+    cout << "Select an option:";
 
-    sf::Texture texture;
-    if (!texture.loadFromFile("textures/image.png")) {
-        std::cout << "Error al cargar textura" << std::endl;
-        return -1;
-    }
-    Character character;
-    // run the program as long as the window is open
-    sf::Clock clock;
-    sf::Time deltaTime;
-    sf::Time elapsed = sf::seconds(0);
-    bool alive = true;
-    while (window.isOpen())
-    {
-        deltaTime = clock.restart();
-        elapsed+= deltaTime;
+    int op;
+    cin >> op;
+    if (op == 1)
+        runEvolution();
+    if (op == 2)
+        runSimulation();
 
-        // check all the window's events that were triggered since the last iteration of the loop
-        sf::Event event;
-        while (window.pollEvent(event))
-        {
-            // "close requested" event: we close the window
-            if (event.type == sf::Event::Closed)
-                window.close();
-        }
-
-        // clear the window with black color
-        window.clear(sf::Color::Black);
-
-        // draw everything here...
-        // window.draw(...);
-
-        //window.draw(sprite);
-        character.update(deltaTime);
-        if (elapsed < sf::seconds(1))
-            character.executeAction(1);
-        else if (alive)
-        {
-            alive = false;
-            character.animatedSprite.setLooped(false);
-            character.executeAction(3);
-        } else if (!character.animatedSprite.isPlaying())
-            character.animatedSprite.setFrame(6, false);
-        window.draw(character);
-
-
-        // end the current frame
-        window.display();
-    }
-
-    return 0;
-    runSimulation();
 }
