@@ -13,15 +13,17 @@ using namespace agio;
 struct OrgState
 {
     float Score = 0;
+    float Life = 100;
     float2 Position;
 
-    bool IsCarnivore;
+    bool CanEatFood;
+    bool CanEatEnemy;
 };
 
 enum class ParametersIDs
 {
     JumpDistance,
-
+    MoveGrassWaterRatio,
     NumberOfParameters
 };
 
@@ -32,16 +34,29 @@ enum class ActionsIDs
     MoveLeft,
     MoveRight,
 
-    EatFood,
-    KillAndEat,
+    SwimMoveForward,
+    SwimMoveBackwards,
+    SwimMoveLeft,
+    SwimMoveRight,
+
+    JumpForward,
+    JumpBackwards,
+    JumpLeft,
+    JumpRight,
+
+    Swim,
+
+    Kill,
+    Eat,
 
     NumberOfActions
 };
 
 enum class SensorsIDs
 {
-    NearestCompetidorAngle, // Angle to the nearest individual of another species
-    NearestCompetidorDistance,
+    NearestCompetitorAngle, // Angle to the nearest individual of another species
+    NearestCompetitorDistance,
+    NearestCompetitorAlive,
 
     NearestFoodAngle,
     NearestFoodDistance,
