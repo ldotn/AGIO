@@ -44,10 +44,10 @@ enum class ActionsIDs
     JumpLeft,
     JumpRight,
 
-    Swim,
-
     Kill,
-    Eat,
+    EatFood,
+    EatEnemy,
+    EatFoodEnemy,
 
     NumberOfActions
 };

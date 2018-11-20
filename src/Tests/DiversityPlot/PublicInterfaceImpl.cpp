@@ -53,6 +53,7 @@ bool eatFood(void *State, void *World)
             state_ptr->Score += FoodScoreGain;
 
             // Just move the food to a different position. Achieves the same effect as removing it
+            // TODO: Check that the position isn't a wall
             world_ptr->FoodPositions[idx] = {uniform_real_distribution<float>(0, WorldSizeX)(RNG),
                                              uniform_real_distribution<float>(0, WorldSizeY)(RNG)};
             any_eaten = true;
@@ -63,9 +64,42 @@ bool eatFood(void *State, void *World)
     return any_eaten;
 }
 
-bool eatEnemy()
+bool eatEnemy(void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
 {
+    minstd_rand RNG = minstd_rand(chrono::high_resolution_clock::now().time_since_epoch().count());
+    auto state_ptr = (OrgState *) State;
+    const auto &tag = Org->GetMorphologyTag();
 
+    // Find an individual of a DIFFERENT species.
+    // The species map is not really useful here
+    bool any_eaten = false;
+    for (const auto &individual : Individuals)
+    {
+        // Ignore individuals that aren't being simulated right now
+        // Also, don't do all the other stuff against yourself.
+        // You already know you don't want to kill yourself
+        if (!individual->InSimulation || individual == Org)
+            continue;
+
+        auto other_state_ptr = (OrgState *) individual->GetState();
+        // Can't eat an enemy alive
+        if (other_state_ptr->Life > 0)
+            continue;
+
+        auto diff = abs >> (other_state_ptr->Position - state_ptr->Position);
+        if (diff.x <= 1 && diff.y <= 1)
+        {
+            // Check if they are from different species by comparing tags
+            const auto &other_tag = individual->GetMorphologyTag();
+
+            if (!(tag == other_tag))
+            {
+                any_eaten = true;
+                break;
+            }
+        }
+    }
+    return any_eaten;
 }
 
 
@@ -144,11 +178,35 @@ void PublicInterfaceImpl::Init()
             );
 
     // Eat any food that's at most one cell away
-    ActionRegistry[(int) ActionsIDs::Eat] = Action
+    ActionRegistry[(int) ActionsIDs::EatFood] = Action
             (
                     [this](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
                     {
                         bool any_eaten = eatFood(State, World);
+
+                        if (!any_eaten)
+                            ((OrgState *) State)->Score -= WastedActionPenalty;
+                    }
+            );
+
+    // Eat any enemy that's at most one cell away
+    ActionRegistry[(int) ActionsIDs::EatEnemy] = Action
+            (
+                    [this](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
+                    {
+                        bool any_eaten = eatEnemy(State, Individuals, Org, World);
+
+                        if (!any_eaten)
+                            ((OrgState *) State)->Score -= WastedActionPenalty;
+                    }
+            );
+
+    // Eat any enemy that's at most one cell away
+    ActionRegistry[(int) ActionsIDs::EatFoodEnemy] = Action
+            (
+                    [this](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
+                    {
+                        bool any_eaten = eatEnemy(State, Individuals, Org, World);
 
                         if (!any_eaten)
                             ((OrgState *) State)->Score -= WastedActionPenalty;
@@ -337,11 +395,11 @@ void PublicInterfaceImpl::Init()
     // Fill components
     ComponentRegistry.push_back
             ({
-                     1, 2, // Can only have one mouth
+                     1, 1, // Can only have one mouth
                      {
                              // Herbivore
                              {
-                                     {(int) ActionsIDs::Eat},
+                                     {(int) ActionsIDs::EatFood},
                                      {
                                              (int) SensorsIDs::NearestFoodAngle,
                                              (int) SensorsIDs::NearestFoodDistance,
@@ -349,13 +407,24 @@ void PublicInterfaceImpl::Init()
                              },
                              // Carnivore
                              {
-                                     {(int) ActionsIDs::Eat},
+                                     {(int) ActionsIDs::EatEnemy},
                                      {
                                              (int) SensorsIDs::NearestCompetitorAngle,
                                              (int) SensorsIDs::NearestCompetitorDistance,
                                              (int) SensorsIDs::NearestCompetitorAlive
                                      }
-                             }
+                             },
+                             // Herbivore and Carnivore
+                             {
+                                     {(int) ActionsIDs::EatFoodEnemy},
+                                     {
+                                             (int) SensorsIDs::NearestFoodAngle,
+                                             (int) SensorsIDs::NearestFoodDistance,
+                                             (int) SensorsIDs::NearestCompetitorAngle,
+                                             (int) SensorsIDs::NearestCompetitorDistance,
+                                             (int) SensorsIDs::NearestCompetitorAlive
+                                     }
+                             },
                      }
              });
 
