@@ -10,7 +10,6 @@ add_subdirectory(boost-cmake)
 include_directories(${CMAKE_SOURCE_DIR}/matplotlib-cpp)
 include_directories(${CMAKE_SOURCE_DIR}/FPlusPlus/FPlusPlus)
 include_directories(${CMAKE_SOURCE_DIR}/NEAT/include)
-include_directories(${SFML_INCLUDE_DIR})
 
 file(GLOB neat_sources NEAT/src/*.cpp)
 list(FILTER neat_sources EXCLUDE REGEX ".*neatmain.cpp$")
@@ -64,7 +63,15 @@ if (build_tests)
 		Boost::serialization)
 
 	set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
-	find_package(SFML COMPONENTS graphics window system REQUIRED)
+	if (WIN32)
+		file(GLOB SFML_LIBRARIES libs_windows/sfml/lib/*.lib)
+		set(SFML_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/libs_windows/sfml/include)
+	else ()
+		find_package(SFML COMPONENTS graphics window system REQUIRED)	
+	endif ()
+
+	include_directories(${SFML_INCLUDE_DIR})
+
 	add_executable(diversity_plot
 			src/Tests/DiversityPlot/main.cpp
 			src/Tests/DiversityPlot/DiversityPlot.cpp

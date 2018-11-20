@@ -127,7 +127,7 @@ WorldData createWorld() {
             else if (c == '2')
                 type = CellType::Wall;
             else
-                throw 'Undefined cell type';
+                throw "Undefined cell type";
             cellTypes.push_back(type);
         }
         world.CellTypes.push_back(cellTypes);
