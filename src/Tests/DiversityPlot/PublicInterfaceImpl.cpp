@@ -50,12 +50,20 @@ bool eatFood(void *State, void *World)
 
         if (diff.x <= 1 && diff.y <= 1)
         {
-            state_ptr->Score += FoodScoreGain;
-
             // Just move the food to a different position. Achieves the same effect as removing it
             // TODO: Check that the position isn't a wall
-            world_ptr->FoodPositions[idx] = {uniform_real_distribution<float>(0, WorldSizeX)(RNG),
-                                             uniform_real_distribution<float>(0, WorldSizeY)(RNG)};
+            bool valid_position = false;
+            int x;
+            int y;
+            while (!valid_position)
+            {   
+                x = uniform_real_distribution<int>(0, WorldSizeX)(RNG);
+                y = uniform_real_distribution<int>(0, WorldSizeX)(RNG);
+
+                valid_position = world_ptr->CellTypes[y][x] != CellType::Wall;
+            }
+            world_ptr->FoodPositions[idx] = {x, y};
+            
             any_eaten = true;
             break;
         }
@@ -64,42 +72,39 @@ bool eatFood(void *State, void *World)
     return any_eaten;
 }
 
-bool eatEnemy(void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
+BaseIndividual* findEnemy(void BaseIndividual *Org, const vector<BaseIndividual *> &Individuals, bool looking_enemy_alive)
 {
-    minstd_rand RNG = minstd_rand(chrono::high_resolution_clock::now().time_since_epoch().count());
-    auto state_ptr = (OrgState *) State;
     const auto &tag = Org->GetMorphologyTag();
-
     // Find an individual of a DIFFERENT species.
     // The species map is not really useful here
-    bool any_eaten = false;
     for (const auto &individual : Individuals)
     {
         // Ignore individuals that aren't being simulated right now
         // Also, don't do all the other stuff against yourself.
-        // You already know you don't want to kill yourself
+        // You already know you don't want to eat yourself
         if (!individual->InSimulation || individual == Org)
-            continue;
+            continue; 
 
         auto other_state_ptr = (OrgState *) individual->GetState();
-        // Can't eat an enemy alive
-        if (other_state_ptr->Life > 0)
+        
+        bool other_is_alive = other_state_ptr->Life > 0;
+        if ((looking_enemy_alive && !other_is_alive) ||
+                (!looking_enemy_alive && other_is_alive))
             continue;
 
         auto diff = abs >> (other_state_ptr->Position - state_ptr->Position);
         if (diff.x <= 1 && diff.y <= 1)
         {
             // Check if they are from different species by comparing tags
-            const auto &other_tag = individual->GetMorphologyTag();
-
-            if (!(tag == other_tag))
-            {
-                any_eaten = true;
-                break;
-            }
+            if (!(tag == individual->GetMorphologyTag()))
+                return individual;
         }
     }
-    return any_eaten;
+    return nullptr; 
+}
+bool eatEnemy(void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
+{
+    findEnemy(Org, Indiidua)
 }
 
 
@@ -107,12 +112,7 @@ bool eatEnemy(void *State, const vector<BaseIndividual *> &Individuals, BaseIndi
 void PublicInterfaceImpl::Init()
 {
     ActionRegistry.resize((int) ActionsIDs::NumberOfActions);
-
     // Basic movement
-    // The world is circular, doing this so that % works with negative numbers
-
-
-
     ActionRegistry[(int) ActionsIDs::MoveForward] = Action
             (
                     [&](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
@@ -184,8 +184,11 @@ void PublicInterfaceImpl::Init()
                     {
                         bool any_eaten = eatFood(State, World);
 
-                        if (!any_eaten)
-                            ((OrgState *) State)->Score -= WastedActionPenalty;
+                        auto state_ptr = (OrgState *) State;
+                        if (any_eaten)
+                            state_ptr->Life += FoodScoreGain;
+                        else
+                            state_ptr->Life -= WastedActionPenalty;
                     }
             );
 
@@ -195,9 +198,13 @@ void PublicInterfaceImpl::Init()
                     [this](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
                     {
                         bool any_eaten = eatEnemy(State, Individuals, Org, World);
-
-                        if (!any_eaten)
-                            ((OrgState *) State)->Score -= WastedActionPenalty;
+                        
+                        auto state_ptr = (OrgState *) State;
+                        if (any_eaten)
+                            // TODO: Set different score for eatEnemy
+                            state_ptr->Life += FoodScoreGain;
+                        else
+                            state_ptr->Life -= WastedActionPenalty;
                     }
             );
 
@@ -206,10 +213,15 @@ void PublicInterfaceImpl::Init()
             (
                     [this](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
                     {
-                        bool any_eaten = eatEnemy(State, Individuals, Org, World);
+                        auto state_ptr = (OrgState *) State;
 
-                        if (!any_eaten)
-                            ((OrgState *) State)->Score -= WastedActionPenalty;
+                        if (eatFood(State, World))
+                            state_ptr->Life += FoodScoreGain;
+                        else if (eatEnemy(State, Individuals, Org, World))
+                            // TODO: Set different score for eatEnemy
+                            state_ptr->Life += FoodScoreGain;
+                        else
+                            state_ptr->Life -= WastedActionPenalty;
                     }
             );
 
@@ -220,7 +232,6 @@ void PublicInterfaceImpl::Init()
                     [this](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
                     {
                         auto state_ptr = (OrgState *) State;
-
 
                         const auto &tag = Org->GetMorphologyTag();
 
