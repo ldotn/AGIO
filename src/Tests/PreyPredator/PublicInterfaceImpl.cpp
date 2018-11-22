@@ -28,6 +28,7 @@ void PublicInterfaceImpl::Init()
                             state_ptr->Score -= BorderPenalty;
 
                         state_ptr->Position.y = cycle_y(state_ptr->Position.y + 1);
+						state_ptr->VisitedCells.insert({state_ptr->Position.x,state_ptr->Position.y});
                     }
             );
 
@@ -41,6 +42,7 @@ void PublicInterfaceImpl::Init()
                             state_ptr->Score -= BorderPenalty;
 
                         state_ptr->Position.y = cycle_y(state_ptr->Position.y - 1);
+						state_ptr->VisitedCells.insert({ state_ptr->Position.x,state_ptr->Position.y });
                     }
             );
 
@@ -54,6 +56,7 @@ void PublicInterfaceImpl::Init()
                             state_ptr->Score -= BorderPenalty;
 
                         state_ptr->Position.x = cycle_x(state_ptr->Position.x + 1);
+						state_ptr->VisitedCells.insert({ state_ptr->Position.x,state_ptr->Position.y });
                     }
             );
 
@@ -67,6 +70,7 @@ void PublicInterfaceImpl::Init()
                             state_ptr->Score -= BorderPenalty;
 
                         state_ptr->Position.x = cycle_x(state_ptr->Position.x - 1);
+						state_ptr->VisitedCells.insert({ state_ptr->Position.x,state_ptr->Position.y });
                     }
             );
 
@@ -94,8 +98,13 @@ void PublicInterfaceImpl::Init()
                             }
                         }
 
-                        if (!any_eaten)
-                            state_ptr->Score -= WastedActionPenalty;
+						if (!any_eaten)
+						{
+							state_ptr->Score -= WastedActionPenalty;
+							state_ptr->FailedActionCount++;
+						}
+						else
+							state_ptr->EatenCount++;
                     }
             );
 
@@ -141,8 +150,14 @@ void PublicInterfaceImpl::Init()
                             }
                         }
 
-                        if (!any_eaten)
-                            state_ptr->Score -= WastedActionPenalty;
+						if (!any_eaten)
+						{
+							state_ptr->Score -= WastedActionPenalty;
+							state_ptr->FailedActionCount++;
+						}
+						else
+							state_ptr->EatenCount++;
+                           
                     }
             );
 
@@ -317,11 +332,16 @@ void* PublicInterfaceImpl::MakeState(const BaseIndividual *org)
 {
     auto state = new OrgState;
 
+	state->EatenCount = 0;
+	state->FailedActionCount = 0;
+	state->Repetitions = 0;
+	state->VisitedCellsCount = 0;
+	state->MetricsCurrentGenNumber = 0;
+
     state->Score = 0;
     state->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
     state->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
 
-    // TODO : If the org mutates this becomes invalid...
     for (auto [gid, cid] : org->GetMorphologyTag())
     {
         if (gid == 0) // mouth group
@@ -343,6 +363,21 @@ void PublicInterfaceImpl::ResetState(void *State)
     state_ptr->Score = 0;
     state_ptr->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
     state_ptr->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
+
+	if (state_ptr->MetricsCurrentGenNumber != CurrentGenNumber)
+	{
+		state_ptr->MetricsCurrentGenNumber = CurrentGenNumber;
+		state_ptr->VisitedCellsCount = 0;
+		state_ptr->VisitedCells = {};
+		state_ptr->EatenCount = 0;
+		state_ptr->FailedActionCount = 0;
+		state_ptr->Repetitions = 0;
+	}
+	else
+	{
+		state_ptr->Repetitions++;
+		state_ptr->VisitedCellsCount += state_ptr->VisitedCells.size();
+	}
 }
 
 void PublicInterfaceImpl::DestroyState(void *State)
