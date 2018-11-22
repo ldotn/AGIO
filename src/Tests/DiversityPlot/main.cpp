@@ -21,6 +21,8 @@ int GenerationsCount;
 float LifeLostPerTurn;
 float BorderPenalty;
 float WastedActionPenalty;
+float WaterPenalty;
+int InitialLife;
 string SerializationFile;
 
 int main() {
@@ -41,6 +43,8 @@ int main() {
 	loader.LoadValue(LifeLostPerTurn,"LifeLostPerTurn");
 	loader.LoadValue(BorderPenalty,"BorderPenalty");
 	loader.LoadValue(WastedActionPenalty,"WastedActionPenalty");
+    loader.LoadValue(WaterPenalty, "WaterPenalty");
+    loader.LoadValue(InitialLife, "InitialLife");
 	loader.LoadValue(SerializationFile, "SerializationFile");
 
     cout << "1 - Run Evolution" << endl;

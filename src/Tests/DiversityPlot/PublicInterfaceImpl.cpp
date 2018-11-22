@@ -7,113 +7,238 @@ using namespace fpp;
 using namespace std;
 using namespace agio;
 
+int cycle_x (int x)
+{
+    return abs(x) % WorldSizeX;
+};
+
+int cycle_y (int y)
+{
+    return abs(y) % WorldSizeY;
+};
+
+void move(int sum_x, int sum_y, void *State, void *World, bool swim)
+{
+    auto state_ptr = (OrgState *) State;
+    auto worldData = (WorldData *) World;
+
+    int x = cycle_x(state_ptr->Position.x + sum_x);
+    int y = cycle_y(state_ptr->Position.y + sum_y);
+    CellType cellType = worldData->CellTypes[y][x];
+
+    if (cellType != CellType::Wall)
+    {
+        state_ptr->Position.x = x;
+        state_ptr->Position.y = y;
+
+        if (!swim && cellType == CellType::Water)
+            state_ptr->Life -= WaterPenalty;
+    }
+
+};
+
+bool eatFood(void *State, void *World)
+{
+    minstd_rand RNG = minstd_rand(chrono::high_resolution_clock::now().time_since_epoch().count());
+    auto world_ptr = (WorldData *) World;
+    auto state_ptr = (OrgState *) State;
+
+    bool any_eaten = false;
+    for (auto[idx, pos] : enumerate(world_ptr->FoodPositions))
+    {
+        auto diff = abs >> (pos - state_ptr->Position);
+
+        if (diff.x <= 1 && diff.y <= 1)
+        {
+            // Just move the food to a different position. Achieves the same effect as removing it
+            // TODO: Check that the position isn't a wall
+            bool valid_position = false;
+            int x;
+            int y;
+            while (!valid_position)
+            {   
+                x = uniform_real_distribution<int>(0, WorldSizeX)(RNG);
+                y = uniform_real_distribution<int>(0, WorldSizeX)(RNG);
+
+                valid_position = world_ptr->CellTypes[y][x] != CellType::Wall;
+            }
+            world_ptr->FoodPositions[idx] = {x, y};
+            
+            any_eaten = true;
+            break;
+        }
+    }
+
+    return any_eaten;
+}
+
+BaseIndividual* findEnemy(void BaseIndividual *Org, const vector<BaseIndividual *> &Individuals, bool looking_enemy_alive)
+{
+    const auto &tag = Org->GetMorphologyTag();
+    // Find an individual of a DIFFERENT species.
+    // The species map is not really useful here
+    for (const auto &individual : Individuals)
+    {
+        // Ignore individuals that aren't being simulated right now
+        // Also, don't do all the other stuff against yourself.
+        // You already know you don't want to eat yourself
+        if (!individual->InSimulation || individual == Org)
+            continue; 
+
+        auto other_state_ptr = (OrgState *) individual->GetState();
+        
+        bool other_is_alive = other_state_ptr->Life > 0;
+        if ((looking_enemy_alive && !other_is_alive) ||
+                (!looking_enemy_alive && other_is_alive))
+            continue;
+
+        auto diff = abs >> (other_state_ptr->Position - state_ptr->Position);
+        if (diff.x <= 1 && diff.y <= 1)
+        {
+            // Check if they are from different species by comparing tags
+            if (!(tag == individual->GetMorphologyTag()))
+                return individual;
+        }
+    }
+    return nullptr; 
+}
+bool eatEnemy(void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
+{
+    findEnemy(Org, Indiidua)
+}
+
+
+
 void PublicInterfaceImpl::Init()
 {
-    ActionRegistry.resize((int)ActionsIDs::NumberOfActions);
-
+    ActionRegistry.resize((int) ActionsIDs::NumberOfActions);
     // Basic movement
-    // The world is circular, doing this so that % works with negative numbers
-    auto cycle_x = [](int x) { return ((x % WorldSizeX) + WorldSizeX) % WorldSizeX; };
-    auto cycle_y = [](int y) { return ((y % WorldSizeY) + WorldSizeY) % WorldSizeY; };
-
-
-
-    ActionRegistry[(int)ActionsIDs::MoveForward] = Action
+    ActionRegistry[(int) ActionsIDs::MoveForward] = Action
             (
-                    [&](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
+                    [&](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
                     {
-                        auto state_ptr = (OrgState*)State;
-
-                        if (state_ptr->Position.y >= WorldSizeY - 1)
-                            state_ptr->Score -= BorderPenalty;
-
-                        state_ptr->Position.y = cycle_y(state_ptr->Position.y + 1);
+                        move(0, 1, State, World, false);
                     }
             );
 
-    ActionRegistry[(int)ActionsIDs::MoveBackwards] = Action
+    ActionRegistry[(int) ActionsIDs::MoveBackwards] = Action
             (
-                    [&](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
+                    [&](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
                     {
-                        auto state_ptr = (OrgState*)State;
-
-                        if (state_ptr->Position.y <= 1)
-                            state_ptr->Score -= BorderPenalty;
-
-                        state_ptr->Position.y = cycle_y(state_ptr->Position.y - 1);
+                        move(0, -1, State, World, false);
                     }
             );
 
-    ActionRegistry[(int)ActionsIDs::MoveRight] = Action
+    ActionRegistry[(int) ActionsIDs::MoveRight] = Action
             (
-                    [&](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
+                    [&](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
                     {
-                        auto state_ptr = (OrgState*)State;
-
-                        if (state_ptr->Position.x >= WorldSizeX)
-                            state_ptr->Score -= BorderPenalty;
-
-                        state_ptr->Position.x = cycle_x(state_ptr->Position.x + 1);
+                        move(1, 0, State, World, false);
                     }
             );
 
-    ActionRegistry[(int)ActionsIDs::MoveLeft] = Action
+    ActionRegistry[(int) ActionsIDs::MoveLeft] = Action
             (
-                    [&](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
+                    [&](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
                     {
-                        auto state_ptr = (OrgState*)State;
+                        move(-1, 0, State, World, false);
+                    }
+            );
 
-                        if (state_ptr->Position.x <= 1)
-                            state_ptr->Score -= BorderPenalty;
+    ActionRegistry[(int) ActionsIDs::SwimMoveForward] = Action
+            (
+                    [&](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
+                    {
+                        move(0, 1, State, World, true);
+                    }
+            );
 
-                        state_ptr->Position.x = cycle_x(state_ptr->Position.x - 1);
+    ActionRegistry[(int) ActionsIDs::SwimMoveBackwards] = Action
+            (
+                    [&](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
+                    {
+                        move(0, -1, State, World, true);
+                    }
+            );
+
+    ActionRegistry[(int) ActionsIDs::SwimMoveRight] = Action
+            (
+                    [&](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
+                    {
+                        move(1, 0, State, World, true);
+                    }
+            );
+
+    ActionRegistry[(int) ActionsIDs::SwimMoveLeft] = Action
+            (
+                    [&](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
+                    {
+                        move(-1, 0, State, World, true);
                     }
             );
 
     // Eat any food that's at most one cell away
-    ActionRegistry[(int)ActionsIDs::EatFood] = Action
+    ActionRegistry[(int) ActionsIDs::EatFood] = Action
             (
-                    [this](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
+                    [this](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
                     {
-                        auto world_ptr = (WorldData*)World;
-                        auto state_ptr = (OrgState*)State;
+                        bool any_eaten = eatFood(State, World);
 
-                        bool any_eaten = false;
-                        for (auto [idx,pos] : enumerate(world_ptr->FoodPositions))
-                        {
-                            auto diff = abs >> (pos - state_ptr->Position);
+                        auto state_ptr = (OrgState *) State;
+                        if (any_eaten)
+                            state_ptr->Life += FoodScoreGain;
+                        else
+                            state_ptr->Life -= WastedActionPenalty;
+                    }
+            );
 
-                            if (diff.x <= 1 && diff.y <= 1)
-                            {
-                                state_ptr->Score += FoodScoreGain;
+    // Eat any enemy that's at most one cell away
+    ActionRegistry[(int) ActionsIDs::EatEnemy] = Action
+            (
+                    [this](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
+                    {
+                        bool any_eaten = eatEnemy(State, Individuals, Org, World);
+                        
+                        auto state_ptr = (OrgState *) State;
+                        if (any_eaten)
+                            // TODO: Set different score for eatEnemy
+                            state_ptr->Life += FoodScoreGain;
+                        else
+                            state_ptr->Life -= WastedActionPenalty;
+                    }
+            );
 
-                                // Just move the food to a different position. Achieves the same effect as removing it
-                                world_ptr->FoodPositions[idx] = { uniform_real_distribution<float>(0, WorldSizeX)(RNG), uniform_real_distribution<float>(0, WorldSizeY)(RNG) };
-                                any_eaten = true;
-                                break;
-                            }
-                        }
+    // Eat any enemy that's at most one cell away
+    ActionRegistry[(int) ActionsIDs::EatFoodEnemy] = Action
+            (
+                    [this](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
+                    {
+                        auto state_ptr = (OrgState *) State;
 
-                        if (!any_eaten)
-                            state_ptr->Score -= WastedActionPenalty;
+                        if (eatFood(State, World))
+                            state_ptr->Life += FoodScoreGain;
+                        else if (eatEnemy(State, Individuals, Org, World))
+                            // TODO: Set different score for eatEnemy
+                            state_ptr->Life += FoodScoreGain;
+                        else
+                            state_ptr->Life -= WastedActionPenalty;
                     }
             );
 
     // Kill and eat and individual of a different species at most once cell away
     // This is a simple test, so no fighting is simulated
-    ActionRegistry[(int)ActionsIDs::KillAndEat] = Action
+    ActionRegistry[(int) ActionsIDs::Kill] = Action
             (
-                    [this](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
+                    [this](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
                     {
-                        auto state_ptr = (OrgState*)State;
+                        auto state_ptr = (OrgState *) State;
 
-
-                        const auto& tag = Org->GetMorphologyTag();
+                        const auto &tag = Org->GetMorphologyTag();
 
                         // Find an individual of a DIFFERENT species.
                         // The species map is not really useful here
                         bool any_eaten = false;
-                        for (const auto& individual : Individuals)
+                        for (const auto &individual : Individuals)
                         {
                             // Ignore individuals that aren't being simulated right now
                             // Also, don't do all the other stuff against yourself.
@@ -121,18 +246,16 @@ void PublicInterfaceImpl::Init()
                             if (!individual->InSimulation || individual == Org)
                                 continue;
 
-                            auto other_state_ptr = (OrgState*)individual->GetState();
+                            auto other_state_ptr = (OrgState *) individual->GetState();
                             auto diff = abs >> (other_state_ptr->Position - state_ptr->Position);
                             if (diff.x <= 1 && diff.y <= 1)
                             {
                                 // Check if they are from different species by comparing tags
-                                const auto& other_tag = individual->GetMorphologyTag();
+                                const auto &other_tag = individual->GetMorphologyTag();
 
                                 if (!(tag == other_tag))
                                 {
-                                    state_ptr->Score += KillScoreGain;
-
-                                    other_state_ptr->Score -= DeathPenalty;
+                                    other_state_ptr->Life -= DeathPenalty;
                                     other_state_ptr->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
                                     other_state_ptr->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
                                     any_eaten = true;
@@ -147,14 +270,14 @@ void PublicInterfaceImpl::Init()
             );
 
     // Fill sensors
-    SensorRegistry.resize((int)SensorsIDs::NumberOfSensors);
+    SensorRegistry.resize((int) SensorsIDs::NumberOfSensors);
 
-    SensorRegistry[(int)SensorsIDs::NearestFoodAngle] = Sensor
+    SensorRegistry[(int) SensorsIDs::NearestFoodAngle] = Sensor
             (
-                    [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
+                    [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
                     {
-                        auto world_ptr = (WorldData*)World;
-                        auto state_ptr = (OrgState*)State;
+                        auto world_ptr = (WorldData *) World;
+                        auto state_ptr = (OrgState *) State;
 
                         float nearest_dist = numeric_limits<float>::max();
                         float2 nearest_pos;
@@ -175,12 +298,12 @@ void PublicInterfaceImpl::Init()
                     }
             );
 
-    SensorRegistry[(int)SensorsIDs::NearestFoodDistance] = Sensor
+    SensorRegistry[(int) SensorsIDs::NearestFoodDistance] = Sensor
             (
-                    [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
+                    [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
                     {
-                        auto world_ptr = (WorldData*)World;
-                        auto state_ptr = (OrgState*)State;
+                        auto world_ptr = (WorldData *) World;
+                        auto state_ptr = (OrgState *) State;
 
                         float nearest_dist = numeric_limits<float>::max();
                         for (auto pos : world_ptr->FoodPositions)
@@ -194,31 +317,32 @@ void PublicInterfaceImpl::Init()
                     }
             );
 
-    SensorRegistry[(int)SensorsIDs::NearestCompetidorAngle] = Sensor
+    SensorRegistry[(int) SensorsIDs::NearestCompetitorAngle] = Sensor
             (
-                    [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
+                    [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
                     {
-                        const auto& tag = Org->GetMorphologyTag();
-                        auto state_ptr = (OrgState*)State;
+                        const auto &tag = Org->GetMorphologyTag();
+                        auto state_ptr = (OrgState *) State;
                         float nearest_dist = numeric_limits<float>::max();
                         float2 nearest_pos;
 
-                        for (const auto& other_org : Individuals)
+                        for (const auto &other_org : Individuals)
                         {
                             // Ignore individuals that aren't being simulated right now
                             // Also, don't do all the other stuff against yourself.
                             if (!other_org->InSimulation || other_org == Org)
                                 continue;
 
-                            float dist = (((OrgState*)other_org->GetState())->Position - state_ptr->Position).length_sqr();
+                            float dist = (((OrgState *) other_org->GetState())->Position -
+                                          state_ptr->Position).length_sqr();
                             if (dist < nearest_dist)
                             {
-                                const auto& other_tag = other_org->GetMorphologyTag();
+                                const auto &other_tag = other_org->GetMorphologyTag();
 
                                 if (!(tag == other_tag))
                                 {
                                     nearest_dist = dist;
-                                    nearest_pos = ((OrgState*)other_org->GetState())->Position;
+                                    nearest_pos = ((OrgState *) other_org->GetState())->Position;
                                 }
                             }
                         }
@@ -231,25 +355,26 @@ void PublicInterfaceImpl::Init()
             );
 
 
-    SensorRegistry[(int)SensorsIDs::NearestCompetidorDistance] = Sensor
+    SensorRegistry[(int) SensorsIDs::NearestCompetitorDistance] = Sensor
             (
-                    [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
+                    [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
                     {
-                        const auto& tag = Org->GetMorphologyTag();
-                        auto state_ptr = (OrgState*)State;
+                        const auto &tag = Org->GetMorphologyTag();
+                        auto state_ptr = (OrgState *) State;
                         float nearest_dist = numeric_limits<float>::max();
 
-                        for (const auto& other_org : Individuals)
+                        for (const auto &other_org : Individuals)
                         {
                             // Ignore individuals that aren't being simulated right now
                             // Also, don't do all the other stuff against yourself.
                             if (!other_org->InSimulation || other_org == Org)
                                 continue;
 
-                            float dist = (((OrgState*)other_org->GetState())->Position - state_ptr->Position).length_sqr();
+                            float dist = (((OrgState *) other_org->GetState())->Position -
+                                          state_ptr->Position).length_sqr();
                             if (dist < nearest_dist)
                             {
-                                const auto& other_tag = other_org->GetMorphologyTag();
+                                const auto &other_tag = other_org->GetMorphologyTag();
 
                                 if (!(tag == other_tag))
                                     nearest_dist = dist;
@@ -261,35 +386,78 @@ void PublicInterfaceImpl::Init()
             );
 
     // Fill parameters
-    ParameterDefRegistry.resize((int)ParametersIDs::NumberOfParameters);
+    ParameterDefRegistry.resize((int) ParametersIDs::NumberOfParameters);
 
-    ParameterDefRegistry[(int)ParametersIDs::JumpDistance] = ParameterDefinition
+    ParameterDefRegistry[(int) ParametersIDs::JumpDistance] = ParameterDefinition
             (
                     true, // require the parameter, even if the organism doesn't have the component to jump
                     2, // Min bound
                     5, // max bound
-                    (int)ParametersIDs::JumpDistance
+                    (int) ParametersIDs::JumpDistance
+            );
+    ParameterDefRegistry[(int) ParametersIDs::MoveGrassWaterRatio] = ParameterDefinition
+            (
+                    true, // require the parameter, even if the organism doesn't have the component to jump
+                    0, // Min bound
+                    1, // max bound
+                    (int) ParametersIDs::MoveGrassWaterRatio
             );
 
     // Fill components
     ComponentRegistry.push_back
             ({
-                     1,1, // Can only have one mouth
+                     1, 1, // Can only have one mouth
                      {
                              // Herbivore
                              {
-                                     {(int)ActionsIDs::EatFood},
+                                     {(int) ActionsIDs::EatFood},
                                      {
-                                             (int)SensorsIDs::NearestFoodAngle,
-                                             (int)SensorsIDs::NearestFoodDistance,
+                                             (int) SensorsIDs::NearestFoodAngle,
+                                             (int) SensorsIDs::NearestFoodDistance,
                                      }
                              },
                              // Carnivore
                              {
-                                     {(int)ActionsIDs::KillAndEat},
+                                     {(int) ActionsIDs::EatEnemy},
                                      {
-                                             (int)SensorsIDs::NearestCompetidorAngle,
-                                             (int)SensorsIDs::NearestCompetidorDistance,
+                                             (int) SensorsIDs::NearestCompetitorAngle,
+                                             (int) SensorsIDs::NearestCompetitorDistance,
+                                             (int) SensorsIDs::NearestCompetitorAlive
+                                     }
+                             },
+                             // Herbivore and Carnivore
+                             {
+                                     {(int) ActionsIDs::EatFoodEnemy},
+                                     {
+                                             (int) SensorsIDs::NearestFoodAngle,
+                                             (int) SensorsIDs::NearestFoodDistance,
+                                             (int) SensorsIDs::NearestCompetitorAngle,
+                                             (int) SensorsIDs::NearestCompetitorDistance,
+                                             (int) SensorsIDs::NearestCompetitorAlive
+                                     }
+                             },
+                     }
+             });
+
+    ComponentRegistry.push_back
+            ({
+                     1, 1, // Can have a only ground body or an amphibian body
+                     {
+                             // There's only one body to choose
+                             {
+                                     {
+                                             (int) ActionsIDs::MoveForward,
+                                             (int) ActionsIDs::MoveBackwards,
+                                             (int) ActionsIDs::MoveLeft,
+                                             (int) ActionsIDs::MoveRight,
+                                     }
+                             },
+                             {
+                                     {
+                                             (int) ActionsIDs::SwimMoveForward,
+                                             (int) ActionsIDs::SwimMoveBackwards,
+                                             (int) ActionsIDs::SwimMoveLeft,
+                                             (int) ActionsIDs::SwimMoveRight,
                                      }
                              }
                      }
@@ -297,23 +465,21 @@ void PublicInterfaceImpl::Init()
 
     ComponentRegistry.push_back
             ({
-                     1,1, // Can only have one body
+                     0, 1, // Ability of jump
                      {
-                             // There's only one body to choose
                              {
                                      {
-                                             (int)ActionsIDs::MoveForward,
-                                             (int)ActionsIDs::MoveBackwards,
-                                             (int)ActionsIDs::MoveLeft,
-                                             (int)ActionsIDs::MoveRight,
-                                     }/*,
-					{ (int)SensorsIDs::CurrentLife }*/
+                                             (int) ActionsIDs::JumpForward,
+                                             (int) ActionsIDs::JumpBackwards,
+                                             (int) ActionsIDs::JumpLeft,
+                                             (int) ActionsIDs::JumpRight,
+                                     }
                              }
                      }
              });
 }
 
-void* PublicInterfaceImpl::MakeState(const BaseIndividual *org)
+void *PublicInterfaceImpl::MakeState(const BaseIndividual *org)
 {
     auto state = new OrgState;
 
@@ -321,24 +487,15 @@ void* PublicInterfaceImpl::MakeState(const BaseIndividual *org)
     state->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
     state->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
 
-    // TODO : If the org mutates this becomes invalid...
-    for (auto [gid, cid] : org->GetMorphologyTag())
-    {
-        if (gid == 0) // mouth group
-        {
-            if (cid == 0) // herbivore
-                state->IsCarnivore = false;
-            else if (cid == 1)
-                state->IsCarnivore = true;
-        }
-    }
+    // check if can swim
+
 
     return state;
 }
 
 void PublicInterfaceImpl::ResetState(void *State)
 {
-    auto state_ptr = (OrgState*)State;
+    auto state_ptr = (OrgState *) State;
 
     state_ptr->Score = 0;
     state_ptr->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
@@ -347,36 +504,36 @@ void PublicInterfaceImpl::ResetState(void *State)
 
 void PublicInterfaceImpl::DestroyState(void *State)
 {
-    auto state_ptr = (OrgState*)State;
+    auto state_ptr = (OrgState *) State;
     delete state_ptr;
 }
 
-void* PublicInterfaceImpl::DuplicateState(void *State)
+void *PublicInterfaceImpl::DuplicateState(void *State)
 {
     auto new_state = new OrgState;
-    *new_state = *(OrgState*)State;
+    *new_state = *(OrgState *) State;
     return new_state;
 
 }
 
-void PublicInterfaceImpl::ComputeFitness(const std::vector<class BaseIndividual*>& Individuals, void *World)
+void PublicInterfaceImpl::ComputeFitness(const std::vector<class BaseIndividual *> &Individuals, void *World)
 {
-    for (auto& org : Individuals)
-        ((Individual*)org)->Reset();
+    for (auto &org : Individuals)
+        ((Individual *) org)->Reset();
 
     LastSimulationStepCount = 0;
     for (int i = 0; i < MaxSimulationSteps; i++)
     {
-        for (auto& org : Individuals)
+        for (auto &org : Individuals)
         {
             if (!org->InSimulation)
                 continue;
 
-            auto state_ptr = (OrgState*)org->GetState();
+            auto state_ptr = (OrgState *) org->GetState();
 
             org->DecideAndExecute(World, Individuals);
 
-            ((Individual*)org)->Fitness = state_ptr->Score;
+            ((Individual *) org)->Fitness = state_ptr->Score;
         }
         LastSimulationStepCount++;
     }

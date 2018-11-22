@@ -17,7 +17,9 @@ extern int GenerationsCount;
 extern float LifeLostPerTurn;
 extern float BorderPenalty;
 extern float WastedActionPenalty;
+extern float WaterPenalty;
 extern std::string SerializationFile;
+extern int InitialLife;
 
 void runEvolution();
 void runSimulation();
