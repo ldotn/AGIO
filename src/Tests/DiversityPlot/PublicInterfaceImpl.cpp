@@ -7,24 +7,40 @@ using namespace fpp;
 using namespace std;
 using namespace agio;
 
-int cycle_x (int x)
+int cycle_x(int x)
 {
     return abs(x) % WorldSizeX;
 };
 
-int cycle_y (int y)
+int cycle_y(int y)
 {
     return abs(y) % WorldSizeY;
 };
 
+float2 random_valid_position(WorldData *world_ptr)
+{
+    minstd_rand RNG = minstd_rand(chrono::high_resolution_clock::now().time_since_epoch().count());
+    bool valid_position = false;
+    float x, y;
+    while (!valid_position)
+    {
+        x = uniform_real_distribution<int>(0, WorldSizeX)(RNG);
+        y = uniform_real_distribution<int>(0, WorldSizeX)(RNG);
+
+        valid_position = world_ptr->CellTypes[y][x] != CellType::Wall;
+    }
+
+    return float2(x, y);
+}
+
 void move(int sum_x, int sum_y, void *State, void *World, bool swim)
 {
     auto state_ptr = (OrgState *) State;
-    auto worldData = (WorldData *) World;
+    auto world_ptr = (WorldData *) World;
 
     int x = cycle_x(state_ptr->Position.x + sum_x);
     int y = cycle_y(state_ptr->Position.y + sum_y);
-    CellType cellType = worldData->CellTypes[y][x];
+    CellType cellType = world_ptr->CellTypes[y][x];
 
     if (cellType != CellType::Wall)
     {
@@ -37,76 +53,94 @@ void move(int sum_x, int sum_y, void *State, void *World, bool swim)
 
 };
 
-bool eatFood(void *State, void *World)
+int find_nearest_food(void *State, void *World)
 {
-    minstd_rand RNG = minstd_rand(chrono::high_resolution_clock::now().time_since_epoch().count());
     auto world_ptr = (WorldData *) World;
     auto state_ptr = (OrgState *) State;
 
-    bool any_eaten = false;
+    float nearest_dist = numeric_limits<float>::max();
+    int nearest_idx = 0;
     for (auto[idx, pos] : enumerate(world_ptr->FoodPositions))
     {
-        auto diff = abs >> (pos - state_ptr->Position);
+        float dist = (pos - state_ptr->Position).length_sqr();
+        // Minimum distance is 0. Impossible to find any closer.
+        if (dist == 0)
+            return idx;
 
-        if (diff.x <= 1 && diff.y <= 1)
+        if (dist < nearest_dist)
         {
-            // Just move the food to a different position. Achieves the same effect as removing it
-            // TODO: Check that the position isn't a wall
-            bool valid_position = false;
-            int x;
-            int y;
-            while (!valid_position)
-            {   
-                x = uniform_real_distribution<int>(0, WorldSizeX)(RNG);
-                y = uniform_real_distribution<int>(0, WorldSizeX)(RNG);
-
-                valid_position = world_ptr->CellTypes[y][x] != CellType::Wall;
-            }
-            world_ptr->FoodPositions[idx] = {x, y};
-            
-            any_eaten = true;
-            break;
+            nearest_dist = dist;
+            nearest_idx = idx;
         }
     }
 
-    return any_eaten;
+    return nearest_idx;
 }
 
-BaseIndividual* findEnemy(void BaseIndividual *Org, const vector<BaseIndividual *> &Individuals, bool looking_enemy_alive)
+BaseIndividual *find_nearest_enemy(const void *State, const BaseIndividual *Org,
+                                   const vector<BaseIndividual *> &Individuals, bool looking_enemy_alive,
+                                   bool looking_for_both = false)
 {
+    auto state_ptr = (OrgState *) State;
     const auto &tag = Org->GetMorphologyTag();
+
+    float nearest_dist = numeric_limits<float>::max();
+    BaseIndividual *nearest_enemy = nullptr;
     // Find an individual of a DIFFERENT species.
     // The species map is not really useful here
     for (const auto &individual : Individuals)
     {
-        // Ignore individuals that aren't being simulated right now
-        // Also, don't do all the other stuff against yourself.
-        // You already know you don't want to eat yourself
-        if (!individual->InSimulation || individual == Org)
-            continue; 
-
         auto other_state_ptr = (OrgState *) individual->GetState();
-        
-        bool other_is_alive = other_state_ptr->Life > 0;
-        if ((looking_enemy_alive && !other_is_alive) ||
-                (!looking_enemy_alive && other_is_alive))
+
+        // Ignore individuals that aren't being simulated right now or those of your species
+        bool equal_species = tag == individual->GetMorphologyTag();
+        if (!individual->InSimulation || equal_species)
             continue;
 
-        auto diff = abs >> (other_state_ptr->Position - state_ptr->Position);
-        if (diff.x <= 1 && diff.y <= 1)
+        if (!looking_for_both)
         {
-            // Check if they are from different species by comparing tags
-            if (!(tag == individual->GetMorphologyTag()))
-                return individual;
+            bool other_is_alive = other_state_ptr->Life > 0;
+            if ((looking_enemy_alive && !other_is_alive) || (!looking_enemy_alive && other_is_alive))
+                continue;
+        }
+
+        float dist = (other_state_ptr->Position - state_ptr->Position).length_sqr();
+        if (dist == 0)
+            return individual;
+
+        if (dist < nearest_dist)
+        {
+            nearest_dist = dist;
+            nearest_enemy = individual;
         }
     }
-    return nullptr; 
-}
-bool eatEnemy(void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
-{
-    findEnemy(Org, Indiidua)
+    return nearest_enemy;
 }
 
+bool eat_food(void *State, void *World)
+{
+    auto world_ptr = (WorldData *) World;
+    auto state_ptr = (OrgState *) State;
+
+    int idx = find_nearest_food(State, World);
+    float2 pos = world_ptr->FoodPositions[idx];
+
+    float dist = (pos - state_ptr->Position).length_sqr();
+    if (dist <= 1)
+    {
+        world_ptr->FoodPositions[idx] = random_valid_position(world_ptr);
+        return true;
+    }
+
+    return false;
+}
+
+bool eat_enemy(void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
+{
+    bool enemy_alive = false;
+    BaseIndividual *enemy = find_nearest_enemy(State, Org, Individuals, enemy_alive);
+    return enemy != nullptr;
+}
 
 
 void PublicInterfaceImpl::Init()
@@ -177,12 +211,56 @@ void PublicInterfaceImpl::Init()
                     }
             );
 
+    ActionRegistry[(int) ActionsIDs::JumpForward] = Action
+            (
+                    [&](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
+                    {
+                        auto param_iter = Org->GetParameters().find((int)ParametersIDs::JumpDistance);
+                        int jump_dist = round(param_iter->second.Value);
+
+                        move(0, jump_dist, State, World, false);
+                    }
+            );
+
+    ActionRegistry[(int) ActionsIDs::JumpBackwards] = Action
+            (
+                    [&](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
+                    {
+                        auto param_iter = Org->GetParameters().find((int)ParametersIDs::JumpDistance);
+                        int jump_dist = round(param_iter->second.Value);
+
+                        move(0, -jump_dist, State, World, false);
+                    }
+            );
+
+    ActionRegistry[(int) ActionsIDs::JumpRight] = Action
+            (
+                    [&](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
+                    {
+                        auto param_iter = Org->GetParameters().find((int)ParametersIDs::JumpDistance);
+                        int jump_dist = round(param_iter->second.Value);
+
+                        move(jump_dist, 0, State, World, false);
+                    }
+            );
+
+    ActionRegistry[(int) ActionsIDs::JumpLeft] = Action
+            (
+                    [&](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
+                    {
+                        auto param_iter = Org->GetParameters().find((int)ParametersIDs::JumpDistance);
+                        int jump_dist = round(param_iter->second.Value);
+
+                        move(-jump_dist, 0, State, World, false);
+                    }
+            );
+
     // Eat any food that's at most one cell away
     ActionRegistry[(int) ActionsIDs::EatFood] = Action
             (
                     [this](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
                     {
-                        bool any_eaten = eatFood(State, World);
+                        bool any_eaten = eat_food(State, World);
 
                         auto state_ptr = (OrgState *) State;
                         if (any_eaten)
@@ -197,11 +275,11 @@ void PublicInterfaceImpl::Init()
             (
                     [this](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
                     {
-                        bool any_eaten = eatEnemy(State, Individuals, Org, World);
-                        
+                        bool any_eaten = eat_enemy(State, Individuals, Org, World);
+
                         auto state_ptr = (OrgState *) State;
                         if (any_eaten)
-                            // TODO: Set different score for eatEnemy
+                            // TODO: Set different score for eat_enemy
                             state_ptr->Life += FoodScoreGain;
                         else
                             state_ptr->Life -= WastedActionPenalty;
@@ -215,10 +293,10 @@ void PublicInterfaceImpl::Init()
                     {
                         auto state_ptr = (OrgState *) State;
 
-                        if (eatFood(State, World))
+                        if (eat_food(State, World))
                             state_ptr->Life += FoodScoreGain;
-                        else if (eatEnemy(State, Individuals, Org, World))
-                            // TODO: Set different score for eatEnemy
+                        else if (eat_enemy(State, Individuals, Org, World))
+                            // TODO: Set different score for eat_enemy
                             state_ptr->Life += FoodScoreGain;
                         else
                             state_ptr->Life -= WastedActionPenalty;
@@ -233,38 +311,17 @@ void PublicInterfaceImpl::Init()
                     {
                         auto state_ptr = (OrgState *) State;
 
-                        const auto &tag = Org->GetMorphologyTag();
-
-                        // Find an individual of a DIFFERENT species.
-                        // The species map is not really useful here
-                        bool any_eaten = false;
-                        for (const auto &individual : Individuals)
+                        BaseIndividual *enemy = find_nearest_enemy(State, Org, Individuals, true);
+                        if (enemy)
                         {
-                            // Ignore individuals that aren't being simulated right now
-                            // Also, don't do all the other stuff against yourself.
-                            // You already know you don't want to kill yourself
-                            if (!individual->InSimulation || individual == Org)
-                                continue;
+                            auto other_state_ptr = (OrgState *) enemy->GetState();
 
-                            auto other_state_ptr = (OrgState *) individual->GetState();
-                            auto diff = abs >> (other_state_ptr->Position - state_ptr->Position);
-                            if (diff.x <= 1 && diff.y <= 1)
-                            {
-                                // Check if they are from different species by comparing tags
-                                const auto &other_tag = individual->GetMorphologyTag();
-
-                                if (!(tag == other_tag))
-                                {
-                                    other_state_ptr->Life -= DeathPenalty;
-                                    other_state_ptr->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
-                                    other_state_ptr->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
-                                    any_eaten = true;
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (!any_eaten)
+                            float dist = (other_state_ptr->Position - state_ptr->Position).length_sqr();
+                            if (dist < 1)
+                                other_state_ptr->Life -= DeathPenalty;
+                            else
+                                state_ptr->Score -= WastedActionPenalty;
+                        } else
                             state_ptr->Score -= WastedActionPenalty;
                     }
             );
@@ -279,22 +336,12 @@ void PublicInterfaceImpl::Init()
                         auto world_ptr = (WorldData *) World;
                         auto state_ptr = (OrgState *) State;
 
-                        float nearest_dist = numeric_limits<float>::max();
-                        float2 nearest_pos;
-                        for (auto pos : world_ptr->FoodPositions)
-                        {
-                            float dist = (pos - state_ptr->Position).length_sqr();
-                            if (dist < nearest_dist)
-                            {
-                                nearest_dist = dist;
-                                nearest_pos = pos;
-                            }
-                        }
+                        int idx = find_nearest_food(State, World);
+                        float2 pos = world_ptr->FoodPositions[idx];
 
                         // Compute "angle", taking as 0 = looking forward ([0,1])
-                        // The idea is
-                        //	angle = normalize(V - Pos) . [0,1]
-                        return (nearest_pos - state_ptr->Position).normalize().y;
+                        // The idea is: angle = normalize(V - Pos) . [0,1]
+                        return (pos - state_ptr->Position).normalize().y;
                     }
             );
 
@@ -305,15 +352,10 @@ void PublicInterfaceImpl::Init()
                         auto world_ptr = (WorldData *) World;
                         auto state_ptr = (OrgState *) State;
 
-                        float nearest_dist = numeric_limits<float>::max();
-                        for (auto pos : world_ptr->FoodPositions)
-                        {
-                            float dist = (pos - state_ptr->Position).length_sqr();
-                            if (dist < nearest_dist)
-                                nearest_dist = dist;
-                        }
+                        int idx = find_nearest_food(State, World);
+                        float2 pos = world_ptr->FoodPositions[idx];
 
-                        return nearest_dist;
+                        return (pos - state_ptr->Position).length_sqr();
                     }
             );
 
@@ -321,36 +363,15 @@ void PublicInterfaceImpl::Init()
             (
                     [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
                     {
-                        const auto &tag = Org->GetMorphologyTag();
+                        BaseIndividual* nearest_competitor = find_nearest_enemy(State, Org, Individuals, true, true);
+
                         auto state_ptr = (OrgState *) State;
-                        float nearest_dist = numeric_limits<float>::max();
-                        float2 nearest_pos;
-
-                        for (const auto &other_org : Individuals)
-                        {
-                            // Ignore individuals that aren't being simulated right now
-                            // Also, don't do all the other stuff against yourself.
-                            if (!other_org->InSimulation || other_org == Org)
-                                continue;
-
-                            float dist = (((OrgState *) other_org->GetState())->Position -
-                                          state_ptr->Position).length_sqr();
-                            if (dist < nearest_dist)
-                            {
-                                const auto &other_tag = other_org->GetMorphologyTag();
-
-                                if (!(tag == other_tag))
-                                {
-                                    nearest_dist = dist;
-                                    nearest_pos = ((OrgState *) other_org->GetState())->Position;
-                                }
-                            }
-                        }
+                        auto other_state_ptr = (OrgState *) nearest_competitor->GetState();
 
                         // Compute "angle", taking as 0 = looking forward ([0,1])
                         // The idea is
                         //	angle = normalize(V - Pos) . [0,1]
-                        return (nearest_pos - state_ptr->Position).normalize().y;
+                        return (other_state_ptr->Position - state_ptr->Position).normalize().y;
                     }
             );
 
@@ -359,29 +380,12 @@ void PublicInterfaceImpl::Init()
             (
                     [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
                     {
-                        const auto &tag = Org->GetMorphologyTag();
+                        BaseIndividual* nearest_competitor = find_nearest_enemy(State, Org, Individuals, true, true);
+
                         auto state_ptr = (OrgState *) State;
-                        float nearest_dist = numeric_limits<float>::max();
+                        auto other_state_ptr = (OrgState *) nearest_competitor->GetState();
 
-                        for (const auto &other_org : Individuals)
-                        {
-                            // Ignore individuals that aren't being simulated right now
-                            // Also, don't do all the other stuff against yourself.
-                            if (!other_org->InSimulation || other_org == Org)
-                                continue;
-
-                            float dist = (((OrgState *) other_org->GetState())->Position -
-                                          state_ptr->Position).length_sqr();
-                            if (dist < nearest_dist)
-                            {
-                                const auto &other_tag = other_org->GetMorphologyTag();
-
-                                if (!(tag == other_tag))
-                                    nearest_dist = dist;
-                            }
-                        }
-
-                        return nearest_dist;
+                        return (other_state_ptr->Position - state_ptr->Position).length_sqr();
                     }
             );
 
@@ -473,6 +477,22 @@ void PublicInterfaceImpl::Init()
                                              (int) ActionsIDs::JumpBackwards,
                                              (int) ActionsIDs::JumpLeft,
                                              (int) ActionsIDs::JumpRight,
+                                     }
+                             }
+                     }
+             });
+
+    ComponentRegistry.push_back
+            ({
+                     0, 1, // Ability of see competitors
+                     {
+                             {
+                                     {
+                                             {},
+                                             {
+                                                     (int) SensorsIDs::NearestCompetitorAngle,
+                                                     (int) SensorsIDs::NearestCompetitorDistance
+                                             }
                                      }
                              }
                      }

@@ -76,7 +76,7 @@ void runSimulation() {
 		{
 			auto state_ptr = (OrgState*)org->GetState();
 
-			if (state_ptr->IsCarnivore)
+			if (true) //state_ptr->IsCarnivore)
 			{
 				carnivores_x.push_back(state_ptr->Position.x);
 				carnivores_y.push_back(state_ptr->Position.y);
