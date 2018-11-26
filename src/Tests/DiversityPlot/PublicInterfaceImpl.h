@@ -12,12 +12,8 @@ using namespace agio;
 
 struct OrgState
 {
-    float Score = 0;
     float Life = 100;
     float2 Position;
-
-    bool CanEatFood;
-    bool CanEatEnemy;
 };
 
 enum class ParametersIDs

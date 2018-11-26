@@ -320,9 +320,9 @@ void PublicInterfaceImpl::Init()
                             if (dist < 1)
                                 other_state_ptr->Life -= DeathPenalty;
                             else
-                                state_ptr->Score -= WastedActionPenalty;
+                                state_ptr->Life -= WastedActionPenalty;
                         } else
-                            state_ptr->Score -= WastedActionPenalty;
+                            state_ptr->Life -= WastedActionPenalty;
                     }
             );
 
@@ -503,12 +503,8 @@ void *PublicInterfaceImpl::MakeState(const BaseIndividual *org)
 {
     auto state = new OrgState;
 
-    state->Score = 0;
     state->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
     state->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
-
-    // check if can swim
-
 
     return state;
 }
@@ -517,7 +513,6 @@ void PublicInterfaceImpl::ResetState(void *State)
 {
     auto state_ptr = (OrgState *) State;
 
-    state_ptr->Score = 0;
     state_ptr->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
     state_ptr->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
 }
@@ -553,7 +548,7 @@ void PublicInterfaceImpl::ComputeFitness(const std::vector<class BaseIndividual 
 
             org->DecideAndExecute(World, Individuals);
 
-            ((Individual *) org)->Fitness = state_ptr->Score;
+            ((Individual *) org)->Fitness = state_ptr->Life;
         }
         LastSimulationStepCount++;
     }
