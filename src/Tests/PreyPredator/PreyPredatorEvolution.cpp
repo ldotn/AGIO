@@ -98,7 +98,7 @@ void runEvolution()
 					auto state_ptr = ((OrgState*)org.GetState());
 
 					avg_eaten += (float)state_ptr->EatenCount / state_ptr->Repetitions;
-					avg_failed += (float)state_ptr->FailedActionCount / state_ptr->Repetitions;
+					avg_failed += (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions;
 					avg_coverage += (float)state_ptr->VisitedCellsCount / state_ptr->Repetitions;
 				}
 

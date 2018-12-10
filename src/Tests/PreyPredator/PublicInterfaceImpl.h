@@ -18,11 +18,13 @@ struct OrgState
 
     bool IsCarnivore;
 
-	int FailedActionCount;
+	int FailedActionCountCurrent;
 	int EatenCount;
 	int VisitedCellsCount;
 	int Repetitions; // Divide the metrics by this to get the average values (the real metrics, otherwise it's the sum)
 	int MetricsCurrentGenNumber;
+	int FailableActionCount; // Divide the FailedActionCountCurrent by this to get average
+	int FailedActionFractionAcc;
 
 	struct pair_hash
 	{

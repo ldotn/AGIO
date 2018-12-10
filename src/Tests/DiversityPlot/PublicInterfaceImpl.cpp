@@ -21,11 +21,11 @@ float2 random_valid_position(WorldData *world_ptr)
 {
     minstd_rand RNG = minstd_rand(chrono::high_resolution_clock::now().time_since_epoch().count());
     bool valid_position = false;
-    float x, y;
+    int x, y;
     while (!valid_position)
     {
-        x = uniform_real_distribution<int>(0, WorldSizeX)(RNG);
-        y = uniform_real_distribution<int>(0, WorldSizeX)(RNG);
+        x = uniform_int_distribution<int>(0, WorldSizeX)(RNG);
+        y = uniform_int_distribution<int>(0, WorldSizeX)(RNG);
 
         valid_position = world_ptr->CellTypes[y][x] != CellType::Wall;
     }

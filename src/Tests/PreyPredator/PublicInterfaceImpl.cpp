@@ -98,10 +98,11 @@ void PublicInterfaceImpl::Init()
                             }
                         }
 
+						state_ptr->FailableActionCount++;
 						if (!any_eaten)
 						{
 							state_ptr->Score -= WastedActionPenalty;
-							state_ptr->FailedActionCount++;
+							state_ptr->FailedActionCountCurrent++;
 						}
 						else
 							state_ptr->EatenCount++;
@@ -150,10 +151,11 @@ void PublicInterfaceImpl::Init()
                             }
                         }
 
+						state_ptr->FailableActionCount++;
 						if (!any_eaten)
 						{
 							state_ptr->Score -= WastedActionPenalty;
-							state_ptr->FailedActionCount++;
+							state_ptr->FailedActionCountCurrent++;
 						}
 						else
 							state_ptr->EatenCount++;
@@ -333,10 +335,12 @@ void* PublicInterfaceImpl::MakeState(const BaseIndividual *org)
     auto state = new OrgState;
 
 	state->EatenCount = 0;
-	state->FailedActionCount = 0;
+	state->FailedActionCountCurrent = 0;
 	state->Repetitions = 0;
 	state->VisitedCellsCount = 0;
 	state->MetricsCurrentGenNumber = 0;
+	state->FailableActionCount = 0;
+	state->FailedActionFractionAcc = 0;
 
     state->Score = 0;
     state->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
@@ -370,13 +374,21 @@ void PublicInterfaceImpl::ResetState(void *State)
 		state_ptr->VisitedCellsCount = 0;
 		state_ptr->VisitedCells = {};
 		state_ptr->EatenCount = 0;
-		state_ptr->FailedActionCount = 0;
+		state_ptr->FailedActionCountCurrent = 0;
 		state_ptr->Repetitions = 0;
+		state_ptr->FailableActionCount = 0;
+		state_ptr->FailedActionFractionAcc = 0;
 	}
 	else
 	{
 		state_ptr->Repetitions++;
 		state_ptr->VisitedCellsCount += state_ptr->VisitedCells.size();
+		if (state_ptr->FailableActionCount > 0)
+		{
+			state_ptr->FailedActionFractionAcc += state_ptr->FailedActionCountCurrent / state_ptr->FailableActionCount;
+			state_ptr->FailableActionCount = 0;
+			state_ptr->FailedActionCountCurrent = 0;
+		}
 	}
 }
 
