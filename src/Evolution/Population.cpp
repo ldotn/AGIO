@@ -123,9 +123,12 @@ void Population::Spawn(int SizeMult,int SimSize)
 			org.Morphology = tag;
 			org.Genome = s.NetworksPopulation->organisms[i]->gnome;
 			org.Brain = org.Genome->genesis(org.Genome->genome_id);
+
 			org.Actions = actions;
 			org.Sensors = sensors;
+
 			org.ActivationsBuffer.resize(org.Actions.size());
+			org.SensorsValues.resize(org.Sensors.size());
 
 			for (auto [pidx, param] : enumerate(Interface->GetParameterDefRegistry()))
 			{
@@ -476,6 +479,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 						org.Actions = actions;
 						org.Sensors = sensors;
 						org.ActivationsBuffer.resize(org.Actions.size());
+                        org.SensorsValues.resize(org.Sensors.size());
 
 						for (auto[pidx, param] : enumerate(Interface->GetParameterDefRegistry()))
 						{

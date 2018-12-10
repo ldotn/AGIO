@@ -24,8 +24,8 @@ float2 random_valid_position(WorldData *world_ptr)
     int x, y;
     while (!valid_position)
     {
-        x = uniform_int_distribution<int>(0, WorldSizeX)(RNG);
-        y = uniform_int_distribution<int>(0, WorldSizeX)(RNG);
+        x = uniform_int_distribution<int>(0, WorldSizeX -1)(RNG);
+        y = uniform_int_distribution<int>(0, WorldSizeY -1)(RNG);
 
         valid_position = world_ptr->CellTypes[y][x] != CellType::Wall;
     }
@@ -386,6 +386,16 @@ void PublicInterfaceImpl::Init()
                         auto other_state_ptr = (OrgState *) nearest_competitor->GetState();
 
                         return (other_state_ptr->Position - state_ptr->Position).length_sqr();
+                    }
+            );
+
+    SensorRegistry[(int) SensorsIDs::NearestCompetitorAlive] = Sensor
+            (
+                    [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
+                    {
+                        BaseIndividual* nearest_competitor = find_nearest_enemy(State, Org, Individuals, true, true);
+                        auto state_ptr = (OrgState *) nearest_competitor->GetState();
+                        return state_ptr->Life > 0? 1 : 0;
                     }
             );
 
