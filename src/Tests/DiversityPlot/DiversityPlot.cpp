@@ -14,6 +14,8 @@
 #include "DiversityPlot.h"
 #include "PublicInterfaceImpl.h"
 
+#include "Greedy/GreedyPrey.h"
+
 namespace plt = matplotlibcpp;
 using namespace std;
 using namespace agio;
@@ -30,15 +32,16 @@ void runSimulation() {
     // Create and fill the world
     WorldData world = createWorld();
 
-    SRegistry registry;
-    registry.load(SerializationFile);
+//    SRegistry registry;
+//    registry.load(SerializationFile);
 
     // Create the individuals that are gonna be used in the simulation
     // TODO: Select individuals with a criteria
     vector<BaseIndividual*> individuals;
-    for(auto &entry : registry.Species)
-        for(auto &individual: entry.Individuals)
-            individuals.push_back(&individual);
+    individuals.push_back(new GreedyPrey());
+//    for(auto &entry : registry.Species)
+//        for(auto &individual: entry.Individuals)
+//            individuals.push_back(&individual);
 
 	for(auto &individual : individuals)
 		individual->State = Interface->MakeState(individual);
@@ -116,6 +119,8 @@ WorldData createWorld() {
     while(!file.eof())
     {
         file >> line;
+        if (line == "")
+            throw "Empty line in world.txt";
         vector<CellType> cellTypes;
         for (char &c : line)
         {
@@ -123,9 +128,9 @@ WorldData createWorld() {
             if (c == '0')
                 type = CellType::Grass;
             else if (c == '1')
-                type = CellType::Water;
+                type = CellType::Grass;//Water;
             else if (c == '2')
-                type = CellType::Wall;
+                type = CellType::Grass;//Wall;
             else
                 throw "Undefined cell type";
             cellTypes.push_back(type);
