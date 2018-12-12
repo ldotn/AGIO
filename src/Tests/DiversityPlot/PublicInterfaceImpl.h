@@ -50,12 +50,12 @@ enum class ActionsIDs
 
 enum class SensorsIDs
 {
-    NearestCompetitorAngle, // Angle to the nearest individual of another species
-    NearestCompetitorDistance,
+    NearestCompetitorDistanceX, // Angle to the nearest individual of another species
+    NearestCompetitorDistanceY,
     NearestCompetitorAlive,
 
-    NearestFoodAngle,
-    NearestFoodDistance,
+    NearestFoodDistanceX,
+    NearestFoodDistanceY,
 
     NumberOfSensors
 };

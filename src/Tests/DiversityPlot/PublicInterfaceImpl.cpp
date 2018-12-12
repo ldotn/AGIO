@@ -329,7 +329,7 @@ void PublicInterfaceImpl::Init()
     // Fill sensors
     SensorRegistry.resize((int) SensorsIDs::NumberOfSensors);
 
-    SensorRegistry[(int) SensorsIDs::NearestFoodAngle] = Sensor
+    SensorRegistry[(int) SensorsIDs::NearestFoodDistanceX] = Sensor
             (
                     [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
                     {
@@ -339,13 +339,12 @@ void PublicInterfaceImpl::Init()
                         int idx = find_nearest_food(State, World);
                         float2 pos = world_ptr->FoodPositions[idx];
 
-                        // Compute "angle", taking as 0 = looking forward ([0,1])
-                        // The idea is: angle = normalize(V - Pos) . [0,1]
-                        return (pos - state_ptr->Position).normalize().y;
+                        float2 dist = pos - state_ptr->Position;
+                        return dist.x;
                     }
             );
 
-    SensorRegistry[(int) SensorsIDs::NearestFoodDistance] = Sensor
+    SensorRegistry[(int) SensorsIDs::NearestFoodDistanceY] = Sensor
             (
                     [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
                     {
@@ -355,11 +354,12 @@ void PublicInterfaceImpl::Init()
                         int idx = find_nearest_food(State, World);
                         float2 pos = world_ptr->FoodPositions[idx];
 
-                        return (pos - state_ptr->Position).length_sqr();
+                        float2 dist = pos - state_ptr->Position;
+                        return dist.y;
                     }
             );
 
-    SensorRegistry[(int) SensorsIDs::NearestCompetitorAngle] = Sensor
+    SensorRegistry[(int) SensorsIDs::NearestCompetitorDistanceX] = Sensor
             (
                     [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
                     {
@@ -368,15 +368,13 @@ void PublicInterfaceImpl::Init()
                         auto state_ptr = (OrgState *) State;
                         auto other_state_ptr = (OrgState *) nearest_competitor->GetState();
 
-                        // Compute "angle", taking as 0 = looking forward ([0,1])
-                        // The idea is
-                        //	angle = normalize(V - Pos) . [0,1]
-                        return (other_state_ptr->Position - state_ptr->Position).normalize().y;
+                        float2 dist = other_state_ptr->Position - state_ptr->Position;
+                        return dist.x;
                     }
             );
 
 
-    SensorRegistry[(int) SensorsIDs::NearestCompetitorDistance] = Sensor
+    SensorRegistry[(int) SensorsIDs::NearestCompetitorDistanceY] = Sensor
             (
                     [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
                     {
@@ -385,7 +383,8 @@ void PublicInterfaceImpl::Init()
                         auto state_ptr = (OrgState *) State;
                         auto other_state_ptr = (OrgState *) nearest_competitor->GetState();
 
-                        return (other_state_ptr->Position - state_ptr->Position).length_sqr();
+                        float2 dist = other_state_ptr->Position - state_ptr->Position;
+                        return dist.y;
                     }
             );
 
@@ -426,16 +425,16 @@ void PublicInterfaceImpl::Init()
                              {
                                      {(int) ActionsIDs::EatFood},
                                      {
-                                             (int) SensorsIDs::NearestFoodAngle,
-                                             (int) SensorsIDs::NearestFoodDistance,
+                                             (int) SensorsIDs::NearestFoodDistanceX,
+                                             (int) SensorsIDs::NearestFoodDistanceY,
                                      }
                              },
                              // Carnivore
                              {
                                      {(int) ActionsIDs::EatEnemy},
                                      {
-                                             (int) SensorsIDs::NearestCompetitorAngle,
-                                             (int) SensorsIDs::NearestCompetitorDistance,
+                                             (int) SensorsIDs::NearestCompetitorDistanceX,
+                                             (int) SensorsIDs::NearestCompetitorDistanceY,
                                              (int) SensorsIDs::NearestCompetitorAlive
                                      }
                              },
@@ -443,10 +442,10 @@ void PublicInterfaceImpl::Init()
                              {
                                      {(int) ActionsIDs::EatFoodEnemy},
                                      {
-                                             (int) SensorsIDs::NearestFoodAngle,
-                                             (int) SensorsIDs::NearestFoodDistance,
-                                             (int) SensorsIDs::NearestCompetitorAngle,
-                                             (int) SensorsIDs::NearestCompetitorDistance,
+                                             (int) SensorsIDs::NearestFoodDistanceX,
+                                             (int) SensorsIDs::NearestFoodDistanceY,
+                                             (int) SensorsIDs::NearestCompetitorDistanceX,
+                                             (int) SensorsIDs::NearestCompetitorDistanceY,
                                              (int) SensorsIDs::NearestCompetitorAlive
                                      }
                              },
@@ -500,8 +499,8 @@ void PublicInterfaceImpl::Init()
                                      {
                                              {},
                                              {
-                                                     (int) SensorsIDs::NearestCompetitorAngle,
-                                                     (int) SensorsIDs::NearestCompetitorDistance
+                                                     (int) SensorsIDs::NearestCompetitorDistanceX,
+                                                     (int) SensorsIDs::NearestCompetitorDistanceY
                                              }
                                      }
                              }
