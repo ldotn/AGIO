@@ -344,3 +344,6 @@ cmake-build-release/
 
 # Boost
 boost-cmake/
+
+# Python 
+venv/

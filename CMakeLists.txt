@@ -15,14 +15,12 @@ file(GLOB neat_sources NEAT/src/*.cpp)
 list(FILTER neat_sources EXCLUDE REGEX ".*neatmain.cpp$")
 list(FILTER neat_sources EXCLUDE REGEX ".*experiments.cpp$")
 set(project_sources 
-	src/Tests/test.cpp
-	src/Tests/neat_test.cpp
 	src/Utils/Utils.cpp
 	src/Evolution/Individual.cpp
 	src/Evolution/Population.cpp
+	src/Evolution/Globals.cpp
 	src/Serialization/SIndividual.cpp
 	src/Serialization/SNetwork.cpp
-	src/Evolution/Globals.cpp
 	src/Serialization/SRegistry.cpp
 	${neat_sources})
 
@@ -63,6 +61,32 @@ if (build_tests)
 		agio_lib
 		${PYTHON_LIBRARIES}
 		Boost::serialization)
+
+	set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
+	if (WIN32)
+		file(GLOB SFML_LIBRARIES libs_windows/sfml/lib/*.lib)
+		set(SFML_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/libs_windows/sfml/include)
+	else ()
+		find_package(SFML COMPONENTS graphics window system REQUIRED)	
+	endif ()
+
+	include_directories(${SFML_INCLUDE_DIR})
+
+	add_executable(diversity_plot
+			src/Tests/DiversityPlot/main.cpp
+			src/Tests/DiversityPlot/DiversityPlot.cpp
+			src/Tests/DiversityPlot/DiversityPlotEvolution.cpp
+			src/Tests/DiversityPlot/Character.cpp
+			src/Tests/DiversityPlot/AnimatedSprite.cpp
+			src/Tests/DiversityPlot/Animation.cpp
+			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp
+			src/Tests/DiversityPlot/Greedy/GreedyPrey.cpp)
+
+	target_link_libraries(diversity_plot
+			agio_lib
+			${PYTHON_LIBRARIES}
+			Boost::serialization
+			${SFML_LIBRARIES})
 
 	if (WIN32)
 		# Extract the python DLL path from the lib path

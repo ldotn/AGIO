@@ -39,6 +39,29 @@ void ExperimentInterface::ResetState(void * State)
 	// Find a random spawn area and spawn inside it
 	int spawn_idx = uniform_int_distribution<>(0, World.SpawnAreas.size()-1)(RNG);
 	state_ptr->Position = World.SpawnAreas[spawn_idx].GetSamplePoint(RNG);
+
+	if (state_ptr->MetricsCurrentGenNumber != CurrentGenNumber)
+	{
+		state_ptr->MetricsCurrentGenNumber = CurrentGenNumber;
+		state_ptr->VisitedCellsCount = 0;
+		state_ptr->VisitedCells = {};
+		state_ptr->EatenCount = 0;
+		state_ptr->FailedActionCountCurrent = 0;
+		state_ptr->Repetitions = 0;
+		state_ptr->FailableActionCount = 0;
+		state_ptr->FailedActionFractionAcc = 0;
+	}
+	else
+	{
+		state_ptr->Repetitions++;
+		state_ptr->VisitedCellsCount += state_ptr->VisitedCells.size();
+		if (state_ptr->FailableActionCount > 0)
+		{
+			state_ptr->FailedActionFractionAcc += state_ptr->FailedActionCountCurrent / state_ptr->FailableActionCount;
+			state_ptr->FailableActionCount = 0;
+			state_ptr->FailedActionCountCurrent = 0;
+		}
+	}
 }
 
 void * ExperimentInterface::MakeState(const BaseIndividual * org)

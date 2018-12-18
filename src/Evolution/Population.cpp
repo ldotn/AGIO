@@ -56,7 +56,7 @@ void Population::Spawn(int SizeMult,int SimSize)
 	Individuals.reserve(pop_size);
 
 	// The loop is finished when no new species can be found
-	//   or when the pop size / (species count + 1)  < Min Species Individuals
+	//   or when the pop size / (species count + 1)  < Min Species Greedy
 	bool finished = false;
 	while (!finished)
 	{
@@ -123,9 +123,12 @@ void Population::Spawn(int SizeMult,int SimSize)
 			org.Morphology = tag;
 			org.Genome = s.NetworksPopulation->organisms[i]->gnome;
 			org.Brain = org.Genome->genesis(org.Genome->genome_id);
+
 			org.Actions = actions;
 			org.Sensors = sensors;
+
 			org.ActivationsBuffer.resize(org.Actions.size());
+			org.SensorsValues.resize(org.Sensors.size());
 
 			for (auto [pidx, param] : enumerate(Interface->GetParameterDefRegistry()))
 			{
@@ -218,7 +221,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 					continue;
 
 				// This is the morphology distance
-				float dist = Individuals[idx].GetMorphologyTag().Distance(Individuals[other_idx].GetMorphologyTag());
+				float dist = Greedy[idx].GetMorphologyTag().Distance(Greedy[other_idx].GetMorphologyTag());
 
 				// Check if it's in the k nearest
 				for (auto[kidx, v] : enumerate(CompetitionNearestKBuffer))
@@ -239,11 +242,11 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 			}
 
 			// With the k nearest found, check how many of them this individual bests
-			auto & org = Individuals[idx];
+			auto & org = Greedy[idx];
 			org.LocalScore = 0;
 			for (int i = 0; i <= k_buffer_top; i++)
 			{
-				const auto& other_org = Individuals[CompetitionNearestKBuffer[i].first];
+				const auto& other_org = Greedy[CompetitionNearestKBuffer[i].first];
 				if (org.Fitness > other_org.Fitness)
 					org.LocalScore++;
 			}
@@ -476,6 +479,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 						org.Actions = actions;
 						org.Sensors = sensors;
 						org.ActivationsBuffer.resize(org.Actions.size());
+                        org.SensorsValues.resize(org.Sensors.size());
 
 						for (auto[pidx, param] : enumerate(Interface->GetParameterDefRegistry()))
 						{
