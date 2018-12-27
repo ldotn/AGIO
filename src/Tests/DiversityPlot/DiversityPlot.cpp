@@ -14,7 +14,7 @@
 #include "DiversityPlot.h"
 #include "PublicInterfaceImpl.h"
 
-#include "Greedy/GreedyPrey.h"
+//#include "Greedy/GreedyPrey.h"
 
 namespace plt = matplotlibcpp;
 using namespace std;
@@ -32,19 +32,19 @@ void runSimulation() {
     // Create and fill the world
     WorldData world = createWorld();
 
-//    SRegistry registry;
-//    registry.load(SerializationFile);
+    SRegistry registry;
+    registry.load(SerializationFile);
 
     // Create the individuals that are gonna be used in the simulation
     // TODO: Select individuals with a criteria
     vector<BaseIndividual*> individuals;
-    individuals.push_back(new GreedyPrey());
-//    for(auto &entry : registry.Species)
-//        for(auto &individual: entry.Individuals)
-//            individuals.push_back(&individual);
+    //individuals.push_back(new GreedyPrey());
+    for(auto &entry : registry.Species)
+        for(auto &individual: entry.Individuals)
+            individuals.push_back(&individual);
 
-	for(auto &individual : individuals)
-		individual->State = Interface->MakeState(individual);
+	//for(auto &individual : individuals)
+		//individual->State = Interface->MakeState(individual);
 
 	for (auto& org : individuals)
 		org->Reset();

@@ -87,79 +87,18 @@ void Population::Spawn(int SizeMult,int SimSize)
 	int individuals_per_species = pop_size / SpeciesMap.size(); // int divide
 	for (auto & [tag, s] : SpeciesMap)
 	{
-		unordered_set<int> actions_set;
-		unordered_set<int> sensors_set;
-
-		for (auto [gidx,cidx] : tag)
-		{
-			const auto &component = Interface->GetComponentRegistry()[gidx].Components[cidx];
-
-			actions_set.insert(component.Actions.begin(), component.Actions.end());
-			sensors_set.insert(component.Sensors.begin(), component.Sensors.end());
-		}
-		
-		vector<int> actions, sensors;
-
-		// Compute action and sensors vectors
-		actions.resize(actions_set.size());
-		for (auto[idx, action] : enumerate(actions_set))
-			actions[idx] = action;
-		
-		sensors.resize(sensors_set.size());
-		for (auto[idx, sensor] : enumerate(sensors_set))
-			sensors[idx] = sensor;
+		TagDesc desc(tag);
 
 		// Find the number of individuals that will be put on this species
 		int size = min(individuals_per_species, pop_size - (int)Individuals.size());
 
 		// Create NEAT population
-		auto start_genome = new NEAT::Genome(sensors.size(), actions.size(), 0, 0);
+		auto start_genome = new NEAT::Genome(desc.SensorsCount, desc.ActionsCount, 0, 0);
 		s.NetworksPopulation = new NEAT::Population(start_genome, size);
 
 		// Initialize individuals
 		for (int i = 0; i < size; i++)
-		{
-			Individual org;
-			org.Morphology = tag;
-			org.Genome = s.NetworksPopulation->organisms[i]->gnome;
-			org.Brain = org.Genome->genesis(org.Genome->genome_id);
-
-			org.Actions = actions;
-			org.Sensors = sensors;
-
-			org.ActivationsBuffer.resize(org.Actions.size());
-			org.SensorsValues.resize(org.Sensors.size());
-
-			for (auto [pidx, param] : enumerate(Interface->GetParameterDefRegistry()))
-			{
-				// If the parameter is not required, select it randomly, 50/50 chance
-				// TODO : Maybe make the selection probability a parameter? Does it makes sense?
-				if (param.IsRequired || uniform_int_distribution<int>(0, 1)(RNG))
-				{
-					Parameter p{};
-					p.ID = pidx;
-					p.Value = 0.5f * (param.Min + param.Max);
-					p.HistoricalMarker = Parameter::CurrentMarkerID;
-					p.Min = param.Min;
-					p.Max = param.Max;
-
-					// Small shift
-					float shift = normal_distribution<float>(0, Settings::ParameterMutationSpread)(RNG);
-					p.Value += shift * abs(param.Max - param.Min);
-
-					// Clamp values
-					p.Value = clamp(p.Value, param.Min, param.Max);
-
-					org.Parameters[param.UserID] = p;
-				}
-			}
-
-			// Set morphological parameters of the genome
-			// Make a copy
-			org.Genome->MorphParams = org.GetParameters();
-			org.State = Interface->MakeState(&org);
-			Individuals.push_back(move(org));
-		}
+			Individuals.emplace_back(desc, s.NetworksPopulation->organisms[i]->gnome);
 	}
 
 	// Now shuffle individuals vector
@@ -182,8 +121,6 @@ void Population::Spawn(int SizeMult,int SimSize)
 
 void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, bool MuteNEAT)
 {
-	// First version : The species are fixed and created at the start. Also no parameters
-
 	// Evaluate the entire population
 	EvaluatePopulation(WorldPtr);
 
@@ -200,77 +137,20 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 	// Now do the epoch
 	for (auto & [tag, s] : SpeciesMap)
 	{
-		// Compute local scores
-		/*
-		for (int idx : s.IndividualsIDs)
-		{
-			// Find the K nearest inside the species
-
-			// Clear the K buffer
-			for (auto & v : CompetitionNearestKBuffer)
-			{
-				v.first = -1;
-				v.second = numeric_limits<float>::max();
-			}
-			int k_buffer_top = 0;
-
-			// Check against the species individuals
-			for (int other_idx : s.IndividualsIDs)
-			{
-				if (idx == other_idx)
-					continue;
-
-				// This is the morphology distance
-				float dist = Greedy[idx].GetMorphologyTag().Distance(Greedy[other_idx].GetMorphologyTag());
-
-				// Check if it's in the k nearest
-				for (auto[kidx, v] : enumerate(CompetitionNearestKBuffer))
-				{
-					if (dist < v.second)
-					{
-						// Move all the values to the right
-						for (int i = Settings::LocalCompetitionK - 1; i > kidx; i--)
-							CompetitionNearestKBuffer[i] = CompetitionNearestKBuffer[i - 1];
-
-						if (kidx > k_buffer_top)
-							k_buffer_top = kidx;
-						v.first = other_idx;
-						v.second = dist;
-						break;
-					}
-				}
-			}
-
-			// With the k nearest found, check how many of them this individual bests
-			auto & org = Greedy[idx];
-			org.LocalScore = 0;
-			for (int i = 0; i <= k_buffer_top; i++)
-			{
-				const auto& other_org = Greedy[CompetitionNearestKBuffer[i].first];
-				if (org.Fitness > other_org.Fitness)
-					org.LocalScore++;
-			}
-		}
-		*/
-
 		// First update the fitness values for neat
 		priority_queue<float> fitness_queue;
-		//float avg_fit = 0;
+
 		auto& pop = s.NetworksPopulation;
 		for (auto& neat_org : pop->organisms)
 		{
-			// Find the organism in the individuals that has this brain
+			// Find the organism in the individuals that has this genome
 			for (int org_idx : s.IndividualsIDs)
 			{
 				const auto& org = Individuals[org_idx];
 				if (org.Genome == neat_org->gnome)  // comparing pointers
 				{
-					//neat_org->fitness = org.Fitness; // Here you could add some contribution of the novelty
-					
 					// Remapping because NEAT appears to only work with positive fitness
 					neat_org->fitness = log2(exp2(0.1*org.Fitness) + 1.0) + 1.0;
-					//avg_fit += neat_org->fitness;//org.Fitness;
-					//neat_org->fitness = org.LocalScore;
 
 					fitness_queue.push(org.Fitness);
 
@@ -426,27 +306,8 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 					// Also, instead of erasing and inserting, just replace this species in-place for the new one
 					cout << "## NEW SPECIES ##" << endl;
 
-					unordered_set<int> actions_set;
-					unordered_set<int> sensors_set;
-
-					for (auto [gidx, cidx] : new_tag)
-					{
-						const auto &component = Interface->GetComponentRegistry()[gidx].Components[cidx];
-
-						actions_set.insert(component.Actions.begin(), component.Actions.end());
-						sensors_set.insert(component.Sensors.begin(), component.Sensors.end());
-					}
-
-					vector<int> actions, sensors;
-
-					// Compute action and sensors vectors
-					actions.resize(actions_set.size());
-					for (auto[idx, action] : enumerate(actions_set))
-						actions[idx] = action;
-
-					sensors.resize(sensors_set.size());
-					for (auto[idx, sensor] : enumerate(sensors_set))
-						sensors[idx] = sensor;
+					// Build tag desc
+					TagDesc desc(new_tag);
 
 					// Take all the individuals from this species
 					int size = s.IndividualsIDs.size();
@@ -455,11 +316,11 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 					//		First get all the genomes of the best individuals of all the entries on the registry
 					vector<NEAT::Genome*> start_genomes;
 					for (auto entry : StagnantSpecies)
-						if(entry.Morphology == new_tag) 
+						if (entry.Morphology == new_tag)
 							start_genomes.push_back(entry.HistoricalBestGenome);
 
 					//		Always add a new genome that's the base one (no hidden, fully connected)
-					auto base_genome = new NEAT::Genome(sensors.size(), actions.size(), 0, 0);
+					auto base_genome = new NEAT::Genome(desc.SensorsCount, desc.ActionsCount, 0, 0);
 					start_genomes.push_back(base_genome);
 
 					//		Then create population from the genome list
@@ -472,43 +333,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 					// Initialize individuals
 					for (int i = 0; i < size; i++)
 					{
-						Individual org;
-						org.Morphology = tag;
-						org.Genome = s.NetworksPopulation->organisms[i]->gnome;
-						org.Brain = org.Genome->genesis(org.Genome->genome_id);
-						org.Actions = actions;
-						org.Sensors = sensors;
-						org.ActivationsBuffer.resize(org.Actions.size());
-                        org.SensorsValues.resize(org.Sensors.size());
-
-						for (auto[pidx, param] : enumerate(Interface->GetParameterDefRegistry()))
-						{
-							// If the parameter is not required, select it randomly, 50/50 chance
-							// TODO : Maybe make the selection probability a parameter? Does it makes sense?
-							if (param.IsRequired || uniform_int_distribution<int>(0, 1)(RNG))
-							{
-								Parameter p{};
-								p.ID = pidx;
-								p.Value = 0.5f * (param.Min + param.Max);
-								p.HistoricalMarker = Parameter::CurrentMarkerID;
-								p.Min = param.Min;
-								p.Max = param.Max;
-
-								// Small shift
-								float shift = normal_distribution<float>(0, Settings::ParameterMutationSpread)(RNG);
-								p.Value += shift * abs(param.Max - param.Min);
-
-								// Clamp values
-								p.Value = clamp(p.Value, param.Min, param.Max);
-
-								org.Parameters[param.UserID] = p;
-							}
-						}
-
-						// Set morphological parameters of the genome
-						// Make a copy
-						org.Genome->MorphParams = org.GetParameters();
-						org.State = Interface->MakeState(&org);
+						Individual org(desc, s.NetworksPopulation->organisms[i]->gnome);
 
 						Individuals[s.IndividualsIDs[i]].~Individual();
 						new (&Individuals[s.IndividualsIDs[i]]) Individual(move(org));
@@ -516,9 +341,6 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 
 					// Change key
 					++iter; // Advance before changing the key, because that invalidates the iterator
-					/*auto handle = SpeciesMap.extract(tag);
-					handle.key() = new_tag;
-					SpeciesMap.insert(move(handle));*/
 					SpeciesMap[new_tag] = move(s);
 					SpeciesMap.erase(tag);
 
@@ -546,8 +368,7 @@ void Population::EvaluatePopulation(void * WorldPtr)
 	individuals_ptrs.reserve(SimulationSize);
 
 	// Simulate in batches of SimulationSize
-	// TODO : This is wrong (or not, see below), you need to take into account the proportion of each species when selecting what to simulate
-	// or maybe not, if the individuals are uniformly distributed it should work 
+	// This assumes that the individuals are randomly distributed in the population vector
 	for (int j = 0; j < Individuals.size() / SimulationSize; j++)
 	{
 		// TODO : Optimize this, you could pass the current batch id and make the individuals aware of their index in the vector
@@ -578,6 +399,11 @@ void Population::EvaluatePopulation(void * WorldPtr)
 		org.Fitness = org.AccumulatedFitness / (float)Settings::SimulationReplications;
 };
 
+void Population::ComputeDevMetrics(void * World)
+{
+}
+
+#if 0
 void Population::ComputeDevMetrics(void * World)
 {
 	ProgressMetrics metrics;
@@ -623,7 +449,7 @@ void Population::ComputeDevMetrics(void * World)
 		species.DevMetrics.RealFitness /= min((float)orgs_f.size(), 5.0f);
 	}
 }
-
+#endif
 void Population::CurrentSpeciesToRegistry()
 {
 	// Before serialization, put best individuals into the registry.

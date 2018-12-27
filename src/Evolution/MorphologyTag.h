@@ -1,7 +1,6 @@
 #pragma once
 
 #include <vector>
-
 #include <boost/serialization/access.hpp>
 
 namespace agio
@@ -26,6 +25,19 @@ namespace agio
         }
     };
     typedef std::vector<ComponentRef> MorphologyTag;
+
+	struct TagDesc
+	{
+		MorphologyTag Tag;
+
+		int ActionsCount;
+		int SensorsCount;
+
+		std::vector<int> ActionIDs;
+		std::vector<int> SensorIDs;
+
+		TagDesc(const MorphologyTag& InTag);
+	};
 }
 
 // This needs to be outside of the agio namespace

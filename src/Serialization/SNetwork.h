@@ -98,7 +98,7 @@ namespace agio
 
 		void flush();
 		bool activate();
-		void load_sensors(const std::vector<double> &sensorsValues);
+		void load_sensors(const std::vector<float> &sensorsValues);
 
 		SNetwork();
 		SNetwork(NEAT::Network *network);

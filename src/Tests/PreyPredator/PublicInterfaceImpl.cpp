@@ -166,7 +166,7 @@ void PublicInterfaceImpl::Init()
     // Fill sensors
     SensorRegistry.resize((int)SensorsIDs::NumberOfSensors);
 
-    SensorRegistry[(int)SensorsIDs::NearestFoodAngle] = Sensor
+    SensorRegistry[(int)SensorsIDs::NearestFoodDeltaX] = Sensor
             (
                     [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
                     {
@@ -185,14 +185,11 @@ void PublicInterfaceImpl::Init()
                             }
                         }
 
-                        // Compute "angle", taking as 0 = looking forward ([0,1])
-                        // The idea is
-                        //	angle = normalize(V - Pos) . [0,1]
-                        return (nearest_pos - state_ptr->Position).normalize().y;
+                        return (nearest_pos - state_ptr->Position).x;
                     }
             );
 
-    SensorRegistry[(int)SensorsIDs::NearestFoodDistance] = Sensor
+    SensorRegistry[(int)SensorsIDs::NearestFoodDeltaY] = Sensor
             (
                     [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
                     {
@@ -200,18 +197,22 @@ void PublicInterfaceImpl::Init()
                         auto state_ptr = (OrgState*)State;
 
                         float nearest_dist = numeric_limits<float>::max();
+                        float2 nearest_pos;
                         for (auto pos : world_ptr->FoodPositions)
                         {
                             float dist = (pos - state_ptr->Position).length_sqr();
                             if (dist < nearest_dist)
+                            {
                                 nearest_dist = dist;
+                                nearest_pos = pos;
+                            }
                         }
 
-                        return nearest_dist;
+                        return (nearest_pos - state_ptr->Position).y;
                     }
             );
 
-    SensorRegistry[(int)SensorsIDs::NearestCompetidorAngle] = Sensor
+    SensorRegistry[(int)SensorsIDs::NearestCompetitorDeltaX] = Sensor
             (
                     [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
                     {
@@ -240,21 +241,19 @@ void PublicInterfaceImpl::Init()
                             }
                         }
 
-                        // Compute "angle", taking as 0 = looking forward ([0,1])
-                        // The idea is
-                        //	angle = normalize(V - Pos) . [0,1]
-                        return (nearest_pos - state_ptr->Position).normalize().y;
+                        return (nearest_pos - state_ptr->Position).x;
                     }
             );
 
 
-    SensorRegistry[(int)SensorsIDs::NearestCompetidorDistance] = Sensor
+    SensorRegistry[(int)SensorsIDs::NearestCompetitorDeltaY] = Sensor
             (
                     [](void * State, const vector<BaseIndividual*> &Individuals, const BaseIndividual * Org, void * World)
                     {
                         const auto& tag = Org->GetMorphologyTag();
                         auto state_ptr = (OrgState*)State;
                         float nearest_dist = numeric_limits<float>::max();
+                        float2 nearest_pos;
 
                         for (const auto& other_org : Individuals)
                         {
@@ -269,23 +268,15 @@ void PublicInterfaceImpl::Init()
                                 const auto& other_tag = other_org->GetMorphologyTag();
 
                                 if (!(tag == other_tag))
+                                {
                                     nearest_dist = dist;
+                                    nearest_pos = ((OrgState*)other_org->GetState())->Position;
+                                }
                             }
                         }
 
-                        return nearest_dist;
+                        return (nearest_pos - state_ptr->Position).x;
                     }
-            );
-
-    // Fill parameters
-    ParameterDefRegistry.resize((int)ParametersIDs::NumberOfParameters);
-
-    ParameterDefRegistry[(int)ParametersIDs::JumpDistance] = ParameterDefinition
-            (
-                    true, // require the parameter, even if the organism doesn't have the component to jump
-                    2, // Min bound
-                    5, // max bound
-                    (int)ParametersIDs::JumpDistance
             );
 
     // Fill components
@@ -297,16 +288,16 @@ void PublicInterfaceImpl::Init()
                              {
                                      {(int)ActionsIDs::EatFood},
                                      {
-                                             (int)SensorsIDs::NearestFoodAngle,
-                                             (int)SensorsIDs::NearestFoodDistance,
+                                             (int)SensorsIDs::NearestFoodDeltaX,
+                                             (int)SensorsIDs::NearestFoodDeltaY,
                                      }
                              },
                              // Carnivore
                              {
                                      {(int)ActionsIDs::KillAndEat},
                                      {
-                                             (int)SensorsIDs::NearestCompetidorAngle,
-                                             (int)SensorsIDs::NearestCompetidorDistance,
+                                             (int)SensorsIDs::NearestCompetitorDeltaX,
+                                             (int)SensorsIDs::NearestCompetitorDeltaY,
                                      }
                              }
                      }

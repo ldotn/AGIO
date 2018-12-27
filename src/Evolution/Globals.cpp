@@ -1,3 +1,3 @@
 #include "Globals.h"
 
-agio::PublicInterface * agio::Interface;
+agio::PublicInterface * agio::Interface = nullptr;
