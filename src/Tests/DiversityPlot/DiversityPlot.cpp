@@ -14,7 +14,7 @@
 #include "DiversityPlot.h"
 #include "PublicInterfaceImpl.h"
 
-#include "Greedy/GreedyPrey.h"
+//#include "Greedy/GreedyPrey.h"
 
 namespace plt = matplotlibcpp;
 using namespace std;
@@ -32,19 +32,19 @@ void runSimulation() {
     // Create and fill the world
     WorldData world = createWorld();
 
-//    SRegistry registry;
-//    registry.load(SerializationFile);
+    SRegistry registry;
+    registry.load(SerializationFile);
 
     // Create the individuals that are gonna be used in the simulation
     // TODO: Select individuals with a criteria
     vector<BaseIndividual*> individuals;
-    individuals.push_back(new GreedyPrey());
-//    for(auto &entry : registry.Species)
-//        for(auto &individual: entry.Individuals)
-//            individuals.push_back(&individual);
+    //individuals.push_back(new GreedyPrey());
+    for(auto &entry : registry.Species)
+        for(auto &individual: entry.Individuals)
+            individuals.push_back(&individual);
 
-	for(auto &individual : individuals)
-		individual->State = Interface->MakeState(individual);
+	//for(auto &individual : individuals)
+		//individual->State = Interface->MakeState(individual);
 
 	for (auto& org : individuals)
 		org->Reset();
@@ -114,29 +114,32 @@ WorldData createWorld() {
 
     // Load cell types
     string line;
-    ifstream file("world.txt");
-    int i = 0;
+    ifstream file("../src/Tests/DiversityPlot/world.txt");
+	if (!file.is_open())
+		throw invalid_argument("World file not found");
+
     while(!file.eof())
     {
         file >> line;
-        if (line == "")
-            throw "Empty line in world.txt";
+		if (line == "")
+			continue;
+
         vector<CellType> cellTypes;
         for (char &c : line)
         {
             CellType type;
-            if (c == '0')
-                type = CellType::Grass;
-            else if (c == '1')
-                type = CellType::Grass;//Water;
-            else if (c == '2')
-                type = CellType::Grass;//Wall;
-            else
-                throw "Undefined cell type";
+			if (c == '0')
+				type = CellType::Ground;
+			else if (c == '1')
+				type = CellType::Water;
+			else if (c == '2')
+				type = CellType::Wall;
+			else
+				continue;
             cellTypes.push_back(type);
         }
+
         world.CellTypes.push_back(cellTypes);
-        i++;
     }
 
     // Fill with food

@@ -50,19 +50,19 @@ enum class ActionsIDs
 
 enum class SensorsIDs
 {
-    NearestCompetitorDistanceX, // Angle to the nearest individual of another species
-    NearestCompetitorDistanceY,
+    NearestCompetitorDeltaX,
+    NearestCompetitorDeltaY,
     NearestCompetitorAlive,
 
-    NearestFoodDistanceX,
-    NearestFoodDistanceY,
+    NearestFoodDeltaX,
+    NearestFoodDeltaY,
 
     NumberOfSensors
 };
 
 enum class CellType
 {
-    Grass,
+    Ground,
     Water,
     Wall
 };

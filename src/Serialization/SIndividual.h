@@ -22,6 +22,7 @@ namespace agio
 
 	class SIndividual : public BaseIndividual
 	{
+		std::vector<float> ActivationsBuffer;
 	public:
 		std::unordered_map<int, Parameter> parameters;
 		SNetwork brain;
@@ -32,18 +33,6 @@ namespace agio
 
 		SIndividual();
 		SIndividual(NEAT::Genome *genome, MorphologyTag morphologyTag);
-		//~SIndividual() override = default; // SNetworks know how to clean themselves
-		//SIndividual(SIndividual&&) = default; // Only SNetwork is not trivially moved, and that implements it's own move operators
-
-		// Creates a clone
-		// Can't just make a copy because there are pointers involved
-		/*void Duplicate(SIndividual& CloneTarget) const
-		{
-			CloneTarget.parameters = parameters;
-			CloneTarget.Actions = Actions;
-			CloneTarget.Sensors = Sensors;
-			brain.Duplicate(CloneTarget.brain);
-		}*/
 
 		friend class boost::serialization::access;
 		template<class Archive>
@@ -54,13 +43,15 @@ namespace agio
 			ar & Actions;
 			ar & Sensors;
 			ar & morphologyTag;
+
+			// While the values are not relevant, serializing it so that it's always of the correct size
+			ar & ActivationsBuffer;
 		}
 
 		void DecideAndExecute(void * World, const std::vector<BaseIndividual*> &Individuals) override;
-		int DecideAction(const std::unordered_map<int, float>& SensorsValues) override;
+		virtual int DecideAction() override;
 		void Reset() override;
 
-		void * GetState() const override;
 		const std::unordered_map<int, Parameter>& GetParameters() const override;
 		const MorphologyTag& GetMorphologyTag() const override;
 	};

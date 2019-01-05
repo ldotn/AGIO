@@ -37,13 +37,6 @@ struct OrgState
 	unordered_set<pair<int, int>,pair_hash> VisitedCells;
 };
 
-enum class ParametersIDs
-{
-    JumpDistance,
-
-    NumberOfParameters
-};
-
 enum class ActionsIDs
 {
     MoveForward,
@@ -59,11 +52,11 @@ enum class ActionsIDs
 
 enum class SensorsIDs
 {
-    NearestCompetidorAngle, // Angle to the nearest individual of another species
-    NearestCompetidorDistance,
+	NearestCompetitorDeltaX,
+	NearestCompetitorDeltaY,
 
-    NearestFoodAngle,
-    NearestFoodDistance,
+	NearestFoodDeltaX,
+	NearestFoodDeltaY,
 
     NumberOfSensors
 };

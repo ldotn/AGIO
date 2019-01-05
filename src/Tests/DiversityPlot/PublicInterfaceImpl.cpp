@@ -329,7 +329,7 @@ void PublicInterfaceImpl::Init()
     // Fill sensors
     SensorRegistry.resize((int) SensorsIDs::NumberOfSensors);
 
-    SensorRegistry[(int) SensorsIDs::NearestFoodDistanceX] = Sensor
+    SensorRegistry[(int) SensorsIDs::NearestFoodDeltaX] = Sensor
             (
                     [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
                     {
@@ -344,7 +344,7 @@ void PublicInterfaceImpl::Init()
                     }
             );
 
-    SensorRegistry[(int) SensorsIDs::NearestFoodDistanceY] = Sensor
+    SensorRegistry[(int) SensorsIDs::NearestFoodDeltaY] = Sensor
             (
                     [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
                     {
@@ -359,7 +359,7 @@ void PublicInterfaceImpl::Init()
                     }
             );
 
-    SensorRegistry[(int) SensorsIDs::NearestCompetitorDistanceX] = Sensor
+    SensorRegistry[(int) SensorsIDs::NearestCompetitorDeltaX] = Sensor
             (
                     [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
                     {
@@ -374,7 +374,7 @@ void PublicInterfaceImpl::Init()
             );
 
 
-    SensorRegistry[(int) SensorsIDs::NearestCompetitorDistanceY] = Sensor
+    SensorRegistry[(int) SensorsIDs::NearestCompetitorDeltaY] = Sensor
             (
                     [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
                     {
@@ -425,16 +425,16 @@ void PublicInterfaceImpl::Init()
                              {
                                      {(int) ActionsIDs::EatFood},
                                      {
-                                             (int) SensorsIDs::NearestFoodDistanceX,
-                                             (int) SensorsIDs::NearestFoodDistanceY,
+                                             (int) SensorsIDs::NearestFoodDeltaX,
+                                             (int) SensorsIDs::NearestFoodDeltaY,
                                      }
                              },
                              // Carnivore
                              {
                                      {(int) ActionsIDs::EatEnemy},
                                      {
-                                             (int) SensorsIDs::NearestCompetitorDistanceX,
-                                             (int) SensorsIDs::NearestCompetitorDistanceY,
+                                             (int) SensorsIDs::NearestCompetitorDeltaX,
+                                             (int) SensorsIDs::NearestCompetitorDeltaY,
                                              (int) SensorsIDs::NearestCompetitorAlive
                                      }
                              },
@@ -442,10 +442,10 @@ void PublicInterfaceImpl::Init()
                              {
                                      {(int) ActionsIDs::EatFoodEnemy},
                                      {
-                                             (int) SensorsIDs::NearestFoodDistanceX,
-                                             (int) SensorsIDs::NearestFoodDistanceY,
-                                             (int) SensorsIDs::NearestCompetitorDistanceX,
-                                             (int) SensorsIDs::NearestCompetitorDistanceY,
+                                             (int) SensorsIDs::NearestFoodDeltaX,
+                                             (int) SensorsIDs::NearestFoodDeltaY,
+                                             (int) SensorsIDs::NearestCompetitorDeltaX,
+                                             (int) SensorsIDs::NearestCompetitorDeltaY,
                                              (int) SensorsIDs::NearestCompetitorAlive
                                      }
                              },
@@ -499,8 +499,8 @@ void PublicInterfaceImpl::Init()
                                      {
                                              {},
                                              {
-                                                     (int) SensorsIDs::NearestCompetitorDistanceX,
-                                                     (int) SensorsIDs::NearestCompetitorDistanceY
+                                                     (int) SensorsIDs::NearestCompetitorDeltaX,
+                                                     (int) SensorsIDs::NearestCompetitorDeltaY
                                              }
                                      }
                              }

@@ -41,6 +41,7 @@ SIndividual::SIndividual(NEAT::Genome *genome, MorphologyTag morphology)
     Actions.resize(actions_set.size());
     for (auto[idx, action] : enumerate(actions_set))
         Actions[idx] = action;
+	ActivationsBuffer.resize(Actions.size());
 
     Sensors.resize(sensors_set.size());
     for (auto[idx, sensor] : enumerate(sensors_set))
@@ -64,87 +65,49 @@ void SIndividual::Reset()
     Interface->ResetState(State);
 }
 
-void* SIndividual::GetState() const
-{
-    return State;
-}
-
 const std::unordered_map<int, Parameter>& SIndividual::GetParameters() const
 {
     return parameters;
 }
 
-int SIndividual::DecideAction(const std::unordered_map<int, float> &ValuesMap)
+int SIndividual::DecideAction()
 {
-    std::vector<float> ActivationsBuffer(Actions.size());
-    std::vector<double> SensorsValues(Sensors.size());
+	// Send sensors to brain and activate
+	brain.load_sensors(SensorsValues);
+	bool sucess = brain.activate(); // TODO : Handle failure
 
-    // Load sensors
-    for (auto [value, idx] : zip(SensorsValues, Sensors))
-        value = ValuesMap.find(idx)->second; // TODO : Check if the value exists first
+	// Select action based on activations
+	float act_sum = 0;
+	for (auto[idx, node_idx] : enumerate(brain.outputs))
+		act_sum += ActivationsBuffer[idx] = brain.all_nodes[node_idx].activation; // The activation function is in [0, 1], check line 461 of neat.cpp
 
-    // Send sensors to brain and activate
-    brain.load_sensors(SensorsValues);
-    bool sucess = brain.activate(); // TODO : Handle failure
+	std::minstd_rand RNG = minstd_rand(chrono::high_resolution_clock::now().time_since_epoch().count());
+	int action;
+	if (act_sum > 1e-6)
+	{
+		discrete_distribution<int> action_dist(begin(ActivationsBuffer), end(ActivationsBuffer));
+		action = action_dist(RNG);
+	}
+	else
+	{
+		// Can't decide on an action because all activations are 0
+		// Select one action at random
+		uniform_int_distribution<int> action_dist(0, Actions.size() - 1);
+		action = action_dist(RNG);
+	}
 
-    // Select action based on activations
-    float act_sum = 0;
-    for (auto[idx, node_idx] : enumerate(brain.outputs))
-        act_sum += ActivationsBuffer[idx] = brain.all_nodes[node_idx].activation; // The activation function is in [0, 1], check line 461 of neat.cpp
-
-    std::minstd_rand RNG = minstd_rand(chrono::high_resolution_clock::now().time_since_epoch().count());
-    int action;
-    if (act_sum > 1e-6)
-    {
-        discrete_distribution<int> action_dist(begin(ActivationsBuffer), end(ActivationsBuffer));
-        action = action_dist(RNG);
-    }
-    else
-    {
-        // Can't decide on an action because all activations are 0
-        // Select one action at random
-        uniform_int_distribution<int> action_dist(0, Actions.size() - 1);
-        action = action_dist(RNG);
-    }
-
-    // Return final action id
-    return Actions[action];
+	return action;
 }
 
 void SIndividual::DecideAndExecute(void *World, const std::vector<BaseIndividual *> &Individuals)
 {
-    std::vector<float> ActivationsBuffer(Actions.size());
-    std::vector<double> SensorsValues(Sensors.size());
-
     // Load sensors
     for (auto[value, idx] : zip(SensorsValues, Sensors))
         value = Interface->GetSensorRegistry()[idx].Evaluate(State, Individuals, this, World);
 
-    // Send sensors to brain and activate
-    brain.load_sensors(SensorsValues);
-    bool sucess = brain.activate(); // TODO : Handle failure
+	// Decide action
+	int action = DecideAction();
 
-    // Select action based on activations
-    float act_sum = 0;
-	for (auto[idx, node_idx] : enumerate(brain.outputs))
-		act_sum += ActivationsBuffer[idx] = brain.all_nodes[node_idx].activation; // The activation function is in [0, 1], check line 461 of neat.cpp
-
-    std::minstd_rand RNG = minstd_rand(chrono::high_resolution_clock::now().time_since_epoch().count());
-    int action;
-    if (act_sum > 1e-6)
-    {
-        discrete_distribution<int> action_dist(begin(ActivationsBuffer), end(ActivationsBuffer));
-        action = action_dist(RNG);
-    }
-    else
-    {
-        // Can't decide on an action because all activations are 0
-        // Select one action at random
-        uniform_int_distribution<int> action_dist(0, Actions.size() - 1);
-        action = action_dist(RNG);
-    }
-
-    // Return final action id
     // Finally execute the action
     Interface->GetActionRegistry()[Actions[action]].Execute(State, Individuals, this, World);
 }

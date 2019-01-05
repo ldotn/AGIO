@@ -22,9 +22,11 @@ set(project_sources
 	src/Serialization/SIndividual.cpp
 	src/Serialization/SNetwork.cpp
 	src/Serialization/SRegistry.cpp
+	src/Evolution/MorphologyTag.cpp
 	${neat_sources})
 
 add_library(agio_lib STATIC ${project_sources})
+
 target_link_libraries(agio_lib Boost::serialization) # While libraries aren't linked, cmake seems to need the dependency
 
 if (WIN32)
@@ -48,6 +50,7 @@ if (build_tests)
 			src/Tests/PreyPredator/PreyPredatorEvolution.cpp
 			src/Tests/PreyPredator/PreyPredator.cpp
 			src/Tests/PreyPredator/PublicInterfaceImpl.cpp)
+			#src/Tests/Greedy/Greedy.cpp)
 	target_link_libraries(prey_predator
 		agio_lib
 		${PYTHON_LIBRARIES}
@@ -79,8 +82,7 @@ if (build_tests)
 			src/Tests/DiversityPlot/Character.cpp
 			src/Tests/DiversityPlot/AnimatedSprite.cpp
 			src/Tests/DiversityPlot/Animation.cpp
-			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp
-			src/Tests/DiversityPlot/Greedy/GreedyPrey.cpp)
+			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
 
 	target_link_libraries(diversity_plot
 			agio_lib

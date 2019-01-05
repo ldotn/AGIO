@@ -94,7 +94,7 @@ bool SNetwork::activate()
 }
 
 
-void SNetwork::load_sensors(const std::vector<double> &sensorsValues)
+void SNetwork::load_sensors(const std::vector<float> &sensorsValues)
 {
 	for (int i = 0; i < sensorsValues.size(); i++)
 		all_nodes[inputs[i]].activation = sensorsValues[i];

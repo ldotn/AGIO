@@ -1,6 +1,8 @@
 #include "../../Utils/Math/Float2.h"
 #include <vector>
 #include <random>
+#include <utility>
+#include <unordered_set>
 
 namespace agio
 {
@@ -16,7 +18,7 @@ namespace agio
 
 		// This is used when the organism is dead, and someone else is eating the corpse
 		// Corpses are ignored after they have been eaten N times
-		int EatenCount;
+		int CorpseRemainingDuration;
 
 		// After an organism dies,
 		// or the corpse has been eaten in the case of herbivore, reset it
@@ -34,13 +36,13 @@ namespace agio
 
 		struct pair_hash
 		{
-			inline size_t operator()(const pair<int, int> & v) const
+			inline size_t operator()(const std::pair<int, int> & v) const
 			{
 				return v.first ^ v.second;
 			}
 		};
 
-		unordered_set<pair<int, int>, pair_hash> VisitedCells;
+		std::unordered_set<std::pair<int, int>, pair_hash> VisitedCells;
 	};	
 
 	enum class ActionID
