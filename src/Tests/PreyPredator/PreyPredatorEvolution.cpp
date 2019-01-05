@@ -14,6 +14,8 @@
 #include "PreyPredator.h"
 #include "PublicInterfaceImpl.h"
 
+//#include "../Greedy/Greedy.h"
+
 namespace plt = matplotlibcpp;
 using namespace agio;
 using namespace fpp;
@@ -58,6 +60,13 @@ void runEvolution()
     vector<float> avg_fitness_carnivore;
     vector<float> avg_progress_carnivore;
 
+	vector<float> avg_eaten_herbivore;
+	vector<float> avg_eaten_carnivore;
+	vector<float> avg_failed_herbivore;
+	vector<float> avg_failed_carnivore;
+	vector<float> avg_coverage_herbivore;
+	vector<float> avg_coverage_carnivore;
+
     vector<float> avg_fitness_carnivore_random;
     vector<float> avg_fitness_herbivore_random;
 
@@ -74,12 +83,47 @@ void runEvolution()
 
     for (int g = 0; g < GenerationsCount; g++)
     {
+		((PublicInterfaceImpl*)Interface)->CurrentGenNumber = g;
+
         pop.Epoch(&world, [&](int gen)
         {
-            cout << "Generation : " << gen << endl;
-            cout << "    Species Size [" << pop.GetSpecies().size() << "] : ";
-            for (const auto&[_, species] : pop.GetSpecies())
-                cout << species.IndividualsIDs.size() << " | " << species.ProgressMetric << " , ";
+			cout << "Generation : " << gen << endl;
+			for (const auto&[_, species] : pop.GetSpecies())
+			{
+				// Find average evaluation metrics
+				float avg_eaten = 0;
+				float avg_failed = 0;
+				float avg_coverage = 0;
+				for (int id : species.IndividualsIDs)
+				{
+					const auto& org = pop.GetIndividuals()[id];
+					auto state_ptr = ((OrgState*)org.GetState());
+
+					avg_eaten += (float)state_ptr->EatenCount / state_ptr->Repetitions;
+					avg_failed += (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions;
+					avg_coverage += (float)state_ptr->VisitedCellsCount / state_ptr->Repetitions;
+				}
+
+				avg_eaten /= species.IndividualsIDs.size();
+				avg_failed /= species.IndividualsIDs.size();
+				avg_coverage /= species.IndividualsIDs.size();
+
+				if (((OrgState*)pop.GetIndividuals()[species.IndividualsIDs[0]].GetState())->IsCarnivore)
+				{
+					avg_eaten_carnivore.push_back(avg_eaten);
+					avg_failed_carnivore.push_back(avg_failed);
+					avg_coverage_carnivore.push_back(avg_coverage);
+				}
+				else
+				{
+					avg_eaten_herbivore.push_back(avg_eaten);
+					avg_failed_herbivore.push_back(avg_failed);
+					avg_coverage_herbivore.push_back(avg_coverage);
+				}
+
+				cout << "    " << avg_eaten << " " << avg_failed << " " << avg_coverage << endl;
+			}
+				//cout << species.IndividualsIDs.size() << " | " << species.ProgressMetric << " , ";
             cout << endl;
 
             // Every some generations graph the fitness & novelty of the individuals of the registry
@@ -95,8 +139,6 @@ void runEvolution()
                     else
                         fitness_vec_hervibore.push_back(org.Fitness);
                 }
-
-                plt::clf();
 
                 // Only average the best 5
 
@@ -139,22 +181,35 @@ void runEvolution()
                 avg_fitness_carnivore_random.push_back(rand_f_carnivore);
                 avg_progress_carnivore.push_back(progress_carnivore);
 
+				plt::clf();
 
-                plt::subplot(2, 2, 1);
+                plt::subplot(2, 3, 1);
                 plt::plot(avg_fitness_herbivore, "b");
                 plt::plot(avg_fitness_herbivore_random, "r");
 
-                plt::subplot(2, 2, 2);
+                plt::subplot(2, 3, 2);
                 plt::plot(avg_fitness_carnivore, "k");
                 plt::plot(avg_fitness_carnivore_random, "r");
 
-                plt::subplot(2, 2, 3);
+                plt::subplot(2, 3, 3);
                 plt::plot(avg_progress_herbivore, "b");
                 plt::plot(avg_progress_carnivore, "k");
 
+				plt::subplot(2, 3, 4);
+				plt::plot(avg_eaten_herbivore, "b");
+				plt::plot(avg_eaten_carnivore, "k");
+
+				plt::subplot(2, 3, 5);
+				plt::plot(avg_failed_herbivore, "b");
+				plt::plot(avg_failed_carnivore, "k");
+
+				plt::subplot(2, 3, 6);
+				plt::plot(avg_coverage_herbivore, "b");
+				plt::plot(avg_coverage_carnivore, "k");
+
                 plt::pause(0.01);
             }
-        });
+        },true);
 
     }
     pop.EvaluatePopulation(&world);

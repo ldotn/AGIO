@@ -118,6 +118,8 @@ int main()
 
 	for (int g = 0; g < ExperimentParams::GenerationsCount; g++)
 	{
+		((ExperimentInterface*)Interface)->CurrentGenNumber = g;
+
 		pop.Epoch(world_ptr, [&](int gen)
 		{
 			cout << "Generation : " << gen << endl;

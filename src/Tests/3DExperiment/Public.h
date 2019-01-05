@@ -1,6 +1,8 @@
 #include "../../Utils/Math/Float2.h"
 #include <vector>
 #include <random>
+#include <utility>
+#include <unordered_set>
 
 namespace agio
 {
@@ -16,12 +18,31 @@ namespace agio
 
 		// This is used when the organism is dead, and someone else is eating the corpse
 		// Corpses are ignored after they have been eaten N times
-		int EatenCount;
+		int CorpseRemainingDuration;
 
 		// After an organism dies,
 		// or the corpse has been eaten in the case of herbivore, reset it
 		// Organisms that died once no longer update score
 		bool HasDied;
+
+		int FailedActionCountCurrent;
+		int EatenCount;
+		int VisitedCellsCount;
+		int Repetitions; // Divide the metrics by this to get the average values (the real metrics, otherwise it's the sum)
+		int MetricsCurrentGenNumber;
+		int FailableActionCount; // Divide the FailedActionCountCurrent by this to get average
+		int FailedActionFractionAcc;
+
+
+		struct pair_hash
+		{
+			inline size_t operator()(const std::pair<int, int> & v) const
+			{
+				return v.first ^ v.second;
+			}
+		};
+
+		std::unordered_set<std::pair<int, int>, pair_hash> VisitedCells;
 	};	
 
 	enum class ActionID

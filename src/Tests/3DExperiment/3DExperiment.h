@@ -11,6 +11,8 @@ namespace agio
 	{
 		std::minstd_rand0 RNG;
 	public:
+		int CurrentGenNumber = 0;
+
 		ExperimentInterface();
 
 		WorldData World;

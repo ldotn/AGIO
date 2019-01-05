@@ -32,12 +32,14 @@ namespace agio
 
 		// Move constructor that sets the resources to nullptr of the moved from object after the move
 		// That's necessary so that the destructor doesn't try to release a moved resource
-		Individual(Individual &&) noexcept;
+		Individual(Individual &&);
 
+		// Creates a new individual from a tag description and a neat genome
+		Individual(const TagDesc& Desc, NEAT::Genome * InGenome);
 
 		// Constructor that makes an individual from a NEAT genome and a morphology tag
 		// NOTE : It duplicates the genome!
-		Individual(MorphologyTag Morphology,NEAT::Genome * Genome);
+		//Individual(MorphologyTag Morphology,NEAT::Genome * Genome);
 
 		// Does 4 steps
 		//    1) Load the sensors from the world
@@ -47,8 +49,7 @@ namespace agio
 		void DecideAndExecute(void * World, const std::vector<BaseIndividual*> &Individuals);
 
 		// "Lower level" version of the decide functionality
-		// It expects as input the values for the sensors (as an id->value map) and returns the action ID
-		int DecideAction(const std::unordered_map<int, float>& SensorsValues) override;
+		int DecideAction() override;
 
 		// Reset the state and set fitness to -1
 		// Also flush the neural network
@@ -57,7 +58,7 @@ namespace agio
 
 		// Standard interface
 		//auto GetState() override const { return State; }
-		void * GetState() const override { return State; }
+		//void * GetState() const override { return State; }
 		//template<typename T>
 		//T * GetState() const { return (T*)State; }
 		//const auto& GetParameters() const { return Parameters; }
@@ -90,12 +91,18 @@ namespace agio
 		//bool InSimulation;
 		float BackupFitness;
 
-		// Serializes the individual to a file
-		void DumpToFile(const std::string& FilePath);
+		// Current decision method
+		// For most uses, it's the default, but can be altered to test specific stuff
+		enum { UseBrain, UseUserFunction, DecideRandomly } DecisionMethod = UseBrain;
 
-		// Allows to override the network and just select actions randomly. Used to compute the progress metrics
-		bool UseNetwork = true;
+		// If the decision method is UseUserFunction, this function is called to decide the action
+		std::function<int(const std::vector<float>& SensorValues)> UserDecisionFunction;
 
+		// If true, the action selected is the one with the maximum value
+		// Otherwise, it selects randomly using the network outputs as probabilities
+		// By default it's false
+		bool UseMaxNetworkOutput = false;
+		
 		struct
 		{
 			float PrevFitness;
@@ -112,7 +119,6 @@ namespace agio
 		// because otherwise you would need to recreate them on each call
 		std::vector<int> Actions;
 		std::vector<int> Sensors;
-		std::vector<float> SensorsValues;
 		std::vector<float> ActivationsBuffer;
 
 		std::minstd_rand RNG;

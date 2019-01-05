@@ -1,5 +1,6 @@
 #pragma once
 
+#include <unordered_set>
 #include <vector>
 
 #include "../../Utils/Math/Float2.h"
@@ -16,13 +17,24 @@ struct OrgState
     float2 Position;
 
     bool IsCarnivore;
-};
 
-enum class ParametersIDs
-{
-    JumpDistance,
+	int FailedActionCountCurrent;
+	int EatenCount;
+	int VisitedCellsCount;
+	int Repetitions; // Divide the metrics by this to get the average values (the real metrics, otherwise it's the sum)
+	int MetricsCurrentGenNumber;
+	int FailableActionCount; // Divide the FailedActionCountCurrent by this to get average
+	int FailedActionFractionAcc;
 
-    NumberOfParameters
+	struct pair_hash
+	{
+		inline size_t operator()(const pair<int, int> & v) const
+		{
+			return v.first ^ v.second;
+		}
+	};
+
+	unordered_set<pair<int, int>,pair_hash> VisitedCells;
 };
 
 enum class ActionsIDs
@@ -40,11 +52,11 @@ enum class ActionsIDs
 
 enum class SensorsIDs
 {
-    NearestCompetidorAngle, // Angle to the nearest individual of another species
-    NearestCompetidorDistance,
+	NearestCompetitorDeltaX,
+	NearestCompetitorDeltaY,
 
-    NearestFoodAngle,
-    NearestFoodDistance,
+	NearestFoodDeltaX,
+	NearestFoodDeltaY,
 
     NumberOfSensors
 };
@@ -70,6 +82,10 @@ public:
     void DestroyState(void * State) override;
 
     void * DuplicateState(void * State) override;
+
+	// Needs to be set BEFORE calling epoch
+	// Used by the evaluation metrics
+	int CurrentGenNumber = 0;
 
     // How many steps did the last simulation took before everyone died
     int LastSimulationStepCount = 0;
