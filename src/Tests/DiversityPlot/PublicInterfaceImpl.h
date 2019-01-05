@@ -62,7 +62,7 @@ enum class SensorsIDs
 
 enum class CellType
 {
-    Grass,
+    Ground,
     Water,
     Wall
 };

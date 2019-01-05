@@ -147,10 +147,15 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 			for (int org_idx : s.IndividualsIDs)
 			{
 				const auto& org = Individuals[org_idx];
+
 				if (org.Genome == neat_org->gnome)  // comparing pointers
 				{
 					// Remapping because NEAT appears to only work with positive fitness
-					neat_org->fitness = log2(exp2(0.1*org.Fitness) + 1.0) + 1.0;
+					// TODO : FIND A BETTER FUNCTION!!
+					neat_org->fitness = log2(exp2(min(0.0001*org.Fitness,50.0)) + 1) + 1.0;
+
+					if (!isnormal(neat_org->fitness))
+						_CrtDbgBreak();
 
 					fitness_queue.push(org.Fitness);
 

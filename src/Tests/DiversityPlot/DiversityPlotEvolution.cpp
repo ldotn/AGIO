@@ -35,121 +35,50 @@ void runEvolution()
     // Create and fill the world
     WorldData world = createWorld();
 
-
     // Spawn population
     Population pop;
     pop.Spawn(PopSizeMultiplier, SimulationSize);
-
-    // Do evolution loop
-    vector<float> fitness_vec_hervibore;
-    vector<float> novelty_vec_hervibore;
-    vector<float> fitness_vec_carnivore;
-    vector<float> novelty_vec_carnivore;
-
-    vector<float> fitness_vec_registry;
-    vector<float> novelty_vec_registry;
-    vector<float> avg_fitness_herbivore;
-    vector<float> avg_progress_herbivore;
-    vector<float> avg_fitness_carnivore;
-    vector<float> avg_progress_carnivore;
-
-    vector<float> avg_fitness_carnivore_random;
-    vector<float> avg_fitness_herbivore_random;
-
-    vector<float> avg_fitness_difference;
-    vector<float> avg_fitness_network;
-    vector<float> avg_fitness_random;
-    vector<float> avg_novelty_registry;
-    vector<float> species_count;
-    vector<float> min_fitness_difference;
-    vector<float> max_fitness_difference;
-
-    // TODO : Make the plot work in debug
-    plt::ion();
 
     for (int g = 0; g < GenerationsCount; g++)
     {
         pop.Epoch(&world, [&](int gen)
         {
-            cout << "Generation : " << gen << endl;
-            cout << "    Species Size [" << pop.GetSpecies().size() << "] : ";
-            for (const auto&[_, species] : pop.GetSpecies())
-                cout << species.IndividualsIDs.size() << " | " << species.ProgressMetric << " , ";
-            cout << endl;
+            cout << "Generation " << gen 
+				<< ", " << pop.GetSpecies().size() << " Species" << endl;
 
-            // Every some generations graph the fitness & novelty of the individuals of the registry
-            if (gen % 10 == 0)
-            {
-                fitness_vec_hervibore.resize(0);
-                novelty_vec_hervibore.resize(0);
+			cout << "------------------------------" << endl;
+			for (const auto& [_, species] : pop.GetSpecies())
+			{
+				cout << "    "
+					 << " Size : " << species.IndividualsIDs.size()
+				     << endl;
+				cout << "    "
+					 << " Progress : " << species.ProgressMetric
+				     << endl;
 
-                for (auto[idx, org] : enumerate(pop.GetIndividuals()))
-                {
-                    if (true)//((OrgState*)org.GetState())->IsCarnivore)
-                        fitness_vec_carnivore.push_back(org.Fitness);
-                    else
-                        fitness_vec_hervibore.push_back(org.Fitness);
-                }
+				float avg_fit = 0;
+				float max_fit = numeric_limits<float>::lowest();
+				for (int id : species.IndividualsIDs)
+				{
+					const auto& org = pop.GetIndividuals()[id];
 
-                plt::clf();
+					avg_fit += org.Fitness;
+					max_fit = max(max_fit, org.Fitness);
+				}
+				avg_fit /= species.IndividualsIDs.size();
 
-                // Only average the best 5
-
-                sort(fitness_vec_hervibore.begin(), fitness_vec_hervibore.end(), [](float a, float b)
-                { return a > b; });
-                sort(fitness_vec_carnivore.begin(), fitness_vec_carnivore.end(), [](float a, float b)
-                { return a > b; });
-
-                float avg_f_hervibore = accumulate(fitness_vec_hervibore.begin(),
-                                                   fitness_vec_hervibore.begin() + min<int>(fitness_vec_hervibore.size(),5), 0.0f) / 5.0f;
-
-                float avg_f_carnivore = accumulate(fitness_vec_carnivore.begin(),
-                                                   fitness_vec_carnivore.begin() + min<int>(fitness_vec_carnivore.size(), 5), 0.0f) / 5.0f;
-
-                float progress_carnivore, progress_herbivore, rand_f_carnivore, rand_f_hervibore;
-
-                pop.ComputeDevMetrics(&world);
-
-                for (const auto &[_, s] : pop.GetSpecies())
-                {
-                    auto org_state = (OrgState*)pop.GetIndividuals()[s.IndividualsIDs[0]].GetState();
-                    if (true)//org_state->IsCarnivore)
-                    {
-                        progress_carnivore = s.ProgressMetric;
-                        avg_f_carnivore = s.DevMetrics.RealFitness;
-                        rand_f_carnivore = s.DevMetrics.RandomFitness;
-                    } else
-                    {
-                        progress_herbivore = s.ProgressMetric;
-                        avg_f_hervibore = s.DevMetrics.RealFitness;
-                        rand_f_hervibore = s.DevMetrics.RandomFitness;
-                    }
-                }
-
-                avg_fitness_herbivore_random.push_back(rand_f_hervibore);
-                avg_fitness_herbivore.push_back((avg_f_hervibore));
-                avg_progress_herbivore.push_back(progress_herbivore);
-
-                avg_fitness_carnivore.push_back((avg_f_carnivore));
-                avg_fitness_carnivore_random.push_back(rand_f_carnivore);
-                avg_progress_carnivore.push_back(progress_carnivore);
-
-
-                plt::subplot(2, 2, 1);
-                plt::plot(avg_fitness_herbivore, "b");
-                plt::plot(avg_fitness_herbivore_random, "r");
-
-                plt::subplot(2, 2, 2);
-                plt::plot(avg_fitness_carnivore, "k");
-                plt::plot(avg_fitness_carnivore_random, "r");
-
-                plt::subplot(2, 2, 3);
-                plt::plot(avg_progress_herbivore, "b");
-                plt::plot(avg_progress_carnivore, "k");
-
-                plt::pause(0.01);
-            }
-        });
+				// TODO : Add the avg fitness of the 5 best
+				cout << "    "
+					<< " Fitness (avg) : " << avg_fit
+					<< endl;
+				cout << "    "
+					<< " Fitness (max) : " << max_fit
+					<< endl;
+				cout << "------------------------------" << endl;
+			}
+         
+			cout << endl;
+        },true);
 
     }
     pop.EvaluatePopulation(&world);
