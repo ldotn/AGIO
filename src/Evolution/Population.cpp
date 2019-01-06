@@ -23,8 +23,6 @@ using namespace fpp;
 
 Population::Population() : RNG(std::chrono::high_resolution_clock::now().time_since_epoch().count())
 {
-	cur_node_id = 0;
-	cur_innov_num = 0;
 	CurrentGeneration = 0;
 }
 
@@ -56,7 +54,7 @@ void Population::Spawn(int SizeMult,int SimSize)
 	Individuals.reserve(pop_size);
 
 	// The loop is finished when no new species can be found
-	//   or when the pop size / (species count + 1)  < Min Species Greedy
+	//   or when the number of individuals per species will be under the min if we add another species
 	bool finished = false;
 	while (!finished)
 	{

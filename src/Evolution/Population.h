@@ -80,27 +80,14 @@ namespace agio
 		auto& GetIndividuals() { return Individuals; }
 		const auto& GetSpecies() const { return SpeciesMap; }
 		const auto& GetSpeciesRegistry() const { return StagnantSpecies; }
-		// Returns several metrics that allow one to measure the progress of the evolution
-		// TODO : More comprehensive docs maybe?
-		struct ProgressMetrics
-		{
-			ProgressMetrics() { memset(this, 0, sizeof(ProgressMetrics)); }
-			float AverageNovelty;
-			float NoveltyStandardDeviation;
-			float ProgressMetric;
-			float AverageFitness;
-			float AverageRandomFitness;
-			float FitnessDifferenceStandardDeviation;
-			float MaxFitnessDifference;
-			float MinFitnessDifference;
-		};
-		//ProgressMetrics ComputeProgressMetrics(void * World);
-		void ComputeDevMetrics(void * World);
 
-		// Variables used in mutate_add_node and mutate_add_link (neat)
-		// TODO : Refactor this so that the naming is consistent
-		int cur_node_id;
-		double cur_innov_num;
+		// Runs the simulation with the provided decision functions, replacing one species at a time
+		// Useful to compare the evolved network against some known decision function
+		struct SimResults
+		{
+
+		};
+		SimResults SimulateWithUserFunction(std::unordered_map<MorphologyTag, decltype(Individual::UserDecisionFunction)>);
 
 		// Evaluates the population
 		void EvaluatePopulation(void * WorldPtr);
