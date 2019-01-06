@@ -83,11 +83,8 @@ namespace agio
 
 		// Runs the simulation with the provided decision functions, replacing one species at a time
 		// Useful to compare the evolved network against some known decision function
-		struct SimResults
-		{
-
-		};
-		SimResults SimulateWithUserFunction(std::unordered_map<MorphologyTag, decltype(Individual::UserDecisionFunction)>);
+		// It calls a callback function each time a species finishes simulating
+		void SimulateWithUserFunction(void * World,std::unordered_map<MorphologyTag, decltype(Individual::UserDecisionFunction)> FunctionsMap, std::function<void(const MorphologyTag&)> Callback;
 
 		// Evaluates the population
 		void EvaluatePopulation(void * WorldPtr);

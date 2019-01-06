@@ -364,6 +364,32 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 	}
 }
 
+void Population::SimulateWithUserFunction(void * World,std::unordered_map<MorphologyTag, decltype(Individual::UserDecisionFunction)> FunctionsMap, std::function<void(const MorphologyTag&)> Callback)
+{
+	// Set the decision functions for the individuals
+	for (auto & org : Individuals)
+		org.UserDecisionFunction = FunctionsMap[org.GetMorphologyTag()];
+
+	// For each species, simulate it using the provided function
+	for (auto &[tag, species] : SpeciesMap)
+	{
+		// Set all the individuals to use the function
+		vector<pair<float, float>> orgs_f(species.IndividualsIDs.size());
+
+		for (auto[idx, org_id] : enumerate(species.IndividualsIDs))
+			Individuals[org_id].DecisionMethod = Individual::UseUserFunction;
+
+		// Evaluate and call the callback
+		EvaluatePopulation(World);
+
+		Callback(tag);
+
+		// Put things as they were
+		for (auto[idx, org_id] : enumerate(species.IndividualsIDs))
+			Individuals[org_id].DecisionMethod = Individual::UseBrain;
+	}
+}
+
 void Population::EvaluatePopulation(void * WorldPtr)
 {
 	for (auto& org : Individuals)
