@@ -101,7 +101,7 @@ namespace agio
 		// If true, the action selected is the one with the maximum value
 		// Otherwise, it selects randomly using the network outputs as probabilities
 		// By default it's false
-		bool UseMaxNetworkOutput = false;
+		bool UseMaxNetworkOutput = true;
 		
 		struct
 		{

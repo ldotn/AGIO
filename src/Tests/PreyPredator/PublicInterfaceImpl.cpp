@@ -134,7 +134,7 @@ void PublicInterfaceImpl::Init()
 
                             auto other_state_ptr = (OrgState*)individual->GetState();
                             auto diff = abs >> (other_state_ptr->Position - state_ptr->Position);
-                            if (diff.x <= 1 && diff.y <= 1)
+                            if (diff.x <= 2 && diff.y <= 2)
                             {
                                 // Check if they are from different species by comparing tags
                                 const auto& other_tag = individual->GetMorphologyTag();

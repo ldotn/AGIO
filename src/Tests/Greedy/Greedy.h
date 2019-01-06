@@ -34,7 +34,7 @@ inline int DecideGreedyPredator(const std::vector<float>& SensorValues, BaseIndi
 	float prey_distance_y = SensorValues[org->GetSensorIndex((int)SensorsIDs::NearestCompetitorDeltaY)];
 	
 	ActionsIDs action;
-	if (abs(prey_distance_x) <= 1 && abs(prey_distance_y) <= 1)
+	if (abs(prey_distance_x) <= 2 && abs(prey_distance_y) <= 2)
 		action = ActionsIDs::KillAndEat;
 	else
 	{
