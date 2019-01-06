@@ -31,12 +31,7 @@ void runSimulation() {
 
     // Create and fill the world
     WorldData world;
-    world.FoodPositions.resize(FoodCellCount);
-    for (auto &pos : world.FoodPositions)
-    {
-        pos.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
-        pos.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
-    }
+    world.fill(FoodCellCount, WorldSizeX, WorldSizeY);
 
     SRegistry registry;
     registry.load(SerializationFile);
