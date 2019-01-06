@@ -49,8 +49,8 @@ if (build_tests)
 			src/Tests/PreyPredator/main.cpp
 			src/Tests/PreyPredator/PreyPredatorEvolution.cpp
 			src/Tests/PreyPredator/PreyPredator.cpp
-			src/Tests/PreyPredator/PublicInterfaceImpl.cpp)
-			#src/Tests/Greedy/Greedy.cpp)
+			src/Tests/PreyPredator/PublicInterfaceImpl.cpp
+			src/Tests/Greedy/Greedy.cpp)
 	target_link_libraries(prey_predator
 		agio_lib
 		${PYTHON_LIBRARIES}

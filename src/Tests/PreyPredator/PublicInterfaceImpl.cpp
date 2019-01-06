@@ -92,7 +92,8 @@ void PublicInterfaceImpl::Init()
                                 state_ptr->Score += FoodScoreGain;
 
                                 // Just move the food to a different position. Achieves the same effect as removing it
-                                world_ptr->FoodPositions[idx] = { uniform_real_distribution<float>(0, WorldSizeX)(RNG), uniform_real_distribution<float>(0, WorldSizeY)(RNG) };
+                                world_ptr->FoodPositions[idx].x = uniform_int_distribution<int>(0, WorldSizeX)(RNG);
+                                world_ptr->FoodPositions[idx].y = uniform_int_distribution<int>(0, WorldSizeY)(RNG);
                                 any_eaten = true;
                                 break;
                             }
@@ -275,7 +276,7 @@ void PublicInterfaceImpl::Init()
                             }
                         }
 
-                        return (nearest_pos - state_ptr->Position).x;
+                        return (nearest_pos - state_ptr->Position).y;
                     }
             );
 

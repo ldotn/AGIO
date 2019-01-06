@@ -45,7 +45,8 @@ void runEvolution()
 
     // Spawn population
     Population pop;
-    pop.Spawn(PopSizeMultiplier, SimulationSize);
+
+//    pop.Spawn(PopSizeMultiplier, SimulationSize);
 
     // Do evolution loop
     vector<float> fitness_vec_hervibore;
