@@ -26,32 +26,9 @@ SIndividual::SIndividual(NEAT::Genome *genome, MorphologyTag morphology)
     brain = move(SNetwork(genome->genesis(genome->genome_id)));
 
     // Reconstruct actions and sensors
-    unordered_set<int> actions_set;
-    unordered_set<int> sensors_set;
-
-    for(const auto &componentRef : morphologyTag) {
-        const ComponentGroup &group = Interface->GetComponentRegistry()[componentRef.GroupID];
-        Component component = group.Components[componentRef.ComponentID];
-
-        actions_set.insert(component.Actions.begin(), component.Actions.end());
-        sensors_set.insert(component.Sensors.begin(), component.Sensors.end());
-    }
-
-    // Convert the action and sensors set to vectors
-    Actions.resize(actions_set.size());
-    for (auto[idx, action] : enumerate(actions_set))
-        Actions[idx] = action;
-	ActivationsBuffer.resize(Actions.size());
-
-    Sensors.resize(sensors_set.size());
-    for (auto[idx, sensor] : enumerate(sensors_set))
-        Sensors[idx] = sensor;
-
-    // Sort the actions and the sensors vectors
-    // This is important! Otherwise mating between individuals is meaningless, because the order is arbitrary
-    //  and the same input could mean different things for two individuals of the same species
-    sort(Actions.begin(), Actions.end());
-    sort(Sensors.begin(), Sensors.end());
+    TagDesc tag_desc(morphologyTag);
+    Actions = tag_desc.ActionIDs;
+    Sensors = tag_desc.SensorIDs;
 }
 
 const MorphologyTag& SIndividual::GetMorphologyTag() const
