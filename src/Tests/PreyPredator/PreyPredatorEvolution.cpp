@@ -316,7 +316,7 @@ void runEvolution()
             // Every some generations graph the fitness & novelty of the individuals of the registry
             if (gen % 10 == 0)
                 metrics.plot(pop);
-        },true);
+        }, true);
 
     }
     pop.EvaluatePopulation(&world);
