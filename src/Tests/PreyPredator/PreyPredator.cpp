@@ -38,25 +38,16 @@ void runSimulation() {
         pos.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
     }
 
-//    SRegistry registry;
-//    registry.load(SerializationFile);
+    SRegistry registry;
+    registry.load(SerializationFile);
 
 //    // Create the individuals that are gonna be used in the simulation
 //    // TODO: Select individuals with a criteria
     vector<BaseIndividual*> individuals;
-//    for(auto &entry : registry.Species)
-//        for(auto &individual: entry.Individuals)
-//            individuals.push_back(&individual);
+    for(auto &entry : registry.Species)
+        for(auto &individual: entry.Individuals)
+            individuals.push_back(&individual);
 
-	for (int i = 0; i < 10; i++)
-	{
-		GreedyPrey *prey = new GreedyPrey;
-		prey->InSimulation = true;
-		GreedyPredator *predator = new GreedyPredator;
-		predator->InSimulation = true;
-		individuals.push_back(prey);
-		individuals.push_back(predator);
-	}
 	for(auto &individual : individuals)
 		individual->State = Interface->MakeState(individual);
 

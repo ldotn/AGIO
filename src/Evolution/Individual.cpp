@@ -43,7 +43,7 @@ int Individual::DecideAction()
 	else
 	{
 		if (DecisionMethod == UseUserFunction)
-			action = UserDecisionFunction(SensorsValues);
+			action = UserDecisionFunction(SensorsValues, this);
 		else
 		{
 			// Send sensors to brain and activate

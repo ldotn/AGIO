@@ -96,7 +96,7 @@ namespace agio
 		enum { UseBrain, UseUserFunction, DecideRandomly } DecisionMethod = UseBrain;
 
 		// If the decision method is UseUserFunction, this function is called to decide the action
-		std::function<int(const std::vector<float>& SensorValues)> UserDecisionFunction;
+		std::function<int(const std::vector<float>& SensorValues, BaseIndividual *org)> UserDecisionFunction;
 
 		// If true, the action selected is the one with the maximum value
 		// Otherwise, it selects randomly using the network outputs as probabilities
