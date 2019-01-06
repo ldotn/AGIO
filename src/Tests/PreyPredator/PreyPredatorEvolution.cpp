@@ -154,9 +154,7 @@ void runEvolution()
                         fitness_vec_carnivore.begin() + min<int>(fitness_vec_carnivore.size(), 5), 0.0f) / 5.0f;
 
                 float progress_carnivore, progress_herbivore, rand_f_carnivore, rand_f_hervibore;
-
-                pop.ComputeDevMetrics(&world);
-
+                
                 for (const auto &[_, s] : pop.GetSpecies())
                 {
                     auto org_state = (OrgState*)pop.GetIndividuals()[s.IndividualsIDs[0]].GetState();

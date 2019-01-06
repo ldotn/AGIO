@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <unordered_set>
 #include <queue>
+#include <algorithm>
 
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
@@ -148,12 +149,14 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 
 				if (org.Genome == neat_org->gnome)  // comparing pointers
 				{
-					// Remapping because NEAT appears to only work with positive fitness
-					// TODO : FIND A BETTER FUNCTION!!
-					neat_org->fitness = log2(exp2(min(0.0001*org.Fitness,50.0)) + 1) + 1.0;
+				    float org_fitness = org.Fitness;
+				    if (org_fitness < -1e6)
+				        org_fitness = -1e6;
+				    if (org_fitness > 1e6)
+				        org_fitness = 1e6;
 
-					if (!isnormal(neat_org->fitness))
-						_CrtDbgBreak();
+					// Remapping because NEAT appears to only work with positive fitness
+					neat_org->fitness = org_fitness + 1e6 + 1;
 
 					fitness_queue.push(org.Fitness);
 
@@ -402,57 +405,6 @@ void Population::EvaluatePopulation(void * WorldPtr)
 		org.Fitness = org.AccumulatedFitness / (float)Settings::SimulationReplications;
 };
 
-void Population::ComputeDevMetrics(void * World)
-{
-}
-
-#if 0
-void Population::ComputeDevMetrics(void * World)
-{
-	ProgressMetrics metrics;
-
-	EvaluatePopulation(World);
-	for (auto& org : Individuals)
-		org.DevMetrics.PrevFitness = org.Fitness;
-
-    // Now for each species set that to be random, and do a couple of simulations
-    // Override the use of the network for decision-making
-	for (auto &[_, species] : SpeciesMap)
-	{
-		species.DevMetrics = {};
-		vector<pair<float,float>> orgs_f(species.IndividualsIDs.size());
-
-		for (auto [idx,org_id] : enumerate(species.IndividualsIDs))
-			Individuals[org_id].UseNetwork = false;
-
-		EvaluatePopulation(World);
-
-		for (auto [idx,org_id] : enumerate(species.IndividualsIDs))
-		{
-			Individuals[org_id].UseNetwork = true;
-
-			float base_f = Individuals[org_id].DevMetrics.PrevFitness;
-			float random_f = Individuals[org_id].Fitness;
-			orgs_f[idx] = { base_f,random_f };
-		}
-			
-		sort(orgs_f.begin(), orgs_f.end(), [](auto a, auto b)
-		{
-			return a.first > b.first;
-		});
-
-		for (int i = 0; i < 5 && i < orgs_f.size() - 6; i--)
-		{
-			auto[base_f, random_f] = orgs_f[i];
-			species.DevMetrics.RandomFitness += random_f;
-			species.DevMetrics.RealFitness += base_f;
-		}
-			
-		species.DevMetrics.RandomFitness /= min((float)orgs_f.size(), 5.0f);
-		species.DevMetrics.RealFitness /= min((float)orgs_f.size(), 5.0f);
-	}
-}
-#endif
 void Population::CurrentSpeciesToRegistry()
 {
 	// Before serialization, put best individuals into the registry.
