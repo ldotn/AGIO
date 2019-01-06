@@ -14,7 +14,10 @@
 #include "PreyPredator.h"
 #include "PublicInterfaceImpl.h"
 
-//#include "../Greedy/Greedy.h"
+#include "../Greedy/Greedy.h"
+
+// World data;
+WorldData world;
 
 namespace plt = matplotlibcpp;
 using namespace agio;
@@ -41,6 +44,13 @@ public:
     vector<float> avg_failed_carnivore;
     vector<float> avg_coverage_herbivore;
     vector<float> avg_coverage_carnivore;
+
+	vector<float> avg_eaten_herbivore_greedy;
+	vector<float> avg_eaten_carnivore_greedy;
+	vector<float> avg_failed_herbivore_greedy;
+	vector<float> avg_failed_carnivore_greedy;
+	vector<float> avg_coverage_herbivore_greedy;
+	vector<float> avg_coverage_carnivore_greedy;
 
     vector<float> avg_fitness_carnivore_random;
     vector<float> avg_fitness_herbivore_random;
@@ -94,15 +104,95 @@ public:
             }
             cout << "    " << avg_eaten << " " << avg_failed << " " << avg_coverage << endl;
         }
+
+		// Force a reset. REFACTOR!
+		for (auto& org : pop.GetIndividuals())
+		{
+			auto state_ptr = (OrgState*)org.GetState();
+
+			state_ptr->MetricsCurrentGenNumber = -1;
+			state_ptr->VisitedCellsCount = 0;
+			state_ptr->VisitedCells = {};
+			state_ptr->EatenCount = 0;
+			state_ptr->FailedActionCountCurrent = 0;
+			state_ptr->Repetitions = 0;
+			state_ptr->FailableActionCount = 0;
+			state_ptr->FailedActionFractionAcc = 0;
+		}
+
+		pop.SimulateWithUserFunction(&world,createGreedyActionsMap(),
+			[&](const MorphologyTag& tag)
+			{
+				float avg_eaten = 0;
+				float avg_failed = 0;
+				float avg_coverage = 0;
+				const auto& species = pop.GetSpecies().find(tag)->second;
+
+				for (int id : species.IndividualsIDs)
+				{
+					const auto& org = pop.GetIndividuals()[id];
+					auto state_ptr = ((OrgState*)org.GetState());
+
+					avg_eaten += (float)state_ptr->EatenCount / state_ptr->Repetitions;
+					avg_failed += (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions;
+					avg_coverage += (float)state_ptr->VisitedCellsCount / state_ptr->Repetitions;
+				}
+
+				avg_eaten /= species.IndividualsIDs.size();
+				avg_failed /= species.IndividualsIDs.size();
+				avg_coverage /= species.IndividualsIDs.size();
+
+				// Find org type
+				bool is_carnivore;
+				for (auto[gid, cid] : tag)
+				{
+					if (gid == 0) // mouth group
+					{
+						if (cid == 0) // herbivore
+							is_carnivore = false;
+						else if (cid == 1)
+							is_carnivore = true;
+					}
+				}
+
+				// Update values
+				if (is_carnivore)
+				{
+					avg_eaten_carnivore_greedy.push_back(avg_eaten);
+					avg_failed_carnivore_greedy.push_back(avg_failed);
+					avg_coverage_carnivore_greedy.push_back(avg_coverage);
+				}
+				else
+				{
+					avg_eaten_herbivore_greedy.push_back(avg_eaten);
+					avg_failed_herbivore_greedy.push_back(avg_failed);
+					avg_coverage_herbivore_greedy.push_back(avg_coverage);
+				}
+
+				// Force a reset. REFACTOR!
+				for (auto& org : pop.GetIndividuals())
+				{
+					auto state_ptr = (OrgState*)org.GetState();
+
+					state_ptr->MetricsCurrentGenNumber = -1;
+					state_ptr->VisitedCellsCount = 0;
+					state_ptr->VisitedCells = {};
+					state_ptr->EatenCount = 0;
+					state_ptr->FailedActionCountCurrent = 0;
+					state_ptr->Repetitions = 0;
+					state_ptr->FailableActionCount = 0;
+					state_ptr->FailedActionFractionAcc = 0;
+				}
+			});
     }
 
     void plot(Population &pop)
     {
         calculate_metrics(pop);
-
+		//return;
         plt::clf();
 
-        plt::subplot(2, 3, 1);
+        /*plt::subplot(2, 3, 1);
         plt::plot(avg_fitness_herbivore, "b");
         plt::plot(avg_fitness_herbivore_random, "r");
 
@@ -112,19 +202,28 @@ public:
 
         plt::subplot(2, 3, 3);
         plt::plot(avg_progress_herbivore, "b");
-        plt::plot(avg_progress_carnivore, "k");
+        plt::plot(avg_progress_carnivore, "k");*/
 
-        plt::subplot(2, 3, 4);
+        //plt::subplot(2, 3, 4);
+		plt::subplot(1, 3, 1);
         plt::plot(avg_eaten_herbivore, "b");
         plt::plot(avg_eaten_carnivore, "k");
+		plt::plot(avg_eaten_herbivore_greedy, "b--");
+		plt::plot(avg_eaten_carnivore_greedy, "k--");
 
-        plt::subplot(2, 3, 5);
+        //plt::subplot(2, 3, 5);
+        plt::subplot(1, 3, 2);
         plt::plot(avg_failed_herbivore, "b");
         plt::plot(avg_failed_carnivore, "k");
+		plt::plot(avg_failed_herbivore_greedy, "b--");
+        plt::plot(avg_failed_carnivore_greedy, "k--");
 
-        plt::subplot(2, 3, 6);
+        //plt::subplot(2, 3, 6);
+		plt::subplot(1, 3, 3);
         plt::plot(avg_coverage_herbivore, "b");
         plt::plot(avg_coverage_carnivore, "k");
+        plt::plot(avg_coverage_herbivore_greedy, "b--");
+        plt::plot(avg_coverage_carnivore_greedy, "k--");
 
         plt::pause(0.01);
     }
@@ -196,7 +295,6 @@ void runEvolution()
     Interface->Init();
 
     // Create and fill the world
-    WorldData world;
     world.fill(FoodCellCount, WorldSizeX, WorldSizeY);
 
     // Spawn population

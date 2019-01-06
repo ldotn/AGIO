@@ -43,7 +43,7 @@ int Individual::DecideAction()
 	else
 	{
 		if (DecisionMethod == UseUserFunction)
-			action = UserDecisionFunction(SensorsValues, this);
+			action = ActionsMap[UserDecisionFunction(SensorsValues, this)];
 		else
 		{
 			// Send sensors to brain and activate
@@ -127,6 +127,8 @@ Individual::Individual(Individual &&other)
     AccumulatedFitness = other.AccumulatedFitness;
 	UserDecisionFunction = move(other.UserDecisionFunction);
 	DecisionMethod = other.DecisionMethod;
+	SensorsMap = move(other.SensorsMap);
+	ActionsMap = move(other.ActionsMap);
 
     other.Genome = nullptr;
     other.Brain = nullptr;
@@ -141,6 +143,11 @@ Individual::Individual(const TagDesc& Desc, NEAT::Genome * InGenome) : Individua
 
 	Actions = Desc.ActionIDs;
 	Sensors = Desc.SensorIDs;
+
+	for (auto[idx, id] : enumerate(Sensors))
+		SensorsMap[id] = idx;
+	for (auto[idx, id] : enumerate(Actions))
+		ActionsMap[id] = idx;
 
 	ActivationsBuffer.resize(Actions.size());
 	SensorsValues.resize(Sensors.size());

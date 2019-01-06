@@ -376,7 +376,7 @@ void Population::SimulateWithUserFunction(void * World,std::unordered_map<Morpho
 		// Set all the individuals to use the function
 		vector<pair<float, float>> orgs_f(species.IndividualsIDs.size());
 
-		for (auto[idx, org_id] : enumerate(species.IndividualsIDs))
+		for (int org_id : species.IndividualsIDs)
 			Individuals[org_id].DecisionMethod = Individual::UseUserFunction;
 
 		// Evaluate and call the callback
@@ -385,7 +385,7 @@ void Population::SimulateWithUserFunction(void * World,std::unordered_map<Morpho
 		Callback(tag);
 
 		// Put things as they were
-		for (auto[idx, org_id] : enumerate(species.IndividualsIDs))
+		for (int org_id : species.IndividualsIDs)
 			Individuals[org_id].DecisionMethod = Individual::UseBrain;
 	}
 }

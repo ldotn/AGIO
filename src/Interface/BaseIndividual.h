@@ -14,6 +14,9 @@ namespace agio
 		// Contains the mapping from sensor id to index on the sensors values vector
 		std::unordered_map<int, int> SensorsMap;
 
+		// Contains the mapping from action id to index on the action values vector
+		std::unordered_map<int, int> ActionsMap;
+
 		// Stores the current value of the sensors
 		std::vector<float> SensorsValues;
 	public:

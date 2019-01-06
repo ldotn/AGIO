@@ -7,7 +7,7 @@
 #include "genome.h"
 #include <unordered_map>
 
-int DecideGreedyPrey(const std::vector<float>& SensorValues, BaseIndividual *org) {
+inline int DecideGreedyPrey(const std::vector<float>& SensorValues, BaseIndividual *org) {
 	float food_distance_x = SensorValues[org->GetSensorIndex((int)SensorsIDs::NearestFoodDeltaX)];
 	float food_distance_y = SensorValues[org->GetSensorIndex((int)SensorsIDs::NearestFoodDeltaY)];
 
@@ -29,10 +29,10 @@ int DecideGreedyPrey(const std::vector<float>& SensorValues, BaseIndividual *org
 	return (int) action;
 }
 
-int DecideGreedyPredator(const std::vector<float>& SensorValues, BaseIndividual *org) {
+inline int DecideGreedyPredator(const std::vector<float>& SensorValues, BaseIndividual *org) {
 	float prey_distance_x = SensorValues[org->GetSensorIndex((int)SensorsIDs::NearestCompetitorDeltaX)];
 	float prey_distance_y = SensorValues[org->GetSensorIndex((int)SensorsIDs::NearestCompetitorDeltaY)];
-
+	
 	ActionsIDs action;
 	if (abs(prey_distance_x) <= 1 && abs(prey_distance_y) <= 1)
 		action = ActionsIDs::KillAndEat;
@@ -51,7 +51,7 @@ int DecideGreedyPredator(const std::vector<float>& SensorValues, BaseIndividual 
 	return (int) action;
 }
 
-agio::MorphologyTag createPreyTag()
+inline agio::MorphologyTag createPreyTag()
 {
 	ComponentRef mouth{0,0};
 	ComponentRef body{1,0};
@@ -63,7 +63,7 @@ agio::MorphologyTag createPreyTag()
 	return tag;
 }
 
-agio::MorphologyTag createPredatorTag()
+inline agio::MorphologyTag createPredatorTag()
 {
 	ComponentRef mouth{0,1};
 	ComponentRef body{1,0};
@@ -75,7 +75,7 @@ agio::MorphologyTag createPredatorTag()
 	return tag;
 }
 
-std::unordered_map<MorphologyTag, decltype(Individual::UserDecisionFunction)> createGreedeActionsMap()
+inline std::unordered_map<MorphologyTag, decltype(Individual::UserDecisionFunction)> createGreedyActionsMap()
 {
 	std::unordered_map<MorphologyTag, decltype(Individual::UserDecisionFunction)> map;
 	map[createPreyTag()] = DecideGreedyPrey;
