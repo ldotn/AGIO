@@ -64,6 +64,18 @@ enum class SensorsIDs
 struct WorldData
 {
     vector<float2> FoodPositions;
+
+    void fill(int FoodCellCount, int WorldSizeX, int WorldSizeY)
+    {
+		minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
+
+		FoodPositions.resize(FoodCellCount);
+		for (auto &pos : FoodPositions)
+		{
+			pos.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
+			pos.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
+		}
+    }
 };
 
 class PublicInterfaceImpl : public PublicInterface
