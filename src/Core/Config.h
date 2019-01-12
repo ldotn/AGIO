@@ -9,7 +9,7 @@ namespace agio
         Settings() = delete;
 
         // Loads the settings from a cfg file
-        static void LoadFromFile(const std::string& FilePath);
+        static void LoadFromFile(const ConfigLoader& CFGFile);
 
 		// Minimum age before a species is considered to be removed
 		inline static int MinSpeciesAge = 20;

@@ -285,7 +285,7 @@ void runEvolution()
 {
     minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
-    NEAT::load_neat_params("../cfg/neat_test_config.txt");
+    NEAT::load_neat_params("../src/Tests/PreyPredator/NEATConfig.txt");
     NEAT::mutate_morph_param_prob = Settings::ParameterMutationProb;
     NEAT::destructive_mutate_morph_param_prob = Settings::ParameterDestructiveMutationProb;
     NEAT::mutate_morph_param_spread = Settings::ParameterMutationSpread;
@@ -313,9 +313,7 @@ void runEvolution()
             metrics.update(pop);
             cout << endl;
 
-            // Every some generations graph the fitness & novelty of the individuals of the registry
-            if (gen % 10 == 0)
-                metrics.plot(pop);
+            metrics.plot(pop);
         }, true);
 
     }
@@ -324,4 +322,10 @@ void runEvolution()
 
     SRegistry registry(&pop);
     registry.save(SerializationFile);
+
+	{
+		cout << "Press any letter + enter to exit" << endl;
+		int tmp;
+		cin >> tmp;
+	}
 }

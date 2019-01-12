@@ -29,6 +29,9 @@ SIndividual::SIndividual(NEAT::Genome *genome, MorphologyTag morphology)
     TagDesc tag_desc(morphologyTag);
     Actions = tag_desc.ActionIDs;
     Sensors = tag_desc.SensorIDs;
+
+	ActivationsBuffer.resize(Actions.size());
+	SensorsValues.resize(Sensors.size());
 }
 
 const MorphologyTag& SIndividual::GetMorphologyTag() const

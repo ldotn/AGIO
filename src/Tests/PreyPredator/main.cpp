@@ -23,7 +23,8 @@ float BorderPenalty;
 float WastedActionPenalty;
 string SerializationFile;
 
-int main() {
+int main() 
+{
 	ConfigLoader loader("../src/Tests/PreyPredator/Config.cfg");
 	loader.LoadValue(WorldSizeX,"WorldSizeX");
 	loader.LoadValue(WorldSizeY,"WorldSizeY");
@@ -43,6 +44,8 @@ int main() {
 	loader.LoadValue(WastedActionPenalty,"WastedActionPenalty");
 	loader.LoadValue(SerializationFile, "SerializationFile");
 
+	Settings::LoadFromFile(loader);
+
     cout << "1 - Run Evolution" << endl;
     cout << "2 - Run Simulation" << endl;
     cout << "Select an option:";
@@ -54,4 +57,5 @@ int main() {
     if (op == 2)
         runSimulation();
 
+	return 0;
 }

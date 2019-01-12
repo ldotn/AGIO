@@ -23,6 +23,7 @@ set(project_sources
 	src/Serialization/SNetwork.cpp
 	src/Serialization/SRegistry.cpp
 	src/Evolution/MorphologyTag.cpp
+	src/Core/Config.cpp
 	${neat_sources})
 
 add_library(agio_lib STATIC ${project_sources})

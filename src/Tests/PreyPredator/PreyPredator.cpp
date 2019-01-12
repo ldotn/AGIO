@@ -39,9 +39,19 @@ void runSimulation() {
 //    // Create the individuals that are gonna be used in the simulation
 //    // TODO: Select individuals with a criteria
     vector<BaseIndividual*> individuals;
-    for(auto &entry : registry.Species)
+    /*for(auto &entry : registry.Species)
         for(auto &individual: entry.Individuals)
-            individuals.push_back(&individual);
+            individuals.push_back(&individual);*/
+	// Select randomly until the simulation size is filled
+	for (int i = 0; i < SimulationSize; i++)
+	{
+		int species_idx = uniform_int_distribution<int>(0, registry.Species.size() - 1)(RNG);
+		int individual_idx = uniform_int_distribution<int>(0, registry.Species[species_idx].Individuals.size() - 1)(RNG);
+		
+		SIndividual * org = new SIndividual;
+		*org = registry.Species[species_idx].Individuals[individual_idx];
+		individuals.push_back(org);
+	}
 
 	for(auto &individual : individuals)
 		individual->State = Interface->MakeState(individual);
@@ -98,6 +108,8 @@ void runSimulation() {
 		plt::pause(0.1);
 	}
 
+	for (auto org : individuals)
+		delete org;
 	// NOTE! : Explictely leaking the interface here!
 	// There's a good reason for it
 	// The objects in the system need the interface to delete themselves

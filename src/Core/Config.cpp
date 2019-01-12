@@ -2,19 +2,17 @@
 
 using namespace agio;
 
-void Settings::LoadFromFile(const std::string& FilePath)
+void Settings::LoadFromFile(const ConfigLoader& CFG)
 {
-	ConfigLoader cfg(FilePath);
-
-	cfg.LoadValue(Settings::MinSpeciesAge,"MinSpeciesAge");
-	cfg.LoadValue(Settings::ProgressMetricsIndividuals,"ProgressMetricsIndividuals");
-	cfg.LoadValue(Settings::ProgressMetricsFalloff,"ProgressMetricsFalloff");
-	cfg.LoadValue(Settings::ProgressThreshold,"ProgressThreshold");
-	cfg.LoadValue(Settings::SpeciesStagnancyChances,"SpeciesStagnancyChances");
-	cfg.LoadValue(Settings::MinIndividualsPerSpecies,"MinIndividualsPerSpecies");
-	cfg.LoadValue(Settings::MorphologyTries,"MorphologyTries");
-	cfg.LoadValue(Settings::SimulationReplications,"SimulationReplications");
-	cfg.LoadValue(Settings::ParameterMutationProb,"ParameterMutationProb");
-	cfg.LoadValue(Settings::ParameterDestructiveMutationProb,"ParameterDestructiveMutationProb");
-	cfg.LoadValue(Settings::ParameterMutationSpread,"ParameterMutationSpread");
+	CFG.LoadValue(Settings::MinSpeciesAge,"MinSpeciesAge");
+	CFG.LoadValue(Settings::ProgressMetricsIndividuals,"ProgressMetricsIndividuals");
+	CFG.LoadValue(Settings::ProgressMetricsFalloff,"ProgressMetricsFalloff");
+	CFG.LoadValue(Settings::ProgressThreshold,"ProgressThreshold");
+	CFG.LoadValue(Settings::SpeciesStagnancyChances,"SpeciesStagnancyChances");
+	CFG.LoadValue(Settings::MinIndividualsPerSpecies,"MinIndividualsPerSpecies");
+	CFG.LoadValue(Settings::MorphologyTries,"MorphologyTries");
+	CFG.LoadValue(Settings::SimulationReplications,"SimulationReplications");
+	CFG.LoadValue(Settings::ParameterMutationProb,"ParameterMutationProb");
+	CFG.LoadValue(Settings::ParameterDestructiveMutationProb,"ParameterDestructiveMutationProb");
+	CFG.LoadValue(Settings::ParameterMutationSpread,"ParameterMutationSpread");
 }

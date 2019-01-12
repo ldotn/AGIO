@@ -35,7 +35,7 @@ namespace agio
 		}
 
 		template<typename T>
-		void LoadValue(T& Value, const std::string& Name)
+		void LoadValue(T& Value, const std::string& Name) const
 		{
 			auto iter = Values.find(Name);
 			if (iter != Values.end())
