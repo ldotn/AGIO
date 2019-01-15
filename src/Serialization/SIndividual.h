@@ -43,9 +43,11 @@ namespace agio
 			ar & Actions;
 			ar & Sensors;
 			ar & morphologyTag;
-
-			// While the values are not relevant, serializing it so that it's always of the correct size
+			ar & UseMaxNetworkOutput;
+			
+			// Need to serialize them so that the size is correct
 			ar & ActivationsBuffer;
+			ar & SensorsValues;
 		}
 
 		void DecideAndExecute(void * World, const std::vector<BaseIndividual*> &Individuals) override;

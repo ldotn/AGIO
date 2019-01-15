@@ -3,6 +3,7 @@
 #include <vector>
 #include "../Evolution/MorphologyTag.h"
 #include "genome.h"
+#include <random>
 
 namespace agio
 {
@@ -19,6 +20,9 @@ namespace agio
 
 		// Stores the current value of the sensors
 		std::vector<float> SensorsValues;
+
+		// Random number engine
+		std::minstd_rand RNG;
 	public:
 		virtual ~BaseIndividual() = default;
 
@@ -76,5 +80,10 @@ namespace agio
 
 		virtual const std::unordered_map<int, Parameter>& GetParameters() const = 0;
 		virtual const MorphologyTag& GetMorphologyTag() const = 0;
+
+		// If true, the action selected is the one with the maximum value
+		// Otherwise, it selects randomly using the network outputs as probabilities
+		// By default it's false
+		bool UseMaxNetworkOutput = false;
 	};
 }

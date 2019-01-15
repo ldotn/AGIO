@@ -19,7 +19,7 @@ using namespace agio;
 using namespace std;
 using namespace fpp;
 
-Individual::Individual() noexcept : RNG(chrono::high_resolution_clock::now().time_since_epoch().count())
+Individual::Individual() noexcept
 {
     State = nullptr;
     Genome = nullptr;
@@ -28,6 +28,8 @@ Individual::Individual() noexcept : RNG(chrono::high_resolution_clock::now().tim
     OriginalID = GlobalID = CurrentGlobalID.fetch_add(1);
     AccumulatedFitness = 0;
 	NeedGenomeDeletion = false;
+	RNG = minstd_rand(chrono::high_resolution_clock::now().time_since_epoch().count());
+	UseMaxNetworkOutput = uniform_int_distribution<int>(0, 1)(RNG);
 }
 
 // it assumes that the sensors are already updated
@@ -55,17 +57,47 @@ int Individual::DecideAction()
 			for (auto[idx, v] : enumerate(Brain->outputs))
 				act_sum += ActivationsBuffer[idx] = v->activation; // The activation function is in [0, 1], check line 461 of neat.cpp
 
+			/*{
+				vector<int> active;
+				active.reserve(ActivationsBuffer.size());
+				for (auto[idx, v] : enumerate(ActivationsBuffer))
+					if (v > 0.5f) active.push_back(idx);
+
+				if (active.size() > 0)
+				{
+					discrete_distribution<int> action_dist(0ull, active.size()-1);
+					action = active[action_dist(RNG)];
+				}
+				else
+				{
+					float max_v = ActivationsBuffer[0];
+					action = 0;
+
+					// Yeah, I know that I'm checking the first element twice, but the performance impact is negligible
+					for (auto[idx, v] : enumerate(ActivationsBuffer))
+					{
+						if (v > max_v)
+						{
+							max_v = v;
+							action = idx;
+						}
+					}
+					//uniform_int_distribution<int> action_dist(0, Actions.size() - 1);
+					//action = action_dist(RNG);
+				}
+			}*/
+
 			if (UseMaxNetworkOutput)
 			{
-				float max_v = Brain->outputs[0]->activation;
+				float max_v = ActivationsBuffer[0];
 				action = 0;
 
 				// Yeah, I know that I'm checking the first element twice, but the performance impact is negligible
-				for (auto[idx, v] : enumerate(Brain->outputs))
+				for (auto[idx, v] : enumerate(ActivationsBuffer))
 				{
-					if (v->activation > max_v)
+					if (v > max_v)
 					{
-						max_v = v->activation;
+						max_v = v;
 						action = idx;
 					}
 				}

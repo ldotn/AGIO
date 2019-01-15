@@ -14,7 +14,10 @@ using namespace std;
 using namespace agio;
 using namespace fpp;
 
-SIndividual::SIndividual() {}
+SIndividual::SIndividual()
+{
+	RNG = minstd_rand(chrono::high_resolution_clock::now().time_since_epoch().count());
+}
 
 SIndividual::SIndividual(NEAT::Genome *genome, MorphologyTag morphology)
 {
@@ -61,19 +64,66 @@ int SIndividual::DecideAction()
 	for (auto[idx, node_idx] : enumerate(brain.outputs))
 		act_sum += ActivationsBuffer[idx] = brain.all_nodes[node_idx].activation; // The activation function is in [0, 1], check line 461 of neat.cpp
 
-	std::minstd_rand RNG = minstd_rand(chrono::high_resolution_clock::now().time_since_epoch().count());
 	int action;
-	if (act_sum > 1e-6)
+
+	/*{
+		vector<int> active;
+		active.reserve(ActivationsBuffer.size());
+		for (auto[idx, v] : enumerate(ActivationsBuffer))
+			if (v > 0.5f) active.push_back(idx);
+
+		if (active.size() > 0)
+		{
+			discrete_distribution<int> action_dist(0ull, active.size() - 1);
+			action = active[action_dist(RNG)];
+		}
+		else
+		{
+			float max_v = ActivationsBuffer[0];
+			action = 0;
+
+			// Yeah, I know that I'm checking the first element twice, but the performance impact is negligible
+			for (auto[idx, v] : enumerate(ActivationsBuffer))
+			{
+				if (v > max_v)
+				{
+					max_v = v;
+					action = idx;
+				}
+			}
+		}
+	}*/
+
+	if (UseMaxNetworkOutput)
 	{
-		discrete_distribution<int> action_dist(begin(ActivationsBuffer), end(ActivationsBuffer));
-		action = action_dist(RNG);
+		float max_v = ActivationsBuffer[0];
+		action = 0;
+
+		// Yeah, I know that I'm checking the first element twice, but the performance impact is negligible
+		for (auto[idx, v] : enumerate(ActivationsBuffer))
+		{
+			if (v > max_v)
+			{
+				max_v = v;
+				action = idx;
+			}
+		}
 	}
 	else
 	{
-		// Can't decide on an action because all activations are 0
-		// Select one action at random
-		uniform_int_distribution<int> action_dist(0, Actions.size() - 1);
-		action = action_dist(RNG);
+		if (act_sum > 1e-6)
+		{
+			discrete_distribution<int> action_dist(begin(ActivationsBuffer), end(ActivationsBuffer));
+			action = action_dist(RNG);
+		}
+		else
+		{
+			// Can't decide on an action because all activations are 0
+			// Select one action at random
+			uniform_int_distribution<int> action_dist(0, Actions.size() - 1);
+			action = action_dist(RNG);
+		}
+
 	}
 
 	return action;

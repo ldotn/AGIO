@@ -24,6 +24,11 @@ void PublicInterfaceImpl::Init()
                     {
                         auto state_ptr = (OrgState*)State;
 
+
+						//if (!state_ptr->IsCarnivore) return;
+
+
+
                         if (state_ptr->Position.y >= WorldSizeY - 1)
                             state_ptr->Score -= BorderPenalty;
 
@@ -37,6 +42,11 @@ void PublicInterfaceImpl::Init()
                     [&](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
                     {
                         auto state_ptr = (OrgState*)State;
+
+
+						//if (!state_ptr->IsCarnivore) return;
+
+
 
                         if (state_ptr->Position.y <= 1)
                             state_ptr->Score -= BorderPenalty;
@@ -52,6 +62,11 @@ void PublicInterfaceImpl::Init()
                     {
                         auto state_ptr = (OrgState*)State;
 
+
+						//if (!state_ptr->IsCarnivore) return;
+
+
+
                         if (state_ptr->Position.x >= WorldSizeX)
                             state_ptr->Score -= BorderPenalty;
 
@@ -66,6 +81,11 @@ void PublicInterfaceImpl::Init()
                     {
                         auto state_ptr = (OrgState*)State;
 
+
+
+						//if (!state_ptr->IsCarnivore) return;
+
+
                         if (state_ptr->Position.x <= 1)
                             state_ptr->Score -= BorderPenalty;
 
@@ -79,6 +99,12 @@ void PublicInterfaceImpl::Init()
             (
                     [this](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
                     {
+
+
+		//return;
+
+
+
                         auto world_ptr = (WorldData*)World;
                         auto state_ptr = (OrgState*)State;
 
