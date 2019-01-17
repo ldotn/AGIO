@@ -77,6 +77,14 @@ namespace agio
 		AngleNearestCompetidor,
 		AngleNearestCorpse,
 		AngleNearestPlantArea,
+		/*DeltaNearestPartnerX,
+		DeltaNearestCompetidorX,
+		DeltaNearestCorpseX,
+		DeltaNearestPlantAreaX,
+		DeltaNearestPartnerY,
+		DeltaNearestCompetidorY,
+		DeltaNearestCorpseY,
+		DeltaNearestPlantAreaY,*/
 
 		Count
 	};

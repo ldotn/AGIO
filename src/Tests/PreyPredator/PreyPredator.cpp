@@ -101,6 +101,7 @@ void runSimulation() {
 				herbivores_y.push_back(state_ptr->Position.y);
 			}
 		}
+		
 		plt::plot(herbivores_x, herbivores_y, "ob");
 		plt::plot(carnivores_x, carnivores_y, "ok");
 

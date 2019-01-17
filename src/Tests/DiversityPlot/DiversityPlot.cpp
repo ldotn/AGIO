@@ -23,28 +23,40 @@ using namespace fpp;
 
 
 #include "neat.h"
-void runSimulation() {
-    minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
+void runSimulation() 
+{
+	minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
-    Interface = new PublicInterfaceImpl();
-    Interface->Init();
+	Interface = new PublicInterfaceImpl();
+	Interface->Init();
 
-    // Create and fill the world
-    WorldData world = createWorld();
+	// Create and fill the world
+	WorldData world = createWorld();
 
-    SRegistry registry;
-    registry.load(SerializationFile);
+	SRegistry registry;
+	registry.load(SerializationFile);
 
-    // Create the individuals that are gonna be used in the simulation
-    // TODO: Select individuals with a criteria
-    vector<BaseIndividual*> individuals;
-    //individuals.push_back(new GreedyPrey());
-    for(auto &entry : registry.Species)
-        for(auto &individual: entry.Individuals)
-            individuals.push_back(&individual);
+	//    // Create the individuals that are gonna be used in the simulation
+	//    // TODO: Select individuals with a criteria
+	vector<vector<int>> species_ids;
+	vector<BaseIndividual*> individuals;
 
-	//for(auto &individual : individuals)
-		//individual->State = Interface->MakeState(individual);
+	// Select randomly until the simulation size is filled
+	species_ids.resize(registry.Species.size());
+	for (int i = 0; i < SimulationSize; i++)
+	{
+		int species_idx = uniform_int_distribution<int>(0, registry.Species.size() - 1)(RNG);
+		int individual_idx = uniform_int_distribution<int>(0, registry.Species[species_idx].Individuals.size() - 1)(RNG);
+
+		SIndividual * org = new SIndividual;
+		*org = registry.Species[species_idx].Individuals[individual_idx];
+		org->InSimulation = true;
+		individuals.push_back(org);
+		species_ids[species_idx].push_back(individuals.size() - 1);
+	}
+
+	for (auto &individual : individuals)
+		individual->State = Interface->MakeState(individual);
 
 	for (auto& org : individuals)
 		org->Reset();
@@ -67,37 +79,30 @@ void runSimulation() {
 		}
 		plt::plot(food_x, food_y, "gx");
 
-		// Plot herbivores on blue and carnivores on black
-		vector<int> herbivores_x, herbivores_y;
-		vector<int> carnivores_x, carnivores_y;
-		herbivores_x.reserve(PopulationSize);
-		herbivores_y.reserve(PopulationSize);
-		carnivores_x.reserve(PopulationSize);
-		carnivores_y.reserve(PopulationSize);
-
-		for (const auto& org : individuals)
+		// Plot each species in a different color
+		for (const auto& id_vec : species_ids)
 		{
-			auto state_ptr = (OrgState*)org->GetState();
+			vector<int> pos_x, pos_y;
+			pos_x.resize(id_vec.size());
+			pos_y.resize(id_vec.size());
 
-			if (true) //state_ptr->IsCarnivore)
+			for (auto[idx, id] : enumerate(id_vec))
 			{
-				carnivores_x.push_back(state_ptr->Position.x);
-				carnivores_y.push_back(state_ptr->Position.y);
+				auto state_ptr = (OrgState*)individuals[id]->GetState();
+
+				pos_x[idx] = state_ptr->Position.x;
+				pos_y[idx] = state_ptr->Position.y;
 			}
-			else
-			{
-				herbivores_x.push_back(state_ptr->Position.x);
-				herbivores_y.push_back(state_ptr->Position.y);
-			}
+			plt::plot(pos_x, pos_y, "o");
 		}
-		plt::plot(herbivores_x, herbivores_y, "ob");
-		plt::plot(carnivores_x, carnivores_y, "ok");
 
 		plt::xlim(-1, WorldSizeX);
 		plt::ylim(-1, WorldSizeY);
 		plt::pause(0.1);
 	}
 
+	for (auto org : individuals)
+		delete org;
 	// NOTE! : Explictely leaking the interface here!
 	// There's a good reason for it
 	// The objects in the system need the interface to delete themselves
@@ -105,7 +110,6 @@ void runSimulation() {
 	// In any case, this is not a problem, because on program exit the SO should (will?) release the memory anyway
 	// delete Interface;
 }
-
 
 #include <fstream>
 #include <string>
