@@ -554,10 +554,12 @@ void PublicInterfaceImpl::ComputeFitness(const std::vector<class BaseIndividual 
                 continue;
 
             auto state_ptr = (OrgState *) org->GetState();
+			if (state_ptr->Life > 0)
+			{
+				org->DecideAndExecute(World, Individuals);
 
-            org->DecideAndExecute(World, Individuals);
-
-            ((Individual *) org)->Fitness = state_ptr->Life;
+				((Individual *)org)->Fitness = state_ptr->Life;
+			}
         }
         LastSimulationStepCount++;
     }

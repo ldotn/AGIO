@@ -1,9 +1,11 @@
+#define _HAS_STD_BYTE 0 // needed for compatibility reasons with rlutil
 #include <assert.h>
 #include <algorithm>
 #include <enumerate.h>
 #include <matplotlibcpp.h>
 #include <random>
 #include <queue>
+#include <thread>
 
 #include "../../Core/Config.h"
 #include "../../Evolution/Population.h"
@@ -13,7 +15,10 @@
 
 #include "DiversityPlot.h"
 #include "PublicInterfaceImpl.h"
+#include "zip.h"
+#include "../../Utils/ConsoleRenderer.h"
 
+#include "../rlutil-master/rlutil.h"
 //#include "Greedy/GreedyPrey.h"
 
 namespace plt = matplotlibcpp;
@@ -61,44 +66,44 @@ void runSimulation()
 	for (auto& org : individuals)
 		org->Reset();
 
-	vector<int> food_x, food_y;
-	food_x.resize(world.FoodPositions.size());
-	food_y.resize(world.FoodPositions.size());
+	rlutil::cls();
+
+	ConsoleRenderer renderer;
 
 	while (true)
 	{
+		set<ConsoleItem> items_to_render;
+
 		for (auto& org : individuals)
-			org->DecideAndExecute(&world, individuals);
+			if (org->GetState<OrgState>()->Life > 0)
+				org->DecideAndExecute(&world, individuals);
 
 		// Plot food
-		plt::clf();
-		for (auto[idx, pos] : enumerate(world.FoodPositions))
-		{
-			food_x[idx] = pos.x;
-			food_y[idx] = pos.y;
-		}
-		plt::plot(food_x, food_y, "gx");
+		for (auto pos : world.FoodPositions)
+			items_to_render.insert({(int)pos.x,(int)pos.y,'x',rlutil::GREEN });
 
 		// Plot each species in a different color
 		for (const auto& id_vec : species_ids)
 		{
-			vector<int> pos_x, pos_y;
-			pos_x.resize(id_vec.size());
-			pos_y.resize(id_vec.size());
-
-			for (auto[idx, id] : enumerate(id_vec))
+			for (auto [idx, id] : enumerate(id_vec))
 			{
 				auto state_ptr = (OrgState*)individuals[id]->GetState();
 
-				pos_x[idx] = state_ptr->Position.x;
-				pos_y[idx] = state_ptr->Position.y;
+				char symbol = 'O';
+				if (state_ptr->Life <= 0)
+					symbol = '@';
+
+				items_to_render.insert({ (int)state_ptr->Position.x,(int)state_ptr->Position.y,symbol,idx % 15 + 1 });
+				//pos_x[idx] = state_ptr->Position.x;
+				//pos_y[idx] = state_ptr->Position.y;
 			}
-			plt::plot(pos_x, pos_y, "o");
 		}
 
-		plt::xlim(-1, WorldSizeX);
-		plt::ylim(-1, WorldSizeY);
-		plt::pause(0.1);
+		//plt::xlim(-1, WorldSizeX);
+		//plt::ylim(-1, WorldSizeY);
+		//plt::pause(0.1);
+		renderer.Render(items_to_render);
+		this_thread::sleep_for(16ms);
 	}
 
 	for (auto org : individuals)
