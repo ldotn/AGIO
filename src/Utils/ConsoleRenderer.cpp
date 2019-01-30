@@ -23,8 +23,15 @@ void ConsoleRenderer::Render(const set<ConsoleItem>& Items)
 		if (old_iter == PrevItems.end())
 		{
 			// New item, just print it
-			rlutil::locate(item.PosX, item.PosY);
 			rlutil::setColor(item.Color);
+			rlutil::locate(item.PosX, item.PosY);
+			rlutil::setChar(item.Symbol);
+
+			rlutil::locate(item.PosX, item.PosY);
+			rlutil::setChar(' ');
+
+			rlutil::setColor(item.Color);
+			rlutil::locate(item.PosX, item.PosY);
 			rlutil::setChar(item.Symbol);
 		}
 		else
@@ -32,8 +39,15 @@ void ConsoleRenderer::Render(const set<ConsoleItem>& Items)
 			// Only print if it's different than before
 			if (old_iter->Color != item.Color || old_iter->Symbol != item.Symbol)
 			{
-				rlutil::locate(item.PosX, item.PosY);
 				rlutil::setColor(item.Color);
+				rlutil::locate(item.PosX, item.PosY);
+				rlutil::setChar(item.Symbol);
+
+				rlutil::locate(item.PosX, item.PosY);
+				rlutil::setChar(' ');
+
+				rlutil::setColor(item.Color);
+				rlutil::locate(item.PosX, item.PosY);
 				rlutil::setChar(item.Symbol);
 			}
 		}
