@@ -12,7 +12,7 @@ int WorldSizeY;
 float FoodScoreGain;
 float KillScoreGain;
 float DeathPenalty;
-int FoodCellCount;
+float FoodCellProportion;
 int MaxSimulationSteps;
 int SimulationSize;
 int PopSizeMultiplier;
@@ -27,14 +27,16 @@ string SerializationFile;
 
 int main() {
 	ConfigLoader loader("../src/Tests/DiversityPlot/Config.cfg");
-	loader.LoadValue(WorldSizeX,"WorldSizeX");
-	loader.LoadValue(WorldSizeY,"WorldSizeY");
+	//loader.LoadValue(WorldSizeX,"WorldSizeX");
+	//loader.LoadValue(WorldSizeY,"WorldSizeY");
+	WorldSizeX = WorldSizeY = -1;
+
 	loader.LoadValue(FoodScoreGain,"FoodScoreGain");
 	loader.LoadValue(KillScoreGain,"KillScoreGain");
 	loader.LoadValue(DeathPenalty,"DeathPenalty");
-	float food_proportion;
-	loader.LoadValue(food_proportion,"FoodProportion");
-	FoodCellCount = WorldSizeX * WorldSizeY*food_proportion;
+	//float food_proportion;
+	loader.LoadValue(FoodCellProportion,"FoodProportion");
+	//FoodCellCount = WorldSizeX * WorldSizeY*food_proportion;
 	loader.LoadValue(MaxSimulationSteps,"MaxSimulationSteps");
 	loader.LoadValue(SimulationSize,"SimulationSize");
 	loader.LoadValue(PopSizeMultiplier,"PopSizeMultiplier");

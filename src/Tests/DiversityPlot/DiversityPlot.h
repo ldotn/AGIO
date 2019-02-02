@@ -8,7 +8,7 @@ extern int WorldSizeY;
 extern float FoodScoreGain;
 extern float KillScoreGain;
 extern float DeathPenalty;
-extern int FoodCellCount;
+extern float FoodCellProportion;
 extern int MaxSimulationSteps;
 extern int SimulationSize;
 extern int PopSizeMultiplier;

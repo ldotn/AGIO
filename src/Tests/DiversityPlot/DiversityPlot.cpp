@@ -16,9 +16,10 @@
 #include "DiversityPlot.h"
 #include "PublicInterfaceImpl.h"
 #include "zip.h"
-#include "../../Utils/ConsoleRenderer.h"
+//#include "../../Utils/ConsoleRenderer.h"
+#include "../../Utils/SFMLRenderer.h"
 
-#include "../rlutil-master/rlutil.h"
+//#include "../rlutil-master/rlutil.h"
 //#include "Greedy/GreedyPrey.h"
 
 namespace plt = matplotlibcpp;
@@ -31,6 +32,7 @@ using namespace fpp;
 void runSimulation() 
 {
 	minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
+	//minstd_rand RNG(42);
 
 	Interface = new PublicInterfaceImpl();
 	Interface->Init();
@@ -66,13 +68,75 @@ void runSimulation()
 	for (auto& org : individuals)
 		org->Reset();
 
-	rlutil::cls();
+	//rlutil::cls();
 
-	ConsoleRenderer renderer;
+	//ConsoleRenderer renderer;
+	SFMLRenderer renderer;
 
-	while (true)
+	// Load world sprites
+	renderer.LoadSprite("ground", "../assets/ground_sprite.png");
+	renderer.LoadSprite("wall", "../assets/wall_sprite.png");
+	renderer.LoadSprite("water", "../assets/water_sprite.png");
+	renderer.LoadSprite("food", "../assets/food_sprite.png");
+
+	// Load bodies sprites
+	const char * bodies[] = { "body0", "body1", "body2", "body3", "body4" };
+
+	renderer.LoadSprite(bodies[0], "../assets/body0.png");
+	renderer.LoadSprite(bodies[1], "../assets/body1.png");
+	renderer.LoadSprite(bodies[2], "../assets/body2.png");
+	renderer.LoadSprite(bodies[3], "../assets/body3.png");
+	renderer.LoadSprite(bodies[4], "../assets/body4.png");
+
+	sf::RenderWindow window(sf::VideoMode(1600, 1024), "AGIO");
+
+	vector<SFMLRenderer::Item> items_to_render;
+
+	window.setFramerateLimit(5);
+
+
+
+	if (sizeof(bodies) / sizeof(*bodies) < species_ids.size())
 	{
-		set<ConsoleItem> items_to_render;
+		cout << "\n\n\n\n\n\n\nNOT ENOUGH SPRITES FOR ALL THE SPECIES!!!!!!!!!!!!" << endl;
+	}
+
+
+
+
+	// run the program as long as the window is open
+	while (window.isOpen())
+	{
+		// check all the window's events that were triggered since the last iteration of the loop
+		sf::Event event;
+		while (window.pollEvent(event))
+		{
+			// "close requested" event: we close the window
+			if (event.type == sf::Event::Closed)
+				window.close();
+		}
+
+		items_to_render.resize(0);
+
+		for (int y = 0; y < world.CellTypes.size(); y++)
+		{
+			const auto& row = world.CellTypes[y];
+			for (int x = 0; x < row.size(); x++)
+			{
+				switch (row[x])
+				{
+				case CellType::Ground:
+					items_to_render.push_back({ {x,y}, renderer.GetSpriteID("ground") });
+					break;
+				case CellType::Wall:
+					items_to_render.push_back({ {x,y}, renderer.GetSpriteID("wall") });
+					break;
+				case CellType::Water:
+					items_to_render.push_back({ {x,y}, renderer.GetSpriteID("water") });
+					break;
+				}
+			}
+		}
 
 		for (auto& org : individuals)
 			if (org->GetState<OrgState>()->Life > 0)
@@ -80,12 +144,12 @@ void runSimulation()
 
 		// Plot food
 		for (auto pos : world.FoodPositions)
-			items_to_render.insert({(int)pos.x,(int)pos.y,'x',rlutil::GREEN });
+			items_to_render.push_back({ {(int)pos.x,(int)pos.y}, renderer.GetSpriteID("food") });
 
 		// Plot each species in a different color
-		for (const auto& id_vec : species_ids)
+		for (auto [idx, id_vec] : enumerate(species_ids))
 		{
-			for (auto [idx, id] : enumerate(id_vec))
+			for (int id : id_vec)
 			{
 				auto state_ptr = (OrgState*)individuals[id]->GetState();
 
@@ -93,17 +157,13 @@ void runSimulation()
 				if (state_ptr->Life <= 0)
 					symbol = '@';
 
-				items_to_render.insert({ (int)state_ptr->Position.x,(int)state_ptr->Position.y,symbol,idx % 15 + 1 });
-				//pos_x[idx] = state_ptr->Position.x;
-				//pos_y[idx] = state_ptr->Position.y;
+				// Could add a random (per individual, same each frame) rotation so you can know if there are several one over the other
+				int sprite_id = renderer.GetSpriteID(bodies[idx % (sizeof(bodies) / sizeof(*bodies))]);
+				items_to_render.push_back({ {(int)state_ptr->Position.x,(int)state_ptr->Position.y }, sprite_id });
 			}
 		}
 
-		//plt::xlim(-1, WorldSizeX);
-		//plt::ylim(-1, WorldSizeY);
-		//plt::pause(0.1);
-		renderer.Render(items_to_render);
-		this_thread::sleep_for(16ms);
+		renderer.Render(window, items_to_render);
 	}
 
 	for (auto org : individuals)
@@ -151,9 +211,12 @@ WorldData createWorld() {
         world.CellTypes.push_back(cellTypes);
     }
 
+	WorldSizeY = world.CellTypes.size();
+	WorldSizeX = world.CellTypes[0].size();
+
     // Fill with food
     minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
-    world.FoodPositions.resize(FoodCellCount);
+    world.FoodPositions.resize(WorldSizeX * WorldSizeY*FoodCellProportion);
     for (auto &pos : world.FoodPositions)
     {
         bool valid_position = false;
