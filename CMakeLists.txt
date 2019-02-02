@@ -53,19 +53,10 @@ if (build_tests)
 			src/Tests/PreyPredator/PreyPredatorEvolution.cpp
 			src/Tests/PreyPredator/PreyPredator.cpp
 			src/Tests/PreyPredator/PublicInterfaceImpl.cpp)
-	target_link_libraries(prey_predator
-		agio_lib
-		${PYTHON_LIBRARIES}
-		Boost::serialization)
 	
 	add_executable(experiment_3d
 		src/Tests/3DExperiment/3DExperiment.cpp
 		src/Tests/3DExperiment/main.cpp)
-
-	target_link_libraries(experiment_3d
-		agio_lib
-		${PYTHON_LIBRARIES}
-		Boost::serialization)
 
 	set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 	if (WIN32)
@@ -91,6 +82,18 @@ if (build_tests)
 			${PYTHON_LIBRARIES}
 			Boost::serialization
 			${SFML_LIBRARIES})
+
+	target_link_libraries(prey_predator
+		agio_lib
+		${PYTHON_LIBRARIES}
+		Boost::serialization
+		${SFML_LIBRARIES})
+
+	target_link_libraries(experiment_3d
+		agio_lib
+		${PYTHON_LIBRARIES}
+		Boost::serialization
+		${SFML_LIBRARIES})
 
 	if (WIN32)
 		# Extract the python DLL path from the lib path
