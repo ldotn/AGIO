@@ -72,8 +72,8 @@ void runSimulation() {
 	renderer.LoadSprite("food", "../assets/food_sprite.png");
 	
 	// Load bodies sprites
-	renderer.LoadSprite("prey", "../assets/body0.png");
-	renderer.LoadSprite("predator", "../assets/body1.png");
+	renderer.LoadSprite("predator", "../assets/body0.png");
+	renderer.LoadSprite("prey", "../assets/body1.png");
 
 	sf::RenderWindow window(sf::VideoMode(WorldSizeX*32, WorldSizeY*32), "AGIO");
 
