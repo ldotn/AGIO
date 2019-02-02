@@ -23,28 +23,33 @@ float BorderPenalty;
 float WastedActionPenalty;
 string SerializationFile;
 
-int main() 
+void LoadConfig()
 {
 	ConfigLoader loader("../src/Tests/PreyPredator/Config.cfg");
-	loader.LoadValue(WorldSizeX,"WorldSizeX");
-	loader.LoadValue(WorldSizeY,"WorldSizeY");
-	loader.LoadValue(FoodScoreGain,"FoodScoreGain");
-	loader.LoadValue(KillScoreGain,"KillScoreGain");
-	loader.LoadValue(DeathPenalty,"DeathPenalty");
+	loader.LoadValue(WorldSizeX, "WorldSizeX");
+	loader.LoadValue(WorldSizeY, "WorldSizeY");
+	loader.LoadValue(FoodScoreGain, "FoodScoreGain");
+	loader.LoadValue(KillScoreGain, "KillScoreGain");
+	loader.LoadValue(DeathPenalty, "DeathPenalty");
 	float food_proportion;
-	loader.LoadValue(food_proportion,"FoodProportion");
+	loader.LoadValue(food_proportion, "FoodProportion");
 	FoodCellCount = WorldSizeX * WorldSizeY*food_proportion;
-	loader.LoadValue(MaxSimulationSteps,"MaxSimulationSteps");
-	loader.LoadValue(SimulationSize,"SimulationSize");
-	loader.LoadValue(PopSizeMultiplier,"PopSizeMultiplier");
+	loader.LoadValue(MaxSimulationSteps, "MaxSimulationSteps");
+	loader.LoadValue(SimulationSize, "SimulationSize");
+	loader.LoadValue(PopSizeMultiplier, "PopSizeMultiplier");
 	PopulationSize = PopSizeMultiplier * SimulationSize;
-	loader.LoadValue(GenerationsCount,"GenerationsCount");
-	loader.LoadValue(LifeLostPerTurn,"LifeLostPerTurn");
-	loader.LoadValue(BorderPenalty,"BorderPenalty");
-	loader.LoadValue(WastedActionPenalty,"WastedActionPenalty");
+	loader.LoadValue(GenerationsCount, "GenerationsCount");
+	loader.LoadValue(LifeLostPerTurn, "LifeLostPerTurn");
+	loader.LoadValue(BorderPenalty, "BorderPenalty");
+	loader.LoadValue(WastedActionPenalty, "WastedActionPenalty");
 	loader.LoadValue(SerializationFile, "SerializationFile");
 
 	Settings::LoadFromFile(loader);
+}
+
+int main() 
+{
+	LoadConfig();
 
     cout << "1 - Run Evolution" << endl;
     cout << "2 - Run Simulation" << endl;

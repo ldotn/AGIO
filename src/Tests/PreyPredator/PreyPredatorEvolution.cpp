@@ -281,7 +281,7 @@ private:
 
 };
 
-void runEvolution()
+agio::Population runEvolution()
 {
     minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
@@ -328,4 +328,6 @@ void runEvolution()
 		int tmp;
 		cin >> tmp;
 	}
+
+	return pop;
 }

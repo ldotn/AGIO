@@ -174,16 +174,16 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 
 		float inv_age = 1.0f / (s.Age + 1);
 		float falloff = (1.0f - inv_age) * Settings::ProgressMetricsFalloff + inv_age;
-		float smoothed_fitness = (1.0f - falloff)*s.LastFitness + falloff * avg_fit;
-		if (s.LastFitness <= 0)
+		float smoothed_fitness = (1.0f - falloff)*s.BestFitness + falloff * avg_fit;
+		if (s.BestFitness <= 0)
 		{
 			smoothed_fitness = avg_fit;
 			s.ProgressMetric = 0;
 		}
 		else
-			s.ProgressMetric = (1.0f - falloff)*s.ProgressMetric + falloff*((smoothed_fitness - s.LastFitness) / s.LastFitness);
+			s.ProgressMetric = (1.0f - falloff)*s.ProgressMetric + falloff*((smoothed_fitness - s.BestFitness) / s.BestFitness);
 
-		s.LastFitness = smoothed_fitness;
+		s.BestFitness = smoothed_fitness;
 
 
 		// With the fitness updated call the neat epoch
@@ -231,7 +231,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 				entry.Age = s.Age;
 				entry.Morphology = tag;
 				entry.IndividualsSize = s.IndividualsIDs.size();
-				entry.LastFitness = s.LastFitness;
+				entry.BestFitness = s.BestFitness;
 				entry.HistoricalBestGenome = s.NetworksPopulation->GetBestGenome()->duplicate(0);
 				entry.LastGenomes.resize(s.NetworksPopulation->organisms.size());
 				for (auto [idx, org] : enumerate(s.NetworksPopulation->organisms))
@@ -241,7 +241,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 
 				// Reset the species
 				s.Age = 0;
-				s.LastFitness = 0;
+				s.BestFitness = 0;
 				s.ProgressMetric = 0;
 				s.EpochsUnderThreshold = 0;
 				auto old_pop_ptr = s.NetworksPopulation;
@@ -449,7 +449,7 @@ void Population::CurrentSpeciesToRegistry()
 			SpeciesRecord entry;
 			entry.Age = species.Age;
 			entry.Morphology = bestIndividual->GetMorphologyTag();
-			entry.LastFitness = bestIndividual->Fitness;
+			entry.BestFitness = bestIndividual->Fitness;
 			entry.HistoricalBestGenome = bestIndividual->GetGenome();
 			StagnantSpecies.push_back(entry);
 		}
