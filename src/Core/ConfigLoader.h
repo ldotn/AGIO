@@ -19,7 +19,8 @@ namespace agio
 			{
 				std::string name, dummy_, value;
 				file >> name;
-				if (std::find(name.begin(), name.end(), '#') != name.end())
+				if (std::find(name.begin(), name.end(), '#') != name.end() ||
+					std::find(name.begin(), name.end(), '[') != name.end())
 				{
 					while (!file.eof() && file.get() != '\n');
 					continue; // lines starting with # are comments and ignored	
@@ -28,6 +29,9 @@ namespace agio
 				file >> dummy_; // delimiter
 				file >> value;
 
+				// Ignore case by making it all lowercase
+				transform(name.begin(), name.end(), name.begin(), tolower);
+
 				Values[name] = value;
 
 				while (!file.eof() && file.get() != '\n');
@@ -35,8 +39,11 @@ namespace agio
 		}
 
 		template<typename T>
-		void LoadValue(T& Value, const std::string& Name) const
+		void LoadValue(T& Value, std::string Name) const
 		{
+			// Ignore case by making it all lowercase
+			transform(Name.begin(), Name.end(), Name.begin(), tolower);
+
 			auto iter = Values.find(Name);
 			if (iter != Values.end())
 			{

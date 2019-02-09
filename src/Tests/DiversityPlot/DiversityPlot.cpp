@@ -29,7 +29,7 @@ using namespace fpp;
 
 
 #include "neat.h"
-void runSimulation() 
+void runSimulation(const string& WorldPath) 
 {
 	minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 	//minstd_rand RNG(42);
@@ -38,7 +38,7 @@ void runSimulation()
 	Interface->Init();
 
 	// Create and fill the world
-	WorldData world = createWorld();
+	WorldData world = createWorld(WorldPath);
 
 	SRegistry registry;
 	registry.load(SerializationFile);
@@ -178,12 +178,12 @@ void runSimulation()
 
 #include <fstream>
 #include <string>
-WorldData createWorld() {
+WorldData createWorld(const string& FilePath) {
     WorldData world;
 
     // Load cell types
     string line;
-    ifstream file("../src/Tests/DiversityPlot/world.txt");
+    ifstream file(FilePath);
 	if (!file.is_open())
 		throw invalid_argument("World file not found");
 

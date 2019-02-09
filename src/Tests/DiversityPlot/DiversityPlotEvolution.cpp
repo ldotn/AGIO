@@ -19,7 +19,7 @@ using namespace agio;
 using namespace fpp;
 using namespace std;
 
-void runEvolution()
+agio::Population runEvolution(const std::string& WorldPath, bool NoOutput)
 {
     minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
@@ -33,7 +33,7 @@ void runEvolution()
     Interface->Init();
 
     // Create and fill the world
-    WorldData world = createWorld();
+    WorldData world = createWorld(WorldPath);
 
     // Spawn population
     Population pop;
@@ -43,6 +43,8 @@ void runEvolution()
     {
         pop.Epoch(&world, [&](int gen)
         {
+			if (NoOutput) return;
+
             cout << "Generation " << gen 
 				<< ", " << pop.GetSpecies().size() << " Species" << endl;
 
@@ -86,4 +88,6 @@ void runEvolution()
 
     SRegistry registry(&pop);
     registry.save(SerializationFile);
+
+	return pop;
 }

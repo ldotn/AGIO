@@ -233,9 +233,21 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 				entry.IndividualsSize = s.IndividualsIDs.size();
 				entry.BestFitness = s.BestFitness;
 				entry.HistoricalBestGenome = s.NetworksPopulation->GetBestGenome()->duplicate(0);
-				entry.LastGenomes.resize(s.NetworksPopulation->organisms.size());
-				for (auto [idx, org] : enumerate(s.NetworksPopulation->organisms))
-					entry.LastGenomes[idx] = org->gnome->duplicate(org->gnome->genome_id);
+
+				priority_queue<pair<float, int>> sorted_orgs;
+				for (int org_id : s.IndividualsIDs)
+					sorted_orgs.push({ Individuals[org_id].Fitness, org_id });
+
+				entry.LastBestGenomes.resize(Settings::ProgressMetricsIndividuals);
+				for (int i = 0;i < Settings::ProgressMetricsIndividuals;i++)
+				{
+					auto& org = Individuals[sorted_orgs.top().second];
+					entry.LastBestGenomes[i] = { org.Fitness, org.Genome->duplicate(org.Genome->genome_id) };
+					sorted_orgs.pop();
+				}
+				//entry.LastGenomes.resize(s.NetworksPopulation->organisms.size());
+				//for (auto [idx, org] : enumerate(s.NetworksPopulation->organisms))
+					//entry.LastGenomes[idx] = org->gnome->duplicate(org->gnome->genome_id);
 
 				StagnantSpecies.push_back(move(entry));
 
@@ -454,4 +466,37 @@ void Population::CurrentSpeciesToRegistry()
 			StagnantSpecies.push_back(entry);
 		}
 	}
+}
+
+void Population::SaveRegistryReport(const std::string& Path)
+{
+	ofstream out_file(Path);
+
+	unordered_map<MorphologyTag, vector<SpeciesRecord>> species;
+	for (const auto& entry : StagnantSpecies)
+		species[entry.Morphology].push_back(entry);
+
+	out_file << species.size() << endl;
+	for (const auto&[tag, entries] : species)
+	{
+		float acc = 0;
+		float avg_fitness = 0;
+		for (const auto& entry : entries)
+		{
+			// Average the fitness of the best individual and the LastBestGenomes
+			avg_fitness += entry.BestFitness;
+			for (auto[fitness, _] : entry.LastBestGenomes)
+				avg_fitness += fitness;
+			acc += 1 + entry.LastBestGenomes.size();
+		}
+
+		avg_fitness /= acc;
+
+		out_file << "[ ";
+		for (auto component : tag)
+			out_file << "(" << component.ComponentID << "," << component.GroupID << ") ";
+		out_file << "] " << avg_fitness << endl;
+	}
+
+	out_file.close();
 }

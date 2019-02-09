@@ -21,7 +21,7 @@ extern float WaterPenalty;
 extern std::string SerializationFile;
 extern int InitialLife;
 
-void runEvolution();
-void runSimulation();
+agio::Population runEvolution(const std::string& WorldPath, bool NoOutput = false);
+void runSimulation(const std::string& WorldPath);
 
-WorldData createWorld();
+WorldData createWorld(const std::string& WorldPath);

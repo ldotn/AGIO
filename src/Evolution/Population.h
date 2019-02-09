@@ -53,7 +53,7 @@ namespace agio
 	{
 		MorphologyTag Morphology;
 		NEAT::Genome * HistoricalBestGenome;
-		std::vector<NEAT::Genome*> LastGenomes;
+		std::vector<std::pair<float,NEAT::Genome*>> LastBestGenomes; // ProgressMetricsIndividuals size
 		int IndividualsSize;
 		int Age;
 		float BestFitness;
@@ -89,6 +89,9 @@ namespace agio
 		// Evaluates the population
 		void EvaluatePopulation(void * WorldPtr);
 		void CurrentSpeciesToRegistry();
+
+		// Generates a report of the registry
+		void SaveRegistryReport(const std::string& Path);
 	private:
 		friend SPopulation;
 		int CurrentGeneration;
