@@ -9,6 +9,9 @@ import pickle
 import json
 import statistics
 
+import numpy as np
+import matplotlib.pyplot as plt
+
 #   Parameters ranges
 ranges = [
     ('MinIndividualsPerSpecies', [5, 10, 50, 100]),
@@ -19,7 +22,15 @@ ranges = [
     ('SpeciesStagnancyChances', [1, 10, 50, 100]),
     ('MorphologyTries', [1, 10, 50, 100]),
 ]
-
+clean_names = {
+    'MinIndividualsPerSpecies' : 'Cantidad mínima de individuos por especies',
+    'MinSpeciesAge' : 'Edad mínima de una especie antes de considerar progreso',
+    'ProgressMetricsIndividuals' : 'Cantidad individuos a utilizar para evaluar progreso',
+    'ProgressMetricsFalloff' : 'Coeficiente de suavidad de la métrica de progreso',
+    'ProgressThreshold' : 'Mínimo progreso de una especie para considerarla estancada',
+    'SpeciesStagnancyChances' : 'Oportunidades de una especie antes de ser removida',
+    'MorphologyTries' : 'Cantidad de intentos para encontrar una morfología nueva',
+}
 flat_ranges = []
 for name, values in ranges:
     for v in values:
@@ -90,11 +101,23 @@ for name, values in ranges:
     print(fit_cv_acc)
     snum_cv = statistics.pstdev(species_nums) / statistics.mean(species_nums)
     print((name, 100*fit_cv, 100*snum_cv))'''
-    print(name)
+    
+    cv_vals = []
     for _, fit_vals in results.items():
         if statistics.mean(fit_vals) <= 0:
             continue
         fit_cv = statistics.pstdev(fit_vals) / statistics.mean(fit_vals)
-        print('{0:3.2f},'.format(100*fit_cv),end='')
+        cv_vals.append(fit_cv)
+
+    plt.hist(cv_vals, np.linspace(0,2,9), density=False, facecolor='b')
+    plt.xlabel('Coeficiente de Variación')
+    plt.ylabel('Cantidad')
+    plt.axis([0,2, 0, 20])
+    plt.yticks(np.arange(0, 21, step=5))
+    #plt.title(clean_names[name])
+    plt.show()
+    snum_cv = statistics.pstdev(species_nums) / statistics.mean(species_nums)
+    print(snum_cv)
+        #print('{0:3.2f},'.format(100*fit_cv),end='')
         #print('({0},{1}) '.format(statistics.pstdev(fit_vals),statistics.mean(fit_vals)),end=',')
-    print('\n')
+    #print('\n')
