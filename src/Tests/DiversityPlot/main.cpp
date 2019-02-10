@@ -58,6 +58,8 @@ int main(int argc, char *argv[])
     loader.LoadValue(InitialLife, "InitialLife");
 	loader.LoadValue(SerializationFile, "SerializationFile");
 
+	Settings::LoadFromFile(loader);
+
 	if (argc == 4)
 	{
 		auto final_pop = runEvolution(world_path, true);

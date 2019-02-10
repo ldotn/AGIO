@@ -73,8 +73,8 @@ namespace agio
 
 		// Computes a single evolutive step
 		// The callback is called right after evaluation
-		// The MuteNEAT parameter disables console output from neat
-		void Epoch(void * World, std::function<void(int)> EpochCallback = [](int){}, bool MuteNEAT = false);
+		// The MuteOutput parameter disables console output
+		void Epoch(void * World, std::function<void(int)> EpochCallback = [](int){}, bool MuteOutput = false);
 
 		const auto& GetIndividuals() const { return Individuals; }
 		auto& GetIndividuals() { return Individuals; }

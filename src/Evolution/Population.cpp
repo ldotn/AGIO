@@ -118,7 +118,7 @@ void Population::Spawn(int SizeMult,int SimSize)
 	// TODO :  Separate organisms by distance in the world too
 }
 
-void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, bool MuteNEAT)
+void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, bool MuteOutput)
 {
 	// Evaluate the entire population
 	EvaluatePopulation(WorldPtr);
@@ -130,7 +130,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 	CurrentGeneration++;
 	
 	// [https://stackoverflow.com/questions/30184998/how-to-disable-cout-output-in-the-runtime]
-	if(MuteNEAT)
+	if(MuteOutput)
 		cout.setstate(ios_base::failbit);
 
 	// Now do the epoch
@@ -206,9 +206,6 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 			org.Parameters = org.Genome->MorphParams;
 		}
 	}
-
-	if (MuteNEAT)
-		cout.clear();
 
 	// With the species updated, check if there are stagnant ones
 	for(auto iter = SpeciesMap.begin();iter != SpeciesMap.end();)
@@ -374,6 +371,9 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 
 		++iter;
 	}
+
+	if (MuteOutput)
+		cout.clear();
 }
 
 void Population::SimulateWithUserFunction(void * World,std::unordered_map<MorphologyTag, decltype(Individual::UserDecisionFunction)> FunctionsMap, std::function<void(const MorphologyTag&)> Callback)
@@ -492,10 +492,10 @@ void Population::SaveRegistryReport(const std::string& Path)
 
 		avg_fitness /= acc;
 
-		out_file << "[ ";
+		out_file << "";
 		for (auto component : tag)
-			out_file << "(" << component.ComponentID << "," << component.GroupID << ") ";
-		out_file << "] " << avg_fitness << endl;
+			out_file << "" << component.ComponentID << "," << component.GroupID << " ";
+		out_file << ":" << avg_fitness << endl;
 	}
 
 	out_file.close();
