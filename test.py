@@ -55,7 +55,7 @@ with open('parametric_config/results/sensibility.json','w') as fp:
     json.dump(results,fp,indent='\t')
 '''
 
-eval_repeats = 3
+eval_repeats = 8
 
 # The idea of the sensibility test is to see if the parameter affects or not the results
 for name, values in ranges:
@@ -63,14 +63,20 @@ for name, values in ranges:
     results = {}
     for v in values:
         avg_num_species = 0
+        tmp_results = {}
         for eval_idx in range(eval_repeats):
             species = parse_file('parametric_config/results/sensibility/{0}_{1}_{2}.txt'.format(name,v,eval_idx))
             for tag,avg_fit in species:
                 try:
-                    results[str(tag)].append(avg_fit)
+                    tmp_results[str(tag)].append(avg_fit)
                 except:
-                    results[str(tag)] = [avg_fit]
+                    tmp_results[str(tag)] = [avg_fit]
             avg_num_species += len(species)
+        for key,repeats_vals in tmp_results.items():
+            try:
+                results[key].append(statistics.mean(repeats_vals))
+            except:
+                results[key] = [statistics.mean(repeats_vals)]
         avg_num_species /= eval_repeats
         species_nums.append(avg_num_species)
 

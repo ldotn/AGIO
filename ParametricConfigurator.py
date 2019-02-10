@@ -6,6 +6,7 @@ import sys
 import configparser
 import math
 import json
+import statistics
 
 # I assume that this file is in the root of the repo
 root = os.path.dirname(os.path.abspath(__file__))
@@ -61,7 +62,7 @@ def batches(l, n):
     for i in range(0, len(l), n):
         yield l[i:i + n]
 
-eval_repeats = 3
+eval_repeats = 8
 
 for batch_idx, batch in enumerate(batches(flat_ranges,workers_num)):
     for idx, (name, value) in enumerate(batch):
