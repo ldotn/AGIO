@@ -548,6 +548,8 @@ void PublicInterfaceImpl::ComputeFitness(const std::vector<class BaseIndividual 
     LastSimulationStepCount = 0;
     for (int i = 0; i < MaxSimulationSteps; i++)
     {
+		bool any_alive = false;
+
         for (auto &org : Individuals)
         {
             if (!org->InSimulation)
@@ -559,8 +561,11 @@ void PublicInterfaceImpl::ComputeFitness(const std::vector<class BaseIndividual 
 				org->DecideAndExecute(World, Individuals);
 
 				((Individual *)org)->Fitness = state_ptr->Life;
+				any_alive = true;
 			}
         }
         LastSimulationStepCount++;
+		if (!any_alive)
+			return;
     }
 }
