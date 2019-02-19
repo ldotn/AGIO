@@ -317,8 +317,8 @@ void PublicInterfaceImpl::Init()
                             auto other_state_ptr = (OrgState *) enemy->GetState();
 
                             float dist = (other_state_ptr->Position - state_ptr->Position).length_sqr();
-                            if (dist < 1)
-                                other_state_ptr->Life -= DeathPenalty;
+                            if (dist <= 1)
+                                other_state_ptr->Life = 0;
                             else
                                 state_ptr->Life -= WastedActionPenalty;
                         } else
