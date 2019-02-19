@@ -408,13 +408,13 @@ void PublicInterfaceImpl::Init()
                     5, // max bound
                     (int) ParametersIDs::JumpDistance
             );
-    ParameterDefRegistry[(int) ParametersIDs::MoveGrassWaterRatio] = ParameterDefinition
+    /*ParameterDefRegistry[(int) ParametersIDs::MoveGrassWaterRatio] = ParameterDefinition
             (
                     true, // require the parameter, even if the organism doesn't have the component to jump
                     0, // Min bound
                     1, // max bound
                     (int) ParametersIDs::MoveGrassWaterRatio
-            );
+            );*/
 
     // Fill components
     ComponentRegistry.push_back
