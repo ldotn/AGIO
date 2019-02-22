@@ -10,10 +10,14 @@
 using namespace std;
 using namespace agio;
 
+enum class OrgType { Carnivore, Herbivore, Omnivore };
+
 struct OrgState
 {
-    float Life = 100;
+    float Life = -1;
     float2 Position;
+
+	OrgType Type;
 };
 
 enum class ParametersIDs
@@ -52,7 +56,6 @@ enum class SensorsIDs
 {
     NearestCompetitorDeltaX,
     NearestCompetitorDeltaY,
-    NearestCompetitorAlive,
 
     NearestFoodDeltaX,
     NearestFoodDeltaY,

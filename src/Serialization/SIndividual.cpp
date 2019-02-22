@@ -32,6 +32,10 @@ SIndividual::SIndividual(NEAT::Genome *genome, MorphologyTag morphology)
     TagDesc tag_desc(morphologyTag);
     Actions = tag_desc.ActionIDs;
     Sensors = tag_desc.SensorIDs;
+	for (auto[idx, id] : enumerate(Sensors))
+		SensorsMap[id] = idx;
+	for (auto[idx, id] : enumerate(Actions))
+		ActionsMap[id] = idx;
 
 	ActivationsBuffer.resize(Actions.size());
 	SensorsValues.resize(Sensors.size());

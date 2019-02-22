@@ -80,29 +80,18 @@ void runSimulation(const string& WorldPath)
 	renderer.LoadSprite("food", "../assets/food_sprite.png");
 
 	// Load bodies sprites
-	const char * bodies[] = { "body0", "body1", "body2", "body3", "body4" };
+	// Use one body type based on what they can eat
+	// The body is white and black, each species tints it to a different color
+	renderer.LoadSprite("carnivore", "../assets/carnivore.png");
+	renderer.LoadSprite("herbivore", "../assets/herbivore.png");
+	renderer.LoadSprite("omnivore", "../assets/omnivore.png");
 
-	renderer.LoadSprite(bodies[0], "../assets/body0.png");
-	renderer.LoadSprite(bodies[1], "../assets/body1.png");
-	renderer.LoadSprite(bodies[2], "../assets/body2.png");
-	renderer.LoadSprite(bodies[3], "../assets/body3.png");
-	renderer.LoadSprite(bodies[4], "../assets/body4.png");
 
 	sf::RenderWindow window(sf::VideoMode(1600, 1024), "AGIO");
 
 	vector<SFMLRenderer::Item> items_to_render;
 
 	window.setFramerateLimit(5);
-
-
-
-	if (sizeof(bodies) / sizeof(*bodies) < species_ids.size())
-	{
-		cout << "\n\n\n\n\n\n\nNOT ENOUGH SPRITES FOR ALL THE SPECIES!!!!!!!!!!!!" << endl;
-	}
-
-
-
 
 	// run the program as long as the window is open
 	while (window.isOpen())
@@ -139,7 +128,7 @@ void runSimulation(const string& WorldPath)
 		}
 
 		for (auto& org : individuals)
-			if (org->GetState<OrgState>()->Life > 0)
+			if (org->GetState<OrgState>()->Life > 0) // TODO : Create a new one of a different species
 				org->DecideAndExecute(&world, individuals);
 
 		// Plot food
@@ -158,7 +147,14 @@ void runSimulation(const string& WorldPath)
 					symbol = '@';
 
 				// Could add a random (per individual, same each frame) rotation so you can know if there are several one over the other
-				int sprite_id = renderer.GetSpriteID(bodies[idx % (sizeof(bodies) / sizeof(*bodies))]);
+				int sprite_id = -1;//renderer.GetSpriteID("carnivore");//renderer.GetSpriteID(bodies[idx % size(bodies)]);
+				if (state_ptr->Type == OrgType::Omnivore)
+					sprite_id = renderer.GetSpriteID("omnivore");
+				else if (state_ptr->Type == OrgType::Carnivore)
+					sprite_id = renderer.GetSpriteID("carnivore");
+				else if (state_ptr->Type == OrgType::Herbivore)
+					sprite_id = renderer.GetSpriteID("herbivore");
+
 				items_to_render.push_back({ {(int)state_ptr->Position.x,(int)state_ptr->Position.y }, sprite_id });
 			}
 		}

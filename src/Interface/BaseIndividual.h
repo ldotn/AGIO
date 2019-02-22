@@ -65,6 +65,16 @@ namespace agio
 			return true;
 		}
 
+		// Returns true if the individual has the provided sensor/action ID
+		bool HasAction(int ActionID) const
+		{
+			return ActionsMap.find(ActionID) != ActionsMap.end();
+		}
+		bool HasSensor(int SensorID) const
+		{
+			return SensorsMap.find(SensorID) != SensorsMap.end();
+		}
+
 		// Reset the state and set fitness to -1
 		// Also flush the neural network
 		// Should be called before evaluating fitness

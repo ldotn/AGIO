@@ -44,10 +44,10 @@ namespace agio
 			ar & Sensors;
 			ar & morphologyTag;
 			ar & UseMaxNetworkOutput;
-			
-			// Need to serialize them so that the size is correct
 			ar & ActivationsBuffer;
 			ar & SensorsValues;
+			ar & ActionsMap;
+			ar & SensorsMap;
 		}
 
 		void DecideAndExecute(void * World, const std::vector<BaseIndividual*> &Individuals) override;
