@@ -1,7 +1,8 @@
 from openpyxl import load_workbook
+import sys
 
 NUM_COLUMNS = 50
-NUM_ROWS = 50
+NUM_ROWS = 32
 
 COLOR_GREEN = 'FF5DBF29'
 COLOR_BLUE = 'FF00B0F0'
@@ -11,10 +12,10 @@ CODE_GREEN = '0'
 CODE_BLUE = '1'
 CODE_BLACK = '2'
 
-wb = load_workbook('world.xlsx')
+wb = load_workbook(sys.argv[1] + '.xlsx')
 ws = wb.active
 
-with open('world.txt', 'w') as f:
+with open(sys.argv[1] + '.txt', 'w') as f:
     for row in range (1, NUM_ROWS+1):
         for column in range(0,NUM_COLUMNS):
             cell = ws[row][column]

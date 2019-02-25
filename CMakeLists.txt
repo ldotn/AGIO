@@ -77,6 +77,21 @@ if (build_tests)
 			src/Tests/DiversityPlot/Animation.cpp
 			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
 
+	add_executable(human_test
+			src/Tests/DiversityPlot/HumanTest.cpp
+			src/Tests/DiversityPlot/DiversityPlot.cpp
+			src/Tests/DiversityPlot/DiversityPlotEvolution.cpp
+			src/Tests/DiversityPlot/Character.cpp
+			src/Tests/DiversityPlot/AnimatedSprite.cpp
+			src/Tests/DiversityPlot/Animation.cpp
+			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
+
+	target_link_libraries(human_test
+			agio_lib
+			${PYTHON_LIBRARIES}
+			Boost::serialization
+			${SFML_LIBRARIES})
+
 	target_link_libraries(diversity_plot
 			agio_lib
 			${PYTHON_LIBRARIES}

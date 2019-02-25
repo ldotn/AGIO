@@ -49,6 +49,8 @@ void runSimulation(const string& WorldPath)
 	vector<BaseIndividual*> individuals;
 
 	// Select randomly until the simulation size is filled
+	// Also create a map of random colors for each species
+	vector<sf::Color> species_colors(registry.Species.size());
 	species_ids.resize(registry.Species.size());
 	for (int i = 0; i < SimulationSize; i++)
 	{
@@ -60,6 +62,9 @@ void runSimulation(const string& WorldPath)
 		org->InSimulation = true;
 		individuals.push_back(org);
 		species_ids[species_idx].push_back(individuals.size() - 1);
+
+		auto cdist = uniform_int_distribution<int>(0, 255);
+		species_colors[species_idx] = sf::Color(cdist(RNG), cdist(RNG), cdist(RNG));
 	}
 
 	for (auto &individual : individuals)
@@ -142,10 +147,6 @@ void runSimulation(const string& WorldPath)
 			{
 				auto state_ptr = (OrgState*)individuals[id]->GetState();
 
-				char symbol = 'O';
-				if (state_ptr->Life <= 0)
-					symbol = '@';
-
 				// Could add a random (per individual, same each frame) rotation so you can know if there are several one over the other
 				int sprite_id = -1;//renderer.GetSpriteID("carnivore");//renderer.GetSpriteID(bodies[idx % size(bodies)]);
 				if (state_ptr->Type == OrgType::Omnivore)
@@ -154,8 +155,8 @@ void runSimulation(const string& WorldPath)
 					sprite_id = renderer.GetSpriteID("carnivore");
 				else if (state_ptr->Type == OrgType::Herbivore)
 					sprite_id = renderer.GetSpriteID("herbivore");
-
-				items_to_render.push_back({ {(int)state_ptr->Position.x,(int)state_ptr->Position.y }, sprite_id });
+			
+				items_to_render.push_back({ {(int)state_ptr->Position.x,(int)state_ptr->Position.y}, sprite_id, species_colors[idx] });
 			}
 		}
 

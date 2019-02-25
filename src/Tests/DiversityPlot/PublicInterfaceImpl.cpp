@@ -2,6 +2,7 @@
 #include "DiversityPlot.h"
 #include <enumerate.h>
 #include <assert.h>
+#include "../../Serialization/SIndividual.h"
 
 using namespace fpp;
 using namespace std;
@@ -9,12 +10,12 @@ using namespace agio;
 
 int cycle_x(int x)
 {
-    return abs(x) % WorldSizeX;
+    return ((x % WorldSizeX) + WorldSizeX) % WorldSizeX;
 };
 
 int cycle_y(int y)
 {
-    return abs(y) % WorldSizeY;
+    return ((y % WorldSizeY) + WorldSizeY) % WorldSizeY;
 };
 
 float2 random_valid_position(WorldData *world_ptr)
@@ -254,7 +255,10 @@ void PublicInterfaceImpl::Init()
                         if (any_eaten)
                             state_ptr->Life += FoodScoreGain;
                         else
-                            state_ptr->Life -= WastedActionPenalty;
+							state_ptr->Score -= WastedActionPenalty;
+
+						if(any_eaten)
+							state_ptr->EatenCount++;
                     }
             );
 
@@ -273,9 +277,11 @@ void PublicInterfaceImpl::Init()
 							// Move the dead individual out of the map
 							dead_enemy->GetState<OrgState>()->Position.x = -9999;
 							dead_enemy->GetState<OrgState>()->Position.y = -9999;
+
+							state_ptr->EatenCount++;
 						}
                         else
-                            state_ptr->Life -= WastedActionPenalty;
+							state_ptr->Score -= WastedActionPenalty;
                     }
             );
 
@@ -285,19 +291,22 @@ void PublicInterfaceImpl::Init()
                     [this](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
                     {
                         auto state_ptr = (OrgState *) State;
-						auto dead_enemy = find_nearest_enemy(State, Org, Individuals, true);
+						auto enemy = find_nearest_enemy(State, Org, Individuals, true);
 
                         if (eat_food(State, World))
                             state_ptr->Life += FoodScoreGain;
-						else if (dead_enemy)
+						else if (enemy)
 						{
 							state_ptr->Life += FoodScoreGain;
 							// Move the dead individual out of the map
-							dead_enemy->GetState<OrgState>()->Position.x = -9999;
-							dead_enemy->GetState<OrgState>()->Position.y = -9999;
+							enemy->GetState<OrgState>()->Position.x = -9999;
+							enemy->GetState<OrgState>()->Position.y = -9999;
+							enemy->GetState<OrgState>()->Score -= DeathPenalty;
+
+							state_ptr->EatenCount++;
 						}
                         else
-                            state_ptr->Life -= WastedActionPenalty;
+							state_ptr->Score -= WastedActionPenalty;
                     }
             );
 
@@ -315,12 +324,19 @@ void PublicInterfaceImpl::Init()
                             auto other_state_ptr = (OrgState *) enemy->GetState();
 
                             float dist = (other_state_ptr->Position - state_ptr->Position).length_sqr();
-                            if (dist <= 1)
-                                other_state_ptr->Life = 0;
+							if (dist <= 1)
+							{
+								other_state_ptr->Life = 0;
+
+								// Move the dead individual out of the map
+								enemy->GetState<OrgState>()->Position.x = -9999;
+								enemy->GetState<OrgState>()->Position.y = -9999;
+								enemy->GetState<OrgState>()->Score -= DeathPenalty;
+							}
                             else
-                                state_ptr->Life -= WastedActionPenalty;
+								state_ptr->Score -= WastedActionPenalty;
                         } else
-                            state_ptr->Life -= WastedActionPenalty;
+							state_ptr->Score -= WastedActionPenalty;
                     }
             );
 
@@ -387,6 +403,67 @@ void PublicInterfaceImpl::Init()
             );
 
 	
+	SensorRegistry[(int) SensorsIDs::CurrentCell] = Sensor
+            (
+                    [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
+                    {
+						auto world_ptr = (WorldData *)World;
+                        auto state_ptr = (OrgState *) State;
+
+						int x = cycle_x(state_ptr->Position.x + 0);
+						int y = cycle_y(state_ptr->Position.y + 0);
+						return (float)world_ptr->CellTypes[y][x];
+                    }
+            );
+	SensorRegistry[(int) SensorsIDs::TopCell] = Sensor
+            (
+                    [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
+                    {
+						auto world_ptr = (WorldData *)World;
+                        auto state_ptr = (OrgState *) State;
+
+						int x = cycle_x(state_ptr->Position.x + 0);
+						int y = cycle_y(state_ptr->Position.y + 1);
+						return (float)world_ptr->CellTypes[y][x];
+                    }
+            );
+	SensorRegistry[(int) SensorsIDs::DownCell] = Sensor
+            (
+                    [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
+                    {
+						auto world_ptr = (WorldData *)World;
+                        auto state_ptr = (OrgState *) State;
+
+						int x = cycle_x(state_ptr->Position.x + 0);
+						int y = cycle_y(state_ptr->Position.y - 1);
+						return (float)world_ptr->CellTypes[y][x];
+                    }
+            );
+	SensorRegistry[(int) SensorsIDs::RightCell] = Sensor
+            (
+                    [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
+                    {
+						auto world_ptr = (WorldData *)World;
+                        auto state_ptr = (OrgState *) State;
+
+						int x = cycle_x(state_ptr->Position.x + 1);
+						int y = cycle_y(state_ptr->Position.y + 0);
+						return (float)world_ptr->CellTypes[y][x];
+                    }
+            );
+	SensorRegistry[(int) SensorsIDs::LeftCell] = Sensor
+            (
+                    [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
+                    {
+						auto world_ptr = (WorldData *)World;
+                        auto state_ptr = (OrgState *) State;
+
+						int x = cycle_x(state_ptr->Position.x - 1);
+						int y = cycle_y(state_ptr->Position.y + 0);
+						return (float)world_ptr->CellTypes[y][x];
+                    }
+            );
+
     // Fill parameters
     ParameterDefRegistry.resize((int) ParametersIDs::NumberOfParameters);
 
@@ -399,6 +476,20 @@ void PublicInterfaceImpl::Init()
             );
 
     // Fill components
+	ComponentRegistry.push_back
+	({
+		1, 1, // Everyone can see the nearby cells
+		{{
+			{},
+			{
+				(int)SensorsIDs::CurrentCell,
+				(int)SensorsIDs::TopCell,
+				(int)SensorsIDs::DownCell,
+				(int)SensorsIDs::RightCell,
+				(int)SensorsIDs::LeftCell,
+			}
+		}}
+	});
     ComponentRegistry.push_back
             ({
                      1, 1, // Can only have one mouth
@@ -495,6 +586,8 @@ void *PublicInterfaceImpl::MakeState(const BaseIndividual *org)
 	state->Life = InitialLife;
     state->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
     state->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
+	state->EatenCount = 0;
+	state->Score = 0;
 
 	if (org->HasAction((int)ActionsIDs::EatFoodEnemy))
 		state->Type = OrgType::Omnivore;
@@ -513,7 +606,9 @@ void PublicInterfaceImpl::ResetState(void *State)
 	state_ptr->Life = InitialLife;
     state_ptr->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
     state_ptr->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
-	
+	state_ptr->EatenCount = 0;
+	state_ptr->Score = 0;
+
 	// The type doesnt change
 }
 
@@ -533,6 +628,8 @@ void *PublicInterfaceImpl::DuplicateState(void *State)
 
 void PublicInterfaceImpl::ComputeFitness(const std::vector<class BaseIndividual *> &Individuals, void *World)
 {
+	// IMPORTANT! This can ONLY be called with Individuals, calling it with SIndividuals will FAIL!
+
     for (auto &org : Individuals)
         ((Individual *) org)->Reset();
 
@@ -551,7 +648,8 @@ void PublicInterfaceImpl::ComputeFitness(const std::vector<class BaseIndividual 
 			{
 				org->DecideAndExecute(World, Individuals);
 
-				((Individual *)org)->Fitness = state_ptr->Life;
+				org->GetState<OrgState>()->Score += 0.1*state_ptr->Life;
+				((Individual *)org)->Fitness = org->GetState<OrgState>()->Score;
 				any_alive = true;
 			}
         }

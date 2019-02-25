@@ -1,0 +1,17 @@
+(2 times best,24 species found) -> [('PopSizeMultiplier', 30), ('GenerationsCount', 400), ('MaxSimulationSteps', 300), ('MinSpeciesAge', 20), ('MinIndividualsPerSpecies', 25), ('ProgressThreshold', 0.001)]
+(2 times best,24 species found) -> [('PopSizeMultiplier', 20), ('GenerationsCount', 250), ('MaxSimulationSteps', 50), ('MinSpeciesAge', 10), ('MinIndividualsPerSpecies', 25), ('ProgressThreshold', 0.001)]
+(1 times best,24 species found) -> [('PopSizeMultiplier', 30), ('GenerationsCount', 400), ('MaxSimulationSteps', 300), ('MinSpeciesAge', 10), ('MinIndividualsPerSpecies', 25), ('ProgressThreshold', 0.001)]
+
+(3 times best,24 species found) -> [('PopSizeMultiplier', 30), ('GenerationsCount', 400), ('MaxSimulationSteps', 300), ('MinSpeciesAge', 20), ('MinIndividualsPerSpecies', 25), ('ProgressThreshold', 0.001)]
+(1 times best,24 species found) -> [('PopSizeMultiplier', 30), ('GenerationsCount', 400), ('MaxSimulationSteps', 300), ('MinSpeciesAge', 10), ('MinIndividualsPerSpecies', 25), ('ProgressThreshold', 0.005)]
+(1 times best,24 species found) -> [('PopSizeMultiplier', 30), ('GenerationsCount', 250), ('MaxSimulationSteps', 50), ('MinSpeciesAge', 40), ('MinIndividualsPerSpecies', 25), ('ProgressThreshold', 0.02)]
+
+(2 times best,24 species found) -> [('PopSizeMultiplier', 30), ('GenerationsCount', 400), ('MaxSimulationSteps', 300), ('MinSpeciesAge', 10), ('MinIndividualsPerSpecies', 25), ('ProgressThreshold', 0.001)]
+(2 times best,24 species found) -> [('PopSizeMultiplier', 20), ('GenerationsCount', 400), ('MaxSimulationSteps', 50), ('MinSpeciesAge', 10), ('MinIndividualsPerSpecies', 25), ('ProgressThreshold', 0.001)]
+(2 times best,10 species found) -> [('PopSizeMultiplier', 10), ('GenerationsCount', 400), ('MaxSimulationSteps', 300), ('MinSpeciesAge', 40), ('MinIndividualsPerSpecies', 25), ('ProgressThreshold', 0.001)]
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+(2 times best,24 species found) -> [('PopSizeMultiplier', 30), ('GenerationsCount', 400), ('MaxSimulationSteps', 300), ('MinSpeciesAge', 25), ('MinIndividualsPerSpecies', 15), ('ProgressThreshold', 0.001)]
+(2 times best,24 species found) -> [('PopSizeMultiplier', 30), ('GenerationsCount', 400), ('MaxSimulationSteps', 300), ('MinSpeciesAge', 15), ('MinIndividualsPerSpecies', 20), ('ProgressThreshold', 0.002)]
+(2 times best,24 species found) -> [('PopSizeMultiplier', 30), ('GenerationsCount', 400), ('MaxSimulationSteps', 300), ('MinSpeciesAge', 15), ('MinIndividualsPerSpecies', 20), ('ProgressThreshold', 0.001)]

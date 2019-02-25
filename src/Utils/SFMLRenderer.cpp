@@ -33,6 +33,7 @@ void SFMLRenderer::Render(sf::RenderWindow& Window, const std::vector<SFMLRender
 		auto sprite = Sprites[item.SpriteID];
 		auto size = sprite.getTexture()->getSize();
 		sprite.setPosition(item.Position.x*size.x, item.Position.y*size.y);
+		sprite.setColor(item.Tint);
 
 		Window.draw(sprite);
 	}

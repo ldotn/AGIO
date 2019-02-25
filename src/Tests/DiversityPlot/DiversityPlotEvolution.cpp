@@ -57,17 +57,23 @@ agio::Population runEvolution(const std::string& WorldPath, bool NoOutput)
 				cout << "    "
 					 << " Progress : " << species.ProgressMetric
 				     << endl;
+				cout << "    "
+					<< " Type (carnivore, herbivore, omnivore) : " << (int)pop.GetIndividuals()[species.IndividualsIDs[0]].GetState<OrgState>()->Type
+					<< endl;
 
 				float avg_fit = 0;
 				float max_fit = numeric_limits<float>::lowest();
+				float avg_eaten = 0;
 				for (int id : species.IndividualsIDs)
 				{
 					const auto& org = pop.GetIndividuals()[id];
 
 					avg_fit += org.Fitness;
 					max_fit = max(max_fit, org.Fitness);
+					avg_eaten += org.GetState<OrgState>()->EatenCount;
 				}
 				avg_fit /= species.IndividualsIDs.size();
+				avg_eaten /= species.IndividualsIDs.size();
 
 				// TODO : Add the avg fitness of the 5 best
 				cout << "    "
@@ -76,6 +82,10 @@ agio::Population runEvolution(const std::string& WorldPath, bool NoOutput)
 				cout << "    "
 					<< " Fitness (max) : " << max_fit
 					<< endl;
+				cout << "    "
+					<< " Avg Eaten : " << avg_eaten
+					<< endl;
+
 				cout << "------------------------------" << endl;
 			}
          

@@ -17,13 +17,18 @@ struct OrgState
     float Life = -1;
     float2 Position;
 
+	// Score = fitness
+	float Score = 0;
+
+	// Metrics
+	int EatenCount = 0;
+
 	OrgType Type;
 };
 
 enum class ParametersIDs
 {
     JumpDistance,
-    MoveGrassWaterRatio,
     NumberOfParameters
 };
 
@@ -59,6 +64,12 @@ enum class SensorsIDs
 
     NearestFoodDeltaX,
     NearestFoodDeltaY,
+
+	CurrentCell,
+	TopCell,
+	DownCell,
+	RightCell,
+	LeftCell,
 
     NumberOfSensors
 };

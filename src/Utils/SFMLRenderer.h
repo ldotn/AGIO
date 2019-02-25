@@ -31,6 +31,7 @@ namespace agio
 		{
 			sf::Vector2i Position;
 			int SpriteID;
+			sf::Color Tint = sf::Color::White;
 		};
 
 		void Render(sf::RenderWindow& Window, const std::vector<Item>& ItemsToRender);
