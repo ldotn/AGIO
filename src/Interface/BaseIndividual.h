@@ -65,6 +65,12 @@ namespace agio
 			return true;
 		}
 
+		// Really low level, use with care!
+		void UpdateSensorValueFromIndex(int SensorIndex, float Value)
+		{
+			SensorsValues[SensorIndex] = Value;
+		}
+
 		// Returns true if the individual has the provided sensor/action ID
 		bool HasAction(int ActionID) const
 		{

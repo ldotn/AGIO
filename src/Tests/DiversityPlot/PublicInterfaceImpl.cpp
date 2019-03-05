@@ -378,6 +378,7 @@ void PublicInterfaceImpl::Init()
                     [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
                     {
                         BaseIndividual* nearest_competitor = find_nearest_enemy(State, Org, Individuals);
+						if (!nearest_competitor) return -999.0f;
 
                         auto state_ptr = (OrgState *) State;
                         auto other_state_ptr = (OrgState *) nearest_competitor->GetState();
@@ -393,6 +394,7 @@ void PublicInterfaceImpl::Init()
                     [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
                     {
                         BaseIndividual* nearest_competitor = find_nearest_enemy(State, Org, Individuals);
+						if (!nearest_competitor) return -999.0f;
 
                         auto state_ptr = (OrgState *) State;
                         auto other_state_ptr = (OrgState *) nearest_competitor->GetState();

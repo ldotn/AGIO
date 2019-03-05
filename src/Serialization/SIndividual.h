@@ -32,7 +32,7 @@ namespace agio
 		std::vector<int> Sensors;
 
 		SIndividual();
-		SIndividual(NEAT::Genome *genome, MorphologyTag morphologyTag);
+		SIndividual(::NEAT::Genome *genome, MorphologyTag morphologyTag);
 
 		friend class boost::serialization::access;
 		template<class Archive>

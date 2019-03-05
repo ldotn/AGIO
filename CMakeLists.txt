@@ -85,6 +85,17 @@ if (build_tests)
 			src/Tests/DiversityPlot/AnimatedSprite.cpp
 			src/Tests/DiversityPlot/Animation.cpp
 			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
+	
+	add_executable(perf_test
+			src/Tests/DiversityPlot/PerfTest.cpp
+			src/Tests/DiversityPlot/DiversityPlot.cpp
+			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
+	
+	target_link_libraries(perf_test
+			agio_lib
+			${PYTHON_LIBRARIES}
+			Boost::serialization
+			${SFML_LIBRARIES})
 
 	target_link_libraries(human_test
 			agio_lib
