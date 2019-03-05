@@ -19,7 +19,7 @@ ranges = [
     ('GenerationsCount', [100, 250, 400]),
     ('MaxSimulationSteps', [50, 150, 300]),
 
-    ('ProgressMetricsIndividuals', [5, 10, 20]),
+    ('SpeciesStagnancyChances', [1, 3, 7]),
     ('MinIndividualsPerSpecies', [25, 50, 75]),
     ('ProgressThreshold', [0.001, 0.005, 0.02])
 ]
@@ -39,6 +39,8 @@ eval_repeats = 3
 
 results = {}
 species_counts = []
+config_species = {}
+max_scount = 0
 for idx in range(len(combs)):
     try:
         for eval_idx in range(eval_repeats):
@@ -49,27 +51,60 @@ for idx in range(len(combs)):
                         results[str(tag)].append((avg_fit,idx))
                     except:
                         results[str(tag)] = [(avg_fit,idx)]
+                    try:
+                        config_species[idx].append((str(tag),avg_fit))
+                    except:
+                        config_species[idx] = [(str(tag),avg_fit)]
                 species_counts.append(len(species))
+                max_scount = max(max_scount, len(species))
     except:
-        print("Think i'm missing some configs...")
+        print("Think I'm missing some configs...")
 
-# Find on how many species each parameter is the best
-bests_counts = [0] * len(species_counts)
-for _,vals in results.items():
-    _,idx = sorted(vals,reverse=True)[0]
-    bests_counts[idx] += 1
+best_fit = {}
+for tag,vals in results.items():
+    best_fit[tag] = max(vals)[0] # Max on a list of tuples takes the tuple with the highest first value
 
+fitness_results = [None for _ in combs]
+for idx in range(len(combs)):
+    avgf = 0
+    species = []
+    try:
+        species = config_species[idx]
+    except:
+        continue
+    for tag,avg_fit in species:
+        avgf += avg_fit / best_fit[tag]
+    avgf /= len(species)
+    fitness_results[idx]= (avgf,species_counts[idx], idx)
+
+# From the 20 best, sort by species count and keep the top 3
+#fvals = sorted(fitness_results, reverse=True)[:20]
+#fvals = sorted(fvals, reverse=True, key=lambda x : x[1])[:3]
+#print(fvals)
+print(max_scount)
 fvals = []
-for idx,(sc, bc) in enumerate(zip(species_counts, bests_counts)):
-    fvals.append((bc,sc,idx))
-# Select top 5 by best counts and then sort by number of species and keep the best 3
-fvals = sorted(fvals, reverse=True)[:5]
-fvals = sorted(fvals, reverse=True, key=lambda x : x[1])[:3]
-print(fvals)
+for entry in fitness_results:
+    if entry is None:
+        continue
+    avgf, sc, idx = entry
+    fvals.append((abs(avgf - 1)/1 + abs(sc - max_scount)/max_scount, idx))
+fvals = sorted(fvals)[:3]
 
 # Show the parameters of the selected params
-for bc,sc,idx in fvals:
-    print('({0} times best,{1} species found) -> '.format(bc,sc) + str(combs[idx]))
+for fval, idx in fvals:
+    f, sc,_ = fitness_results[idx]
+    print('({0}, {1} avg norm fitness,{2} species found) -> '.format(fval,f,sc) + str(combs[idx]))
 
+# Plot
+plot_x, plot_y = [],[]
+for entry in fitness_results:
+    if entry is None:
+        continue
+    avgf, sc, _ = entry
+    plot_x.append(avgf)
+    plot_y.append(sc)
 
-
+plt.ylabel('Cantidad de especies')
+plt.xlabel('Fitness Normalizada Promedio')
+plt.scatter(plot_x,plot_y, s=5)
+plt.show()

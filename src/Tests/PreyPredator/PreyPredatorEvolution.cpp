@@ -65,7 +65,7 @@ public:
 
     Metrics()
     {
-        plt::ion();
+        //plt::ion();
     };
 
     void update(Population &pop)
@@ -190,7 +190,7 @@ public:
     {
         calculate_metrics(pop);
 		//return;
-        plt::clf();
+        //plt::clf();
 
         /*plt::subplot(2, 3, 1);
         plt::plot(avg_fitness_herbivore, "b");
@@ -205,7 +205,7 @@ public:
         plt::plot(avg_progress_carnivore, "k");*/
 
         //plt::subplot(2, 3, 4);
-		plt::subplot(1, 3, 1);
+		/*plt::subplot(1, 3, 1);
         plt::plot(avg_eaten_herbivore, "b");
         plt::plot(avg_eaten_carnivore, "k");
 		plt::plot(avg_eaten_herbivore_greedy, "b--");
@@ -225,9 +225,34 @@ public:
         plt::plot(avg_coverage_herbivore_greedy, "b--");
         plt::plot(avg_coverage_carnivore_greedy, "k--");
 
-        plt::pause(0.01);
+        plt::pause(0.01);*/
     }
 
+	~Metrics()
+	{
+		auto savef = [](const vector<float>& vec, const string& fname)
+		{
+			ofstream file(fname);
+
+			for (auto x : vec)
+				file << "x" << endl;
+		};
+
+		savef(avg_eaten_herbivore, "avg_eaten_herbivore.csv");
+		savef(avg_eaten_carnivore, "avg_eaten_carnivore.csv");
+		savef(avg_eaten_herbivore_greedy, "avg_eaten_herbivore_greedy.csv");
+		savef(avg_eaten_carnivore_greedy, "avg_eaten_carnivore_greedy.csv");
+
+		savef(avg_failed_herbivore, "avg_failed_herbivore.csv");
+		savef(avg_failed_carnivore, "avg_failed_carnivore.csv");
+		savef(avg_failed_herbivore_greedy, "avg_failed_herbivore_greedy.csv");
+		savef(avg_failed_carnivore_greedy, "avg_failed_carnivore_greedy.csv");
+
+		savef(avg_coverage_herbivore, "avg_coverage_herbivore.csv");
+		savef(avg_coverage_carnivore, "avg_coverage_carnivore.csv");
+		savef(avg_coverage_herbivore_greedy, "avg_coverage_herbivore_greedy.csv");
+		savef(avg_coverage_carnivore_greedy, "avg_coverage_carnivore_greedy.csv");
+	}
 private:
     void calculate_metrics(Population &pop)
     {
