@@ -45,6 +45,20 @@ public:
     vector<float> avg_coverage_herbivore;
     vector<float> avg_coverage_carnivore;
 
+	vector<float> min_eaten_herbivore;
+	vector<float> min_eaten_carnivore;
+	vector<float> min_failed_herbivore;
+	vector<float> min_failed_carnivore;
+	vector<float> min_coverage_herbivore;
+	vector<float> min_coverage_carnivore;
+
+	vector<float> max_eaten_herbivore;
+	vector<float> max_eaten_carnivore;
+	vector<float> max_failed_herbivore;
+	vector<float> max_failed_carnivore;
+	vector<float> max_coverage_herbivore;
+	vector<float> max_coverage_carnivore;
+
 	vector<float> avg_eaten_herbivore_greedy;
 	vector<float> avg_eaten_carnivore_greedy;
 	vector<float> avg_failed_herbivore_greedy;
@@ -76,6 +90,15 @@ public:
             float avg_eaten = 0;
             float avg_failed = 0;
             float avg_coverage = 0;
+
+			float min_eaten = numeric_limits<float>::max();
+			float min_failed = numeric_limits<float>::max();
+			float min_coverage = numeric_limits<float>::max();
+
+			float max_eaten = 0;
+			float max_failed = 0;
+			float max_coverage = 0;
+
             for (int id : species.IndividualsIDs)
             {
                 const auto& org = pop.GetIndividuals()[id];
@@ -84,6 +107,14 @@ public:
                 avg_eaten += (float)state_ptr->EatenCount / state_ptr->Repetitions;
                 avg_failed += (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions;
                 avg_coverage += (float)state_ptr->VisitedCellsCount / state_ptr->Repetitions;
+
+				min_eaten = min(min_eaten, (float)state_ptr->EatenCount / state_ptr->Repetitions);
+				min_failed = min(min_failed, (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions);
+				min_coverage = min(min_coverage, (float)state_ptr->VisitedCellsCount / state_ptr->Repetitions);
+
+				max_eaten = max(max_eaten, (float)state_ptr->EatenCount / state_ptr->Repetitions);
+				max_failed = max(max_failed, (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions);
+				max_coverage = max(max_coverage, (float)state_ptr->VisitedCellsCount / state_ptr->Repetitions);
             }
 
             avg_eaten /= species.IndividualsIDs.size();
@@ -95,12 +126,28 @@ public:
                 avg_eaten_carnivore.push_back(avg_eaten);
                 avg_failed_carnivore.push_back(avg_failed);
                 avg_coverage_carnivore.push_back(avg_coverage);
+
+				min_eaten_carnivore.push_back(min_eaten);
+				min_failed_carnivore.push_back(min_failed);
+				min_coverage_carnivore.push_back(min_coverage);
+
+				max_eaten_carnivore.push_back(max_eaten);
+				max_failed_carnivore.push_back(max_failed);
+				max_coverage_carnivore.push_back(max_coverage);
             }
             else
             {
                 avg_eaten_herbivore.push_back(avg_eaten);
                 avg_failed_herbivore.push_back(avg_failed);
                 avg_coverage_herbivore.push_back(avg_coverage);
+
+				min_eaten_herbivore.push_back(min_eaten);
+				min_failed_herbivore.push_back(min_failed);
+				min_coverage_herbivore.push_back(min_coverage);
+
+				max_eaten_herbivore.push_back(max_eaten);
+				max_failed_herbivore.push_back(max_failed);
+				max_coverage_herbivore.push_back(max_coverage);
             }
             cout << "    " << avg_eaten << " " << avg_failed << " " << avg_coverage << endl;
         }
@@ -127,6 +174,7 @@ public:
 				float avg_failed = 0;
 				float avg_coverage = 0;
 				const auto& species = pop.GetSpecies().find(tag)->second;
+
 
 				for (int id : species.IndividualsIDs)
 				{
@@ -234,8 +282,8 @@ public:
 		{
 			ofstream file(fname);
 
-			for (auto x : vec)
-				file << "x" << endl;
+			for (auto [gen,x] : enumerate(vec))
+				file << gen << "," << x << endl;
 		};
 
 		savef(avg_eaten_herbivore, "avg_eaten_herbivore.csv");
@@ -252,6 +300,23 @@ public:
 		savef(avg_coverage_carnivore, "avg_coverage_carnivore.csv");
 		savef(avg_coverage_herbivore_greedy, "avg_coverage_herbivore_greedy.csv");
 		savef(avg_coverage_carnivore_greedy, "avg_coverage_carnivore_greedy.csv");
+
+		savef(min_eaten_herbivore, "min_eaten_herbivore.csv");
+		savef(min_failed_herbivore, "min_failed_herbivore.csv");
+		savef(min_coverage_herbivore, "min_coverage_herbivore.csv");
+
+		savef(max_eaten_herbivore, "max_eaten_herbivore.csv");
+		savef(max_failed_herbivore, "max_failed_herbivore.csv");
+		savef(max_coverage_herbivore, "max_coverage_herbivore.csv");
+
+		savef(min_eaten_carnivore, "min_eaten_carnivore.csv");
+		savef(min_failed_carnivore, "min_failed_carnivore.csv");
+		savef(min_coverage_carnivore, "min_coverage_carnivore.csv");
+
+		savef(max_eaten_carnivore, "max_eaten_carnivore.csv");
+		savef(max_failed_carnivore, "max_failed_carnivore.csv");
+		savef(max_coverage_carnivore, "max_coverage_carnivore.csv");
+
 	}
 private:
     void calculate_metrics(Population &pop)
