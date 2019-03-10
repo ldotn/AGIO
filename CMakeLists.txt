@@ -91,6 +91,17 @@ if (build_tests)
 			src/Tests/DiversityPlot/DiversityPlot.cpp
 			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
 	
+	add_executable(memory_test
+			src/Tests/DiversityPlot/MemoryTest.cpp
+			src/Tests/DiversityPlot/DiversityPlot.cpp
+			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
+			
+	target_link_libraries(memory_test
+			agio_lib
+			${PYTHON_LIBRARIES}
+			Boost::serialization
+			${SFML_LIBRARIES})
+
 	target_link_libraries(perf_test
 			agio_lib
 			${PYTHON_LIBRARIES}
