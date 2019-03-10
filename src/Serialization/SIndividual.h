@@ -56,5 +56,7 @@ namespace agio
 
 		const std::unordered_map<int, Parameter>& GetParameters() const override;
 		const MorphologyTag& GetMorphologyTag() const override;
+
+		size_t TotalSize() const;
 	};
 }

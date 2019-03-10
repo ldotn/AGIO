@@ -117,3 +117,19 @@ void SIndividual::DecideAndExecute(void *World, const std::vector<BaseIndividual
     // Finally execute the action
     Interface->GetActionRegistry()[Actions[action]].Execute(State, Individuals, this, World);
 }
+
+size_t SIndividual::TotalSize() const
+{
+	// Start with the size of the class
+	size_t ret = sizeof(*this);
+	
+	// Add the size of the elements
+	ret += ActivationsBuffer.capacity() * sizeof(float);
+	ret += Actions.capacity() * sizeof(int);
+	ret += Sensors.capacity() * sizeof(int);
+	ret += morphologyTag.capacity() * sizeof(ComponentRef);
+	// Note : rough lower bound, it's just considering the allocated elements
+	ret += parameters.size() * sizeof(Parameter);
+	
+	return ret + brain.TotalSize();
+}
