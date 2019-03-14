@@ -2,15 +2,16 @@
 #include <string>
 #include <chrono>
 
+namespace NEAT
+{
+	class Network;
+}
+
 namespace agio
 {
 	// Writes a .dot file of the provided network
 	// For visualization purposes
-	namespace NEAT
-	{
-		class Network;
-	}
-	void DumpNetworkToDot(std::string Filename, class NEAT::Network* Net);
+	void DumpNetworkToDot(std::string Filename, NEAT::Network* Net);
 
 #define PROFILE_INNER(var, expr, c) auto __start##c = std::chrono::high_resolution_clock::now();\
 										expr\

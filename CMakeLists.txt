@@ -95,7 +95,29 @@ if (build_tests)
 			src/Tests/DiversityPlot/MemoryTest.cpp
 			src/Tests/DiversityPlot/DiversityPlot.cpp
 			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
-			
+	
+	add_executable(nn_graph_dump
+			src/Tests/DiversityPlot/NNGraphsTests.cpp
+			src/Tests/DiversityPlot/DiversityPlot.cpp
+			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
+
+	add_executable(interrelations_test
+			src/Tests/DiversityPlot/InterrelationsTest.cpp
+			src/Tests/DiversityPlot/DiversityPlot.cpp
+			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
+	
+	target_link_libraries(interrelations_test
+			agio_lib
+			${PYTHON_LIBRARIES}
+			Boost::serialization
+			${SFML_LIBRARIES})
+
+	target_link_libraries(nn_graph_dump
+			agio_lib
+			${PYTHON_LIBRARIES}
+			Boost::serialization
+			${SFML_LIBRARIES})
+
 	target_link_libraries(memory_test
 			agio_lib
 			${PYTHON_LIBRARIES}

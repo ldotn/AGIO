@@ -9,7 +9,7 @@
 
 using namespace std;
 
-void DumpNetworkToDot(string Filename, NEAT::Network* Net)
+void agio::DumpNetworkToDot(string Filename, NEAT::Network* Net)
 {
 	ofstream file(Filename);
 
