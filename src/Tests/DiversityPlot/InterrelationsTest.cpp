@@ -92,6 +92,7 @@ int main(int argc, char *argv[])
 
 	unordered_map<MorphologyTag, int> species_ids;
 	vector<BaseIndividual*> individuals;
+	unordered_map<int, OrgType> species_types;
 
 	// Select randomly until the simulation size is filled
 	for (int i = 0; i < SimulationSize; i++)
@@ -106,6 +107,14 @@ int main(int argc, char *argv[])
 
 		int sid = species_ids.size();
 		species_ids[org->GetMorphologyTag()] = sid;
+
+		// Yes, this makes the same asignment a bunch of times, but I don't care, it's just a test
+		if (org->HasAction((int)ActionsIDs::EatFoodEnemy))
+			species_types[sid] = OrgType::Omnivore;
+		else if (org->HasAction((int)ActionsIDs::EatEnemy))
+			species_types[sid] = OrgType::Carnivore;
+		else
+			species_types[sid] = OrgType::Herbivore;
 	}
 
 	for (auto &individual : individuals)
@@ -163,6 +172,21 @@ int main(int argc, char *argv[])
 
 		return avg_fit;
 	};
+
+
+	cout << "Writting species ref file" << endl;
+	wofstream outf_sref(L"species_ref.csv");
+	for (const auto& [sid, type] : species_types)
+	{
+		outf_sref << sid << L",";
+		if (type == OrgType::Omnivore)
+			outf_sref << L"Omnívoro" << endl;
+		else if (type == OrgType::Carnivore)
+			outf_sref << L"Carnívoro" << endl;
+		else if (type == OrgType::Herbivore)
+			outf_sref << L"Herbívoro" << endl;
+	}
+	outf_sref.close();
 
 	cout << "Computing baseline" << endl;
 	ofstream outf_base("baseline.csv");
