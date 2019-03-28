@@ -105,7 +105,19 @@ if (build_tests)
 			src/Tests/DiversityPlot/InterrelationsTest.cpp
 			src/Tests/DiversityPlot/DiversityPlot.cpp
 			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
-	
+
+	add_executable(sim_size_test
+			src/Tests/DiversityPlot/SimSizeTest.cpp
+			src/Tests/PreyPredator/PreyPredatorEvolution.cpp
+			src/Tests/PreyPredator/PreyPredator.cpp
+			src/Tests/PreyPredator/PublicInterfaceImpl.cpp)
+
+	target_link_libraries(sim_size_test
+		agio_lib
+		${PYTHON_LIBRARIES}
+		Boost::serialization
+		${SFML_LIBRARIES})
+
 	target_link_libraries(interrelations_test
 			agio_lib
 			${PYTHON_LIBRARIES}

@@ -462,8 +462,8 @@ void Population::CurrentSpeciesToRegistry()
 			entry.Age = species.Age;
 			entry.Morphology = bestIndividual->GetMorphologyTag();
 			entry.BestFitness = bestIndividual->Fitness;
-			entry.HistoricalBestGenome = bestIndividual->GetGenome();
-			StagnantSpecies.push_back(entry);
+			entry.HistoricalBestGenome = bestIndividual->GetGenome()->duplicate(0);
+			StagnantSpecies.push_back(move(entry));
 		}
 	}
 }

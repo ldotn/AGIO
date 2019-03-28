@@ -24,133 +24,152 @@ using namespace agio;
 using namespace fpp;
 using namespace std;
 
-class Metrics {
-public:
-    vector<float> fitness_vec_hervibore;
-    vector<float> novelty_vec_hervibore;
-    vector<float> fitness_vec_carnivore;
-    vector<float> novelty_vec_carnivore;
+Metrics::Metrics()
+{
+	//plt::ion();
+};
 
-    vector<float> fitness_vec_registry;
-    vector<float> novelty_vec_registry;
-    vector<float> avg_fitness_herbivore;
-    vector<float> avg_progress_herbivore;
-    vector<float> avg_fitness_carnivore;
-    vector<float> avg_progress_carnivore;
+void Metrics::update(Population &pop)
+{
+	for (const auto&[_, species] : pop.GetSpecies())
+	{
+		// Find average evaluation metrics
+		float avg_eaten = 0;
+		float avg_failed = 0;
+		float avg_coverage = 0;
 
-    vector<float> avg_eaten_herbivore;
-    vector<float> avg_eaten_carnivore;
-    vector<float> avg_failed_herbivore;
-    vector<float> avg_failed_carnivore;
-    vector<float> avg_coverage_herbivore;
-    vector<float> avg_coverage_carnivore;
+		float min_eaten = numeric_limits<float>::max();
+		float min_failed = numeric_limits<float>::max();
+		float min_coverage = numeric_limits<float>::max();
 
-	vector<float> min_eaten_herbivore;
-	vector<float> min_eaten_carnivore;
-	vector<float> min_failed_herbivore;
-	vector<float> min_failed_carnivore;
-	vector<float> min_coverage_herbivore;
-	vector<float> min_coverage_carnivore;
+		float max_eaten = 0;
+		float max_failed = 0;
+		float max_coverage = 0;
 
-	vector<float> max_eaten_herbivore;
-	vector<float> max_eaten_carnivore;
-	vector<float> max_failed_herbivore;
-	vector<float> max_failed_carnivore;
-	vector<float> max_coverage_herbivore;
-	vector<float> max_coverage_carnivore;
+		for (int id : species.IndividualsIDs)
+		{
+			const auto& org = pop.GetIndividuals()[id];
+			auto state_ptr = ((OrgState*)org.GetState());
 
-	vector<float> avg_eaten_herbivore_greedy;
-	vector<float> avg_eaten_carnivore_greedy;
-	vector<float> avg_failed_herbivore_greedy;
-	vector<float> avg_failed_carnivore_greedy;
-	vector<float> avg_coverage_herbivore_greedy;
-	vector<float> avg_coverage_carnivore_greedy;
+			
+			// SHOULD NEVER BE 0!!
+			if (state_ptr->Repetitions == 0)
+				continue;
 
-    vector<float> avg_fitness_carnivore_random;
-    vector<float> avg_fitness_herbivore_random;
 
-    vector<float> avg_fitness_difference;
-    vector<float> avg_fitness_network;
-    vector<float> avg_fitness_random;
-    vector<float> avg_novelty_registry;
-    vector<float> species_count;
-    vector<float> min_fitness_difference;
-    vector<float> max_fitness_difference;
 
-    Metrics()
-    {
-        //plt::ion();
-    };
+			avg_eaten += (float)state_ptr->EatenCount / state_ptr->Repetitions;
+			avg_failed += (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions;
+			avg_coverage += (float)state_ptr->VisitedCellsCount / state_ptr->Repetitions;
 
-    void update(Population &pop)
-    {
-        for (const auto&[_, species] : pop.GetSpecies())
-        {
-            // Find average evaluation metrics
-            float avg_eaten = 0;
-            float avg_failed = 0;
-            float avg_coverage = 0;
+			min_eaten = min(min_eaten, (float)state_ptr->EatenCount / state_ptr->Repetitions);
+			min_failed = min(min_failed, (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions);
+			min_coverage = min(min_coverage, (float)state_ptr->VisitedCellsCount / state_ptr->Repetitions);
 
-			float min_eaten = numeric_limits<float>::max();
-			float min_failed = numeric_limits<float>::max();
-			float min_coverage = numeric_limits<float>::max();
+			max_eaten = max(max_eaten, (float)state_ptr->EatenCount / state_ptr->Repetitions);
+			max_failed = max(max_failed, (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions);
+			max_coverage = max(max_coverage, (float)state_ptr->VisitedCellsCount / state_ptr->Repetitions);
+		}
 
-			float max_eaten = 0;
-			float max_failed = 0;
-			float max_coverage = 0;
+		avg_eaten /= species.IndividualsIDs.size();
+		avg_failed /= species.IndividualsIDs.size();
+		avg_coverage /= species.IndividualsIDs.size();
 
-            for (int id : species.IndividualsIDs)
-            {
-                const auto& org = pop.GetIndividuals()[id];
-                auto state_ptr = ((OrgState*)org.GetState());
+		if (((OrgState*)pop.GetIndividuals()[species.IndividualsIDs[0]].GetState())->IsCarnivore)
+		{
+			avg_eaten_carnivore.push_back(avg_eaten);
+			avg_failed_carnivore.push_back(avg_failed);
+			avg_coverage_carnivore.push_back(avg_coverage);
 
-                avg_eaten += (float)state_ptr->EatenCount / state_ptr->Repetitions;
-                avg_failed += (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions;
-                avg_coverage += (float)state_ptr->VisitedCellsCount / state_ptr->Repetitions;
+			min_eaten_carnivore.push_back(min_eaten);
+			min_failed_carnivore.push_back(min_failed);
+			min_coverage_carnivore.push_back(min_coverage);
 
-				min_eaten = min(min_eaten, (float)state_ptr->EatenCount / state_ptr->Repetitions);
-				min_failed = min(min_failed, (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions);
-				min_coverage = min(min_coverage, (float)state_ptr->VisitedCellsCount / state_ptr->Repetitions);
+			max_eaten_carnivore.push_back(max_eaten);
+			max_failed_carnivore.push_back(max_failed);
+			max_coverage_carnivore.push_back(max_coverage);
+		}
+		else
+		{
+			avg_eaten_herbivore.push_back(avg_eaten);
+			avg_failed_herbivore.push_back(avg_failed);
+			avg_coverage_herbivore.push_back(avg_coverage);
 
-				max_eaten = max(max_eaten, (float)state_ptr->EatenCount / state_ptr->Repetitions);
-				max_failed = max(max_failed, (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions);
-				max_coverage = max(max_coverage, (float)state_ptr->VisitedCellsCount / state_ptr->Repetitions);
-            }
+			min_eaten_herbivore.push_back(min_eaten);
+			min_failed_herbivore.push_back(min_failed);
+			min_coverage_herbivore.push_back(min_coverage);
 
-            avg_eaten /= species.IndividualsIDs.size();
-            avg_failed /= species.IndividualsIDs.size();
-            avg_coverage /= species.IndividualsIDs.size();
+			max_eaten_herbivore.push_back(max_eaten);
+			max_failed_herbivore.push_back(max_failed);
+			max_coverage_herbivore.push_back(max_coverage);
+		}
+		cout << "    " << avg_eaten << " " << avg_failed << " " << avg_coverage << endl;
+	}
 
-            if (((OrgState*)pop.GetIndividuals()[species.IndividualsIDs[0]].GetState())->IsCarnivore)
-            {
-                avg_eaten_carnivore.push_back(avg_eaten);
-                avg_failed_carnivore.push_back(avg_failed);
-                avg_coverage_carnivore.push_back(avg_coverage);
+	// Force a reset. REFACTOR!
+	for (auto& org : pop.GetIndividuals())
+	{
+		auto state_ptr = (OrgState*)org.GetState();
 
-				min_eaten_carnivore.push_back(min_eaten);
-				min_failed_carnivore.push_back(min_failed);
-				min_coverage_carnivore.push_back(min_coverage);
+		state_ptr->MetricsCurrentGenNumber = -1;
+		state_ptr->VisitedCellsCount = 0;
+		state_ptr->VisitedCells = {};
+		state_ptr->EatenCount = 0;
+		state_ptr->FailedActionCountCurrent = 0;
+		state_ptr->Repetitions = 0;
+		state_ptr->FailableActionCount = 0;
+		state_ptr->FailedActionFractionAcc = 0;
+	}
 
-				max_eaten_carnivore.push_back(max_eaten);
-				max_failed_carnivore.push_back(max_failed);
-				max_coverage_carnivore.push_back(max_coverage);
-            }
-            else
-            {
-                avg_eaten_herbivore.push_back(avg_eaten);
-                avg_failed_herbivore.push_back(avg_failed);
-                avg_coverage_herbivore.push_back(avg_coverage);
+	pop.SimulateWithUserFunction(&world, createGreedyActionsMap(),
+		[&](const MorphologyTag& tag)
+	{
+		float avg_eaten = 0;
+		float avg_failed = 0;
+		float avg_coverage = 0;
+		const auto& species = pop.GetSpecies().find(tag)->second;
 
-				min_eaten_herbivore.push_back(min_eaten);
-				min_failed_herbivore.push_back(min_failed);
-				min_coverage_herbivore.push_back(min_coverage);
 
-				max_eaten_herbivore.push_back(max_eaten);
-				max_failed_herbivore.push_back(max_failed);
-				max_coverage_herbivore.push_back(max_coverage);
-            }
-            cout << "    " << avg_eaten << " " << avg_failed << " " << avg_coverage << endl;
-        }
+		for (int id : species.IndividualsIDs)
+		{
+			const auto& org = pop.GetIndividuals()[id];
+			auto state_ptr = ((OrgState*)org.GetState());
+
+			avg_eaten += (float)state_ptr->EatenCount / state_ptr->Repetitions;
+			avg_failed += (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions;
+			avg_coverage += (float)state_ptr->VisitedCellsCount / state_ptr->Repetitions;
+		}
+
+		avg_eaten /= species.IndividualsIDs.size();
+		avg_failed /= species.IndividualsIDs.size();
+		avg_coverage /= species.IndividualsIDs.size();
+
+		// Find org type
+		bool is_carnivore;
+		for (auto[gid, cid] : tag)
+		{
+			if (gid == 0) // mouth group
+			{
+				if (cid == 0) // herbivore
+					is_carnivore = false;
+				else if (cid == 1)
+					is_carnivore = true;
+			}
+		}
+
+		// Update values
+		if (is_carnivore)
+		{
+			avg_eaten_carnivore_greedy.push_back(avg_eaten);
+			avg_failed_carnivore_greedy.push_back(avg_failed);
+			avg_coverage_carnivore_greedy.push_back(avg_coverage);
+		}
+		else
+		{
+			avg_eaten_herbivore_greedy.push_back(avg_eaten);
+			avg_failed_herbivore_greedy.push_back(avg_failed);
+			avg_coverage_herbivore_greedy.push_back(avg_coverage);
+		}
 
 		// Force a reset. REFACTOR!
 		for (auto& org : pop.GetIndividuals())
@@ -166,210 +185,144 @@ public:
 			state_ptr->FailableActionCount = 0;
 			state_ptr->FailedActionFractionAcc = 0;
 		}
+	});
+}
 
-		pop.SimulateWithUserFunction(&world,createGreedyActionsMap(),
-			[&](const MorphologyTag& tag)
-			{
-				float avg_eaten = 0;
-				float avg_failed = 0;
-				float avg_coverage = 0;
-				const auto& species = pop.GetSpecies().find(tag)->second;
+void Metrics::plot(Population &pop)
+{
+	calculate_metrics(pop);
+	//return;
+	//plt::clf();
 
+	/*plt::subplot(2, 3, 1);
+	plt::plot(avg_fitness_herbivore, "b");
+	plt::plot(avg_fitness_herbivore_random, "r");
 
-				for (int id : species.IndividualsIDs)
-				{
-					const auto& org = pop.GetIndividuals()[id];
-					auto state_ptr = ((OrgState*)org.GetState());
+	plt::subplot(2, 3, 2);
+	plt::plot(avg_fitness_carnivore, "k");
+	plt::plot(avg_fitness_carnivore_random, "r");
 
-					avg_eaten += (float)state_ptr->EatenCount / state_ptr->Repetitions;
-					avg_failed += (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions;
-					avg_coverage += (float)state_ptr->VisitedCellsCount / state_ptr->Repetitions;
-				}
+	plt::subplot(2, 3, 3);
+	plt::plot(avg_progress_herbivore, "b");
+	plt::plot(avg_progress_carnivore, "k");*/
 
-				avg_eaten /= species.IndividualsIDs.size();
-				avg_failed /= species.IndividualsIDs.size();
-				avg_coverage /= species.IndividualsIDs.size();
+	//plt::subplot(2, 3, 4);
+	/*plt::subplot(1, 3, 1);
+	plt::plot(avg_eaten_herbivore, "b");
+	plt::plot(avg_eaten_carnivore, "k");
+	plt::plot(avg_eaten_herbivore_greedy, "b--");
+	plt::plot(avg_eaten_carnivore_greedy, "k--");
 
-				// Find org type
-				bool is_carnivore;
-				for (auto[gid, cid] : tag)
-				{
-					if (gid == 0) // mouth group
-					{
-						if (cid == 0) // herbivore
-							is_carnivore = false;
-						else if (cid == 1)
-							is_carnivore = true;
-					}
-				}
+	//plt::subplot(2, 3, 5);
+	plt::subplot(1, 3, 2);
+	plt::plot(avg_failed_herbivore, "b");
+	plt::plot(avg_failed_carnivore, "k");
+	plt::plot(avg_failed_herbivore_greedy, "b--");
+	plt::plot(avg_failed_carnivore_greedy, "k--");
 
-				// Update values
-				if (is_carnivore)
-				{
-					avg_eaten_carnivore_greedy.push_back(avg_eaten);
-					avg_failed_carnivore_greedy.push_back(avg_failed);
-					avg_coverage_carnivore_greedy.push_back(avg_coverage);
-				}
-				else
-				{
-					avg_eaten_herbivore_greedy.push_back(avg_eaten);
-					avg_failed_herbivore_greedy.push_back(avg_failed);
-					avg_coverage_herbivore_greedy.push_back(avg_coverage);
-				}
+	//plt::subplot(2, 3, 6);
+	plt::subplot(1, 3, 3);
+	plt::plot(avg_coverage_herbivore, "b");
+	plt::plot(avg_coverage_carnivore, "k");
+	plt::plot(avg_coverage_herbivore_greedy, "b--");
+	plt::plot(avg_coverage_carnivore_greedy, "k--");
 
-				// Force a reset. REFACTOR!
-				for (auto& org : pop.GetIndividuals())
-				{
-					auto state_ptr = (OrgState*)org.GetState();
+	plt::pause(0.01);*/
+}
 
-					state_ptr->MetricsCurrentGenNumber = -1;
-					state_ptr->VisitedCellsCount = 0;
-					state_ptr->VisitedCells = {};
-					state_ptr->EatenCount = 0;
-					state_ptr->FailedActionCountCurrent = 0;
-					state_ptr->Repetitions = 0;
-					state_ptr->FailableActionCount = 0;
-					state_ptr->FailedActionFractionAcc = 0;
-				}
-			});
-    }
-
-    void plot(Population &pop)
-    {
-        calculate_metrics(pop);
-		//return;
-        //plt::clf();
-
-        /*plt::subplot(2, 3, 1);
-        plt::plot(avg_fitness_herbivore, "b");
-        plt::plot(avg_fitness_herbivore_random, "r");
-
-        plt::subplot(2, 3, 2);
-        plt::plot(avg_fitness_carnivore, "k");
-        plt::plot(avg_fitness_carnivore_random, "r");
-
-        plt::subplot(2, 3, 3);
-        plt::plot(avg_progress_herbivore, "b");
-        plt::plot(avg_progress_carnivore, "k");*/
-
-        //plt::subplot(2, 3, 4);
-		/*plt::subplot(1, 3, 1);
-        plt::plot(avg_eaten_herbivore, "b");
-        plt::plot(avg_eaten_carnivore, "k");
-		plt::plot(avg_eaten_herbivore_greedy, "b--");
-		plt::plot(avg_eaten_carnivore_greedy, "k--");
-
-        //plt::subplot(2, 3, 5);
-        plt::subplot(1, 3, 2);
-        plt::plot(avg_failed_herbivore, "b");
-        plt::plot(avg_failed_carnivore, "k");
-		plt::plot(avg_failed_herbivore_greedy, "b--");
-        plt::plot(avg_failed_carnivore_greedy, "k--");
-
-        //plt::subplot(2, 3, 6);
-		plt::subplot(1, 3, 3);
-        plt::plot(avg_coverage_herbivore, "b");
-        plt::plot(avg_coverage_carnivore, "k");
-        plt::plot(avg_coverage_herbivore_greedy, "b--");
-        plt::plot(avg_coverage_carnivore_greedy, "k--");
-
-        plt::pause(0.01);*/
-    }
-
-	~Metrics()
+Metrics::~Metrics()
+{
+	auto savef = [](const vector<float>& vec, const string& fname)
 	{
-		auto savef = [](const vector<float>& vec, const string& fname)
+		ofstream file(fname);
+
+		for (auto[gen, x] : enumerate(vec))
+			file << gen << "," << x << endl;
+	};
+
+	savef(avg_eaten_herbivore, "avg_eaten_herbivore.csv");
+	savef(avg_eaten_carnivore, "avg_eaten_carnivore.csv");
+	savef(avg_eaten_herbivore_greedy, "avg_eaten_herbivore_greedy.csv");
+	savef(avg_eaten_carnivore_greedy, "avg_eaten_carnivore_greedy.csv");
+
+	savef(avg_failed_herbivore, "avg_failed_herbivore.csv");
+	savef(avg_failed_carnivore, "avg_failed_carnivore.csv");
+	savef(avg_failed_herbivore_greedy, "avg_failed_herbivore_greedy.csv");
+	savef(avg_failed_carnivore_greedy, "avg_failed_carnivore_greedy.csv");
+
+	savef(avg_coverage_herbivore, "avg_coverage_herbivore.csv");
+	savef(avg_coverage_carnivore, "avg_coverage_carnivore.csv");
+	savef(avg_coverage_herbivore_greedy, "avg_coverage_herbivore_greedy.csv");
+	savef(avg_coverage_carnivore_greedy, "avg_coverage_carnivore_greedy.csv");
+
+	savef(min_eaten_herbivore, "min_eaten_herbivore.csv");
+	savef(min_failed_herbivore, "min_failed_herbivore.csv");
+	savef(min_coverage_herbivore, "min_coverage_herbivore.csv");
+
+	savef(max_eaten_herbivore, "max_eaten_herbivore.csv");
+	savef(max_failed_herbivore, "max_failed_herbivore.csv");
+	savef(max_coverage_herbivore, "max_coverage_herbivore.csv");
+
+	savef(min_eaten_carnivore, "min_eaten_carnivore.csv");
+	savef(min_failed_carnivore, "min_failed_carnivore.csv");
+	savef(min_coverage_carnivore, "min_coverage_carnivore.csv");
+
+	savef(max_eaten_carnivore, "max_eaten_carnivore.csv");
+	savef(max_failed_carnivore, "max_failed_carnivore.csv");
+	savef(max_coverage_carnivore, "max_coverage_carnivore.csv");
+
+}
+
+void Metrics::calculate_metrics(Population &pop)
+	{
+		fitness_vec_hervibore.resize(0);
+		novelty_vec_hervibore.resize(0);
+
+		for (auto[idx, org] : enumerate(pop.GetIndividuals()))
 		{
-			ofstream file(fname);
+			if (((OrgState*)org.GetState())->IsCarnivore)
+				fitness_vec_carnivore.push_back(org.Fitness);
+			else
+				fitness_vec_hervibore.push_back(org.Fitness);
+		}
 
-			for (auto [gen,x] : enumerate(vec))
-				file << gen << "," << x << endl;
-		};
+		// Only average the best 5
+		sort(fitness_vec_hervibore.begin(), fitness_vec_hervibore.end(), [](float a, float b) { return a > b; });
+		sort(fitness_vec_carnivore.begin(), fitness_vec_carnivore.end(), [](float a, float b) { return a > b; });
 
-		savef(avg_eaten_herbivore, "avg_eaten_herbivore.csv");
-		savef(avg_eaten_carnivore, "avg_eaten_carnivore.csv");
-		savef(avg_eaten_herbivore_greedy, "avg_eaten_herbivore_greedy.csv");
-		savef(avg_eaten_carnivore_greedy, "avg_eaten_carnivore_greedy.csv");
+		float avg_f_hervibore = accumulate(fitness_vec_hervibore.begin(),
+			fitness_vec_hervibore.begin() + min<int>(fitness_vec_hervibore.size(), 5), 0.0f) / 5.0f;
 
-		savef(avg_failed_herbivore, "avg_failed_herbivore.csv");
-		savef(avg_failed_carnivore, "avg_failed_carnivore.csv");
-		savef(avg_failed_herbivore_greedy, "avg_failed_herbivore_greedy.csv");
-		savef(avg_failed_carnivore_greedy, "avg_failed_carnivore_greedy.csv");
+		float avg_f_carnivore = accumulate(fitness_vec_carnivore.begin(),
+			fitness_vec_carnivore.begin() + min<int>(fitness_vec_carnivore.size(), 5), 0.0f) / 5.0f;
 
-		savef(avg_coverage_herbivore, "avg_coverage_herbivore.csv");
-		savef(avg_coverage_carnivore, "avg_coverage_carnivore.csv");
-		savef(avg_coverage_herbivore_greedy, "avg_coverage_herbivore_greedy.csv");
-		savef(avg_coverage_carnivore_greedy, "avg_coverage_carnivore_greedy.csv");
+		float progress_carnivore, progress_herbivore, rand_f_carnivore, rand_f_hervibore;
 
-		savef(min_eaten_herbivore, "min_eaten_herbivore.csv");
-		savef(min_failed_herbivore, "min_failed_herbivore.csv");
-		savef(min_coverage_herbivore, "min_coverage_herbivore.csv");
+		for (const auto &[_, s] : pop.GetSpecies())
+		{
+			auto org_state = (OrgState*)pop.GetIndividuals()[s.IndividualsIDs[0]].GetState();
+			if (org_state->IsCarnivore)
+			{
+				progress_carnivore = s.ProgressMetric;
+				avg_f_carnivore = s.DevMetrics.RealFitness;
+				rand_f_carnivore = s.DevMetrics.RandomFitness;
+			}
+			else
+			{
+				progress_herbivore = s.ProgressMetric;
+				avg_f_hervibore = s.DevMetrics.RealFitness;
+				rand_f_hervibore = s.DevMetrics.RandomFitness;
+			}
+		}
 
-		savef(max_eaten_herbivore, "max_eaten_herbivore.csv");
-		savef(max_failed_herbivore, "max_failed_herbivore.csv");
-		savef(max_coverage_herbivore, "max_coverage_herbivore.csv");
+		avg_fitness_herbivore_random.push_back(rand_f_hervibore);
+		avg_fitness_herbivore.push_back((avg_f_hervibore));
+		avg_progress_herbivore.push_back(progress_herbivore);
 
-		savef(min_eaten_carnivore, "min_eaten_carnivore.csv");
-		savef(min_failed_carnivore, "min_failed_carnivore.csv");
-		savef(min_coverage_carnivore, "min_coverage_carnivore.csv");
-
-		savef(max_eaten_carnivore, "max_eaten_carnivore.csv");
-		savef(max_failed_carnivore, "max_failed_carnivore.csv");
-		savef(max_coverage_carnivore, "max_coverage_carnivore.csv");
-
+		avg_fitness_carnivore.push_back((avg_f_carnivore));
+		avg_fitness_carnivore_random.push_back(rand_f_carnivore);
+		avg_progress_carnivore.push_back(progress_carnivore);
 	}
-private:
-    void calculate_metrics(Population &pop)
-    {
-        fitness_vec_hervibore.resize(0);
-        novelty_vec_hervibore.resize(0);
-
-        for (auto[idx, org] : enumerate(pop.GetIndividuals()))
-        {
-            if (((OrgState*)org.GetState())->IsCarnivore)
-                fitness_vec_carnivore.push_back(org.Fitness);
-            else
-                fitness_vec_hervibore.push_back(org.Fitness);
-        }
-
-        // Only average the best 5
-        sort(fitness_vec_hervibore.begin(), fitness_vec_hervibore.end(), [](float a, float b) { return a > b; });
-        sort(fitness_vec_carnivore.begin(), fitness_vec_carnivore.end(), [](float a, float b) { return a > b; });
-
-        float avg_f_hervibore = accumulate(fitness_vec_hervibore.begin(),
-                                           fitness_vec_hervibore.begin() + min<int>(fitness_vec_hervibore.size(), 5), 0.0f) / 5.0f;
-
-        float avg_f_carnivore = accumulate(fitness_vec_carnivore.begin(),
-                                           fitness_vec_carnivore.begin() + min<int>(fitness_vec_carnivore.size(), 5), 0.0f) / 5.0f;
-
-        float progress_carnivore, progress_herbivore, rand_f_carnivore, rand_f_hervibore;
-
-        for (const auto &[_, s] : pop.GetSpecies())
-        {
-            auto org_state = (OrgState*)pop.GetIndividuals()[s.IndividualsIDs[0]].GetState();
-            if (org_state->IsCarnivore)
-            {
-                progress_carnivore = s.ProgressMetric;
-                avg_f_carnivore = s.DevMetrics.RealFitness;
-                rand_f_carnivore = s.DevMetrics.RandomFitness;
-            } else
-            {
-                progress_herbivore = s.ProgressMetric;
-                avg_f_hervibore = s.DevMetrics.RealFitness;
-                rand_f_hervibore = s.DevMetrics.RandomFitness;
-            }
-        }
-
-        avg_fitness_herbivore_random.push_back(rand_f_hervibore);
-        avg_fitness_herbivore.push_back((avg_f_hervibore));
-        avg_progress_herbivore.push_back(progress_herbivore);
-
-        avg_fitness_carnivore.push_back((avg_f_carnivore));
-        avg_fitness_carnivore_random.push_back(rand_f_carnivore);
-        avg_progress_carnivore.push_back(progress_carnivore);
-    }
-
-};
 
 agio::Population runEvolution()
 {
