@@ -28,7 +28,7 @@ string SerializationFile;
 int main(int argc, char *argv[])
 {
 	string cfg_path = "../src/Tests/DiversityPlot/Config.cfg";
-	string world_path = "../assets/worlds/world0.txt";
+	string world_path = "../assets/worlds/world4.txt";
 	if (argc == 4)
 	{
 		cfg_path = argv[1];

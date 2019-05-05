@@ -63,7 +63,10 @@ int find_nearest_food(void *State, void *World)
     int nearest_idx = 0;
     for (auto[idx, pos] : enumerate(world_ptr->FoodPositions))
     {
-        float dist = (pos - state_ptr->Position).length_sqr();
+        //float dist = (pos - state_ptr->Position).length_sqr();
+		auto delta = abs >> (pos - state_ptr->Position);
+		int dist = max(delta.x, delta.y);
+
         // Minimum distance is 0. Impossible to find any closer.
         if (dist == 0)
             return idx;
@@ -79,7 +82,7 @@ int find_nearest_food(void *State, void *World)
 }
 
 BaseIndividual *find_nearest_enemy(const void *State, const BaseIndividual *Org,
-                                   const vector<BaseIndividual *> &Individuals, bool OnlyDead = false)
+                                   const vector<BaseIndividual *> &Individuals, bool SearchDead = false)
 {
     auto state_ptr = (OrgState *) State;
     const auto &tag = Org->GetMorphologyTag();
@@ -95,13 +98,19 @@ BaseIndividual *find_nearest_enemy(const void *State, const BaseIndividual *Org,
         // Ignore individuals that aren't being simulated right now or those of your species
         if (!individual->InSimulation || tag == individual->GetMorphologyTag())
             continue;
-
-		// Ignore dead individuals
-		if ((OnlyDead && other_state_ptr->Life > 0) || 
-			(!OnlyDead && other_state_ptr->Life < 0))
+		
+		// Ignore individuals that are out of the world bounds
+		if (other_state_ptr->Position.x < 0 || other_state_ptr->Position.y < 0 ||
+			other_state_ptr->Position.x > WorldSizeX || other_state_ptr->Position.y > WorldSizeY)
 			continue;
 
-        float dist = (other_state_ptr->Position - state_ptr->Position).length_sqr();
+		// Ignore dead individuals
+		if ((SearchDead && other_state_ptr->Life > 0) ||
+			(!SearchDead && other_state_ptr->Life <= 0))
+			continue;
+
+		auto delta = abs >> (other_state_ptr->Position - state_ptr->Position);
+		int dist = max(delta.x, delta.y);
         if (dist == 0)
             return individual;
 
@@ -122,7 +131,8 @@ bool eat_food(void *State, void *World)
     int idx = find_nearest_food(State, World);
     float2 pos = world_ptr->FoodPositions[idx];
 
-    float dist = (pos - state_ptr->Position).length_sqr();
+	auto delta = abs >> (pos - state_ptr->Position);
+	int dist = max(delta.x, delta.y);
     if (dist <= 1)
     {
         world_ptr->FoodPositions[idx] = random_valid_position(world_ptr);
@@ -274,9 +284,10 @@ void PublicInterfaceImpl::Init()
 						if (dead_enemy)
 						{
 							state_ptr->Life += FoodScoreGain;
-							// Move the dead individual out of the map
-							dead_enemy->GetState<OrgState>()->Position.x = -9999;
-							dead_enemy->GetState<OrgState>()->Position.y = -9999;
+
+							// Move the eaten enemy out of the world
+							dead_enemy->GetState<OrgState>()->Position.x = -999;
+							dead_enemy->GetState<OrgState>()->Position.y = -999;
 
 							state_ptr->EatenCount++;
 						}
@@ -298,10 +309,12 @@ void PublicInterfaceImpl::Init()
 						else if (enemy)
 						{
 							state_ptr->Life += FoodScoreGain;
-							// Move the dead individual out of the map
-							enemy->GetState<OrgState>()->Position.x = -9999;
-							enemy->GetState<OrgState>()->Position.y = -9999;
+
 							enemy->GetState<OrgState>()->Score -= DeathPenalty;
+
+							// Move the eaten enemy out of the world
+							enemy->GetState<OrgState>()->Position.x = -999;
+							enemy->GetState<OrgState>()->Position.y = -999;
 
 							state_ptr->EatenCount++;
 						}
@@ -310,7 +323,7 @@ void PublicInterfaceImpl::Init()
                     }
             );
 
-    // Kill and eat and individual of a different species at most once cell away
+    // Kill an individual of a different species at most once cell away
     // This is a simple test, so no fighting is simulated
     ActionRegistry[(int) ActionsIDs::Kill] = Action
             (
@@ -323,14 +336,12 @@ void PublicInterfaceImpl::Init()
                         {
                             auto other_state_ptr = (OrgState *) enemy->GetState();
 
-                            float dist = (other_state_ptr->Position - state_ptr->Position).length_sqr();
+							auto delta = abs >> (other_state_ptr->Position - state_ptr->Position);
+							int dist = max(delta.x, delta.y);
 							if (dist <= 1)
 							{
 								other_state_ptr->Life = 0;
 
-								// Move the dead individual out of the map
-								enemy->GetState<OrgState>()->Position.x = -9999;
-								enemy->GetState<OrgState>()->Position.y = -9999;
 								enemy->GetState<OrgState>()->Score -= DeathPenalty;
 							}
                             else
@@ -373,7 +384,38 @@ void PublicInterfaceImpl::Init()
                     }
             );
 
-    SensorRegistry[(int) SensorsIDs::NearestCompetitorDeltaX] = Sensor
+    SensorRegistry[(int) SensorsIDs::NearestCorpseDeltaX] = Sensor
+            (
+                    [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
+                    {
+                        BaseIndividual* nearest_competitor = find_nearest_enemy(State, Org, Individuals, true);
+						if (!nearest_competitor) return -999.0f;
+
+                        auto state_ptr = (OrgState *) State;
+                        auto other_state_ptr = (OrgState *) nearest_competitor->GetState();
+
+                        float2 dist = other_state_ptr->Position - state_ptr->Position;
+                        return dist.x;
+                    }
+            );
+
+
+    SensorRegistry[(int) SensorsIDs::NearestCorpseDeltaY] = Sensor
+            (
+                    [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
+                    {
+                        BaseIndividual* nearest_competitor = find_nearest_enemy(State, Org, Individuals, true);
+						if (!nearest_competitor) return -999.0f;
+
+                        auto state_ptr = (OrgState *) State;
+                        auto other_state_ptr = (OrgState *) nearest_competitor->GetState();
+
+                        float2 dist = other_state_ptr->Position - state_ptr->Position;
+                        return dist.y;
+                    }
+            );
+
+	    SensorRegistry[(int) SensorsIDs::NearestCompetidorDeltaX] = Sensor
             (
                     [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
                     {
@@ -389,7 +431,7 @@ void PublicInterfaceImpl::Init()
             );
 
 
-    SensorRegistry[(int) SensorsIDs::NearestCompetitorDeltaY] = Sensor
+    SensorRegistry[(int) SensorsIDs::NearestCompetidorDeltaY] = Sensor
             (
                     [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
                     {
@@ -404,7 +446,6 @@ void PublicInterfaceImpl::Init()
                     }
             );
 
-	
 	SensorRegistry[(int) SensorsIDs::CurrentCell] = Sensor
             (
                     [](void *State, const vector<BaseIndividual *> &Individuals, const BaseIndividual *Org, void *World)
@@ -506,20 +547,24 @@ void PublicInterfaceImpl::Init()
                              },
                              // Carnivore
                              {
-                                     {(int) ActionsIDs::EatEnemy},
+                                     {(int) ActionsIDs::EatEnemy, (int) ActionsIDs::Kill},
                                      {
-                                             (int) SensorsIDs::NearestCompetitorDeltaX,
-                                             (int) SensorsIDs::NearestCompetitorDeltaY,
+											 (int) SensorsIDs::NearestCompetidorDeltaX,
+											 (int) SensorsIDs::NearestCompetidorDeltaY,
+                                             (int) SensorsIDs::NearestCorpseDeltaX,
+                                             (int) SensorsIDs::NearestCorpseDeltaY,
                                      }
                              },
                              // Omnivore
                              {
-                                     {(int) ActionsIDs::EatFoodEnemy},
+                                     {(int) ActionsIDs::EatFoodEnemy, (int)ActionsIDs::Kill},
                                      {
+										     (int)SensorsIDs::NearestCompetidorDeltaX,
+											 (int)SensorsIDs::NearestCompetidorDeltaY,
                                              (int) SensorsIDs::NearestFoodDeltaX,
                                              (int) SensorsIDs::NearestFoodDeltaY,
-                                             (int) SensorsIDs::NearestCompetitorDeltaX,
-                                             (int) SensorsIDs::NearestCompetitorDeltaY,
+                                             (int) SensorsIDs::NearestCorpseDeltaX,
+                                             (int) SensorsIDs::NearestCorpseDeltaY,
                                      }
                              },
                      }
@@ -572,8 +617,8 @@ void PublicInterfaceImpl::Init()
                                      {
                                              {},
                                              {
-                                                     (int) SensorsIDs::NearestCompetitorDeltaX,
-                                                     (int) SensorsIDs::NearestCompetitorDeltaY
+                                                     (int) SensorsIDs::NearestCompetidorDeltaX,
+                                                     (int) SensorsIDs::NearestCompetidorDeltaY
                                              }
                                      }
                              }

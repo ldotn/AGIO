@@ -62,7 +62,7 @@ for name, values in ranges:
     for v in values:
         flat_ranges.append((name,v))
 
-eval_repeats = 3
+eval_repeats = 50
 
 for batch_idx, batch in enumerate(batches(flat_ranges,workers_num)):
     for idx, (name, value) in enumerate(batch):

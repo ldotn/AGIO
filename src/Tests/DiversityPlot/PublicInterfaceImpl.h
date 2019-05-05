@@ -59,8 +59,11 @@ enum class ActionsIDs
 
 enum class SensorsIDs
 {
-    NearestCompetitorDeltaX,
-    NearestCompetitorDeltaY,
+	NearestCompetidorDeltaX,
+	NearestCompetidorDeltaY,
+
+    NearestCorpseDeltaX,
+    NearestCorpseDeltaY,
 
     NearestFoodDeltaX,
     NearestFoodDeltaY,
@@ -78,7 +81,9 @@ enum class CellType
 {
     Ground,
     Water,
-    Wall
+    Wall,
+
+	NumberOfTypes
 };
 
 struct WorldData
