@@ -463,6 +463,19 @@ void Population::CurrentSpeciesToRegistry()
 			entry.Morphology = bestIndividual->GetMorphologyTag();
 			entry.BestFitness = bestIndividual->Fitness;
 			entry.HistoricalBestGenome = bestIndividual->GetGenome()->duplicate(0);
+
+			priority_queue<pair<float, int>> sorted_orgs;
+			for (int org_id : species.IndividualsIDs)
+				sorted_orgs.push({ Individuals[org_id].Fitness, org_id });
+
+			entry.LastBestGenomes.resize(Settings::ProgressMetricsIndividuals);
+			for (int i = 0; i < Settings::ProgressMetricsIndividuals; i++)
+			{
+				auto& org = Individuals[sorted_orgs.top().second];
+				entry.LastBestGenomes[i] = { org.Fitness, org.Genome->duplicate(org.Genome->genome_id) };
+				sorted_orgs.pop();
+			}
+
 			StagnantSpecies.push_back(move(entry));
 		}
 	}
