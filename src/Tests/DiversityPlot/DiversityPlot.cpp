@@ -38,8 +38,8 @@ void runSimulation(const string& WorldPath)
 	Interface->Init();
 
 	// Create and fill the world
-	WorldData world = createWorld(WorldPath);
-
+	WorldData world = createWorld("../assets/worlds/world4.txt");
+	/*
 	SRegistry registry;
 	registry.load(SerializationFile);
 
@@ -72,8 +72,7 @@ void runSimulation(const string& WorldPath)
 
 	for (auto& org : individuals)
 		org->Reset();
-
-	//rlutil::cls();
+		*/
 
 	//ConsoleRenderer renderer;
 	SFMLRenderer renderer;
@@ -113,33 +112,39 @@ void runSimulation(const string& WorldPath)
 		items_to_render.resize(0);
 
 		for (int y = 0; y < world.CellTypes.size(); y++)
+			for (int x = 0; x < world.CellTypes[y].size(); x++)
+				items_to_render.push_back({ {x,y}, renderer.GetSpriteID("ground") });
+
+		for (int y = 0; y < world.CellTypes.size(); y++)
 		{
 			const auto& row = world.CellTypes[y];
 			for (int x = 0; x < row.size(); x++)
 			{
 				switch (row[x])
 				{
-				case CellType::Ground:
+				/*case CellType::Ground:
 					items_to_render.push_back({ {x,y}, renderer.GetSpriteID("ground") });
-					break;
+					break;*/
 				case CellType::Wall:
 					items_to_render.push_back({ {x,y}, renderer.GetSpriteID("wall") });
 					break;
 				case CellType::Water:
 					items_to_render.push_back({ {x,y}, renderer.GetSpriteID("water") });
 					break;
+				default:
+					break;
 				}
 			}
 		}
 
-		for (auto& org : individuals)
+		/*for (auto& org : individuals)
 			if (org->GetState<OrgState>()->Life > 0) // TODO : Create a new one of a different species
-				org->DecideAndExecute(&world, individuals);
+				org->DecideAndExecute(&world, individuals);*/
 
 		// Plot food
 		for (auto pos : world.FoodPositions)
 			items_to_render.push_back({ {(int)pos.x,(int)pos.y}, renderer.GetSpriteID("food") });
-
+		/*
 		// Plot each species in a different color
 		for (auto [idx, id_vec] : enumerate(species_ids))
 		{
@@ -158,13 +163,14 @@ void runSimulation(const string& WorldPath)
 			
 				items_to_render.push_back({ {(int)state_ptr->Position.x,(int)state_ptr->Position.y}, sprite_id, species_colors[idx] });
 			}
-		}
+		}*/
 
 		renderer.Render(window, items_to_render);
 	}
 
-	for (auto org : individuals)
-		delete org;
+	/*for (auto org : individuals)
+		delete org;*/
+
 	// NOTE! : Explictely leaking the interface here!
 	// There's a good reason for it
 	// The objects in the system need the interface to delete themselves
