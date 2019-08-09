@@ -32,7 +32,7 @@ namespace agio
 		std::vector<int> Sensors;
 
 		SIndividual();
-		SIndividual(NEAT::Genome *genome, MorphologyTag morphologyTag);
+		SIndividual(::NEAT::Genome *genome, MorphologyTag morphologyTag);
 
 		friend class boost::serialization::access;
 		template<class Archive>
@@ -43,9 +43,11 @@ namespace agio
 			ar & Actions;
 			ar & Sensors;
 			ar & morphologyTag;
-
-			// While the values are not relevant, serializing it so that it's always of the correct size
+			ar & UseMaxNetworkOutput;
 			ar & ActivationsBuffer;
+			ar & SensorsValues;
+			ar & ActionsMap;
+			ar & SensorsMap;
 		}
 
 		void DecideAndExecute(void * World, const std::vector<BaseIndividual*> &Individuals) override;
@@ -54,5 +56,7 @@ namespace agio
 
 		const std::unordered_map<int, Parameter>& GetParameters() const override;
 		const MorphologyTag& GetMorphologyTag() const override;
+
+		size_t TotalSize() const;
 	};
 }

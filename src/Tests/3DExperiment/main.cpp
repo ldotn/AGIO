@@ -124,7 +124,7 @@ int main()
 		{
 			cout << "Generation : " << gen << endl;
 			cout << "    " << pop.GetSpecies().size() << " Species " << endl;
-			pop.ComputeDevMetrics(world_ptr);
+			//pop.ComputeDevMetrics(world_ptr);
 
 			for (const auto&[tag, species] : pop.GetSpecies())
 			{

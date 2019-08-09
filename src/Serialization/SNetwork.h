@@ -54,6 +54,8 @@ namespace agio
 			ar & in_node_idx;
 			ar & out_node_idx;
 		}
+
+		size_t TotalSize() const { return sizeof(*this); }
 	};
 
 	class SNode 
@@ -67,6 +69,8 @@ namespace agio
 
 		SNode();
 		SNode(NodeType type);
+
+		size_t TotalSize() const;
 	private:
 		friend SNetwork;
 		friend SLink;
@@ -103,6 +107,7 @@ namespace agio
 		SNetwork();
 		SNetwork(NEAT::Network *network);
 
+		size_t TotalSize() const;
 	private:
 		bool outputsOff();
 

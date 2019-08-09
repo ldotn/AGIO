@@ -176,3 +176,32 @@ SNetwork::SNetwork(NEAT::Network *network) : SNetwork()
 			all_nodes[nodeMap[node]].outgoing.emplace_back(findLink(link));
     }
 }
+
+size_t SNode::TotalSize() const
+{
+	// Start with the size of the class
+	size_t ret = sizeof(*this);
+
+	// Add the size of the elements
+	for (const auto& link : incoming)
+		ret += link.TotalSize();
+	for (const auto& link : outgoing)
+		ret += link.TotalSize();
+
+	return ret;
+}
+
+size_t SNetwork::TotalSize() const
+{
+	// Start with the size of the class
+	size_t ret = sizeof(*this);
+
+	// Add the size of the elements
+	ret += inputs.capacity() * sizeof(int);
+	ret += outputs.capacity() * sizeof(int);
+	
+	for (const auto& node : all_nodes)
+		ret += node.TotalSize();
+
+	return ret;
+}

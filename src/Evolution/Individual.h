@@ -96,12 +96,7 @@ namespace agio
 		enum { UseBrain, UseUserFunction, DecideRandomly } DecisionMethod = UseBrain;
 
 		// If the decision method is UseUserFunction, this function is called to decide the action
-		std::function<int(const std::vector<float>& SensorValues)> UserDecisionFunction;
-
-		// If true, the action selected is the one with the maximum value
-		// Otherwise, it selects randomly using the network outputs as probabilities
-		// By default it's false
-		bool UseMaxNetworkOutput = false;
+		std::function<int(const std::vector<float>& SensorValues, BaseIndividual *org)> UserDecisionFunction;
 		
 		struct
 		{
@@ -120,8 +115,6 @@ namespace agio
 		std::vector<int> Actions;
 		std::vector<int> Sensors;
 		std::vector<float> ActivationsBuffer;
-
-		std::minstd_rand RNG;
 
 		// IDs of the components in the global (user provided) components registry
 		MorphologyTag Morphology;

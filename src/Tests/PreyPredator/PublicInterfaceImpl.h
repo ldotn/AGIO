@@ -64,6 +64,18 @@ enum class SensorsIDs
 struct WorldData
 {
     vector<float2> FoodPositions;
+
+    void fill(int FoodCellCount, int WorldSizeX, int WorldSizeY)
+    {
+		minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
+
+		FoodPositions.resize(FoodCellCount);
+		for (auto &pos : FoodPositions)
+		{
+			pos.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
+			pos.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
+		}
+    }
 };
 
 class PublicInterfaceImpl : public PublicInterface
@@ -92,4 +104,68 @@ public:
 
     // This computes fitness for the entire population
     void ComputeFitness(const std::vector<class BaseIndividual*>& Individuals, void * World) override;
+};
+
+class Metrics {
+public:
+	vector<float> fitness_vec_hervibore;
+	vector<float> novelty_vec_hervibore;
+	vector<float> fitness_vec_carnivore;
+	vector<float> novelty_vec_carnivore;
+
+	vector<float> fitness_vec_registry;
+	vector<float> novelty_vec_registry;
+	vector<float> avg_fitness_herbivore;
+	vector<float> avg_progress_herbivore;
+	vector<float> avg_fitness_carnivore;
+	vector<float> avg_progress_carnivore;
+
+	vector<float> avg_eaten_herbivore;
+	vector<float> avg_eaten_carnivore;
+	vector<float> avg_failed_herbivore;
+	vector<float> avg_failed_carnivore;
+	vector<float> avg_coverage_herbivore;
+	vector<float> avg_coverage_carnivore;
+
+	vector<float> min_eaten_herbivore;
+	vector<float> min_eaten_carnivore;
+	vector<float> min_failed_herbivore;
+	vector<float> min_failed_carnivore;
+	vector<float> min_coverage_herbivore;
+	vector<float> min_coverage_carnivore;
+
+	vector<float> max_eaten_herbivore;
+	vector<float> max_eaten_carnivore;
+	vector<float> max_failed_herbivore;
+	vector<float> max_failed_carnivore;
+	vector<float> max_coverage_herbivore;
+	vector<float> max_coverage_carnivore;
+
+	vector<float> avg_eaten_herbivore_greedy;
+	vector<float> avg_eaten_carnivore_greedy;
+	vector<float> avg_failed_herbivore_greedy;
+	vector<float> avg_failed_carnivore_greedy;
+	vector<float> avg_coverage_herbivore_greedy;
+	vector<float> avg_coverage_carnivore_greedy;
+
+	vector<float> avg_fitness_carnivore_random;
+	vector<float> avg_fitness_herbivore_random;
+
+	vector<float> avg_fitness_difference;
+	vector<float> avg_fitness_network;
+	vector<float> avg_fitness_random;
+	vector<float> avg_novelty_registry;
+	vector<float> species_count;
+	vector<float> min_fitness_difference;
+	vector<float> max_fitness_difference;
+
+	Metrics();
+
+	void update(Population &pop);
+
+	void plot(Population &pop);
+
+	~Metrics();
+private:
+	void calculate_metrics(Population &pop);
 };

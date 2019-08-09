@@ -347,3 +347,6 @@ boost-cmake/
 
 # Python 
 venv/
+
+
+parametric_config/

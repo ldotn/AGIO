@@ -14,7 +14,10 @@ using namespace std;
 using namespace agio;
 using namespace fpp;
 
-SIndividual::SIndividual() {}
+SIndividual::SIndividual()
+{
+	RNG = minstd_rand(chrono::high_resolution_clock::now().time_since_epoch().count());
+}
 
 SIndividual::SIndividual(NEAT::Genome *genome, MorphologyTag morphology)
 {
@@ -26,32 +29,16 @@ SIndividual::SIndividual(NEAT::Genome *genome, MorphologyTag morphology)
     brain = move(SNetwork(genome->genesis(genome->genome_id)));
 
     // Reconstruct actions and sensors
-    unordered_set<int> actions_set;
-    unordered_set<int> sensors_set;
+    TagDesc tag_desc(morphologyTag);
+    Actions = tag_desc.ActionIDs;
+    Sensors = tag_desc.SensorIDs;
+	for (auto[idx, id] : enumerate(Sensors))
+		SensorsMap[id] = idx;
+	for (auto[idx, id] : enumerate(Actions))
+		ActionsMap[id] = idx;
 
-    for(const auto &componentRef : morphologyTag) {
-        const ComponentGroup &group = Interface->GetComponentRegistry()[componentRef.GroupID];
-        Component component = group.Components[componentRef.ComponentID];
-
-        actions_set.insert(component.Actions.begin(), component.Actions.end());
-        sensors_set.insert(component.Sensors.begin(), component.Sensors.end());
-    }
-
-    // Convert the action and sensors set to vectors
-    Actions.resize(actions_set.size());
-    for (auto[idx, action] : enumerate(actions_set))
-        Actions[idx] = action;
 	ActivationsBuffer.resize(Actions.size());
-
-    Sensors.resize(sensors_set.size());
-    for (auto[idx, sensor] : enumerate(sensors_set))
-        Sensors[idx] = sensor;
-
-    // Sort the actions and the sensors vectors
-    // This is important! Otherwise mating between individuals is meaningless, because the order is arbitrary
-    //  and the same input could mean different things for two individuals of the same species
-    sort(Actions.begin(), Actions.end());
-    sort(Sensors.begin(), Sensors.end());
+	SensorsValues.resize(Sensors.size());
 }
 
 const MorphologyTag& SIndividual::GetMorphologyTag() const
@@ -81,19 +68,38 @@ int SIndividual::DecideAction()
 	for (auto[idx, node_idx] : enumerate(brain.outputs))
 		act_sum += ActivationsBuffer[idx] = brain.all_nodes[node_idx].activation; // The activation function is in [0, 1], check line 461 of neat.cpp
 
-	std::minstd_rand RNG = minstd_rand(chrono::high_resolution_clock::now().time_since_epoch().count());
 	int action;
-	if (act_sum > 1e-6)
+
+	if (UseMaxNetworkOutput)
 	{
-		discrete_distribution<int> action_dist(begin(ActivationsBuffer), end(ActivationsBuffer));
-		action = action_dist(RNG);
+		float max_v = ActivationsBuffer[0];
+		action = 0;
+
+		// Yeah, I know that I'm checking the first element twice, but the performance impact is negligible
+		for (auto[idx, v] : enumerate(ActivationsBuffer))
+		{
+			if (v > max_v)
+			{
+				max_v = v;
+				action = idx;
+			}
+		}
 	}
 	else
 	{
-		// Can't decide on an action because all activations are 0
-		// Select one action at random
-		uniform_int_distribution<int> action_dist(0, Actions.size() - 1);
-		action = action_dist(RNG);
+		if (act_sum > 1e-6)
+		{
+			discrete_distribution<int> action_dist(begin(ActivationsBuffer), end(ActivationsBuffer));
+			action = action_dist(RNG);
+		}
+		else
+		{
+			// Can't decide on an action because all activations are 0
+			// Select one action at random
+			uniform_int_distribution<int> action_dist(0, Actions.size() - 1);
+			action = action_dist(RNG);
+		}
+
 	}
 
 	return action;
@@ -110,4 +116,20 @@ void SIndividual::DecideAndExecute(void *World, const std::vector<BaseIndividual
 
     // Finally execute the action
     Interface->GetActionRegistry()[Actions[action]].Execute(State, Individuals, this, World);
+}
+
+size_t SIndividual::TotalSize() const
+{
+	// Start with the size of the class
+	size_t ret = sizeof(*this);
+	
+	// Add the size of the elements
+	ret += ActivationsBuffer.capacity() * sizeof(float);
+	ret += Actions.capacity() * sizeof(int);
+	ret += Sensors.capacity() * sizeof(int);
+	ret += morphologyTag.capacity() * sizeof(ComponentRef);
+	// Note : rough lower bound, it's just considering the allocated elements
+	ret += parameters.size() * sizeof(Parameter);
+	
+	return ret + brain.TotalSize();
 }

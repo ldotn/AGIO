@@ -29,7 +29,7 @@ namespace agio
 		NEAT::Population * NetworksPopulation;
 
 		// Used to track progress
-		float LastFitness = 0; // moving average
+		float BestFitness = 0; // moving average
 		float ProgressMetric = 0; // Moving average difference of fitness with last
 		
 		int Age = 0;
@@ -53,10 +53,10 @@ namespace agio
 	{
 		MorphologyTag Morphology;
 		NEAT::Genome * HistoricalBestGenome;
-		std::vector<NEAT::Genome*> LastGenomes;
+		std::vector<std::pair<float,NEAT::Genome*>> LastBestGenomes; // ProgressMetricsIndividuals size
 		int IndividualsSize;
 		int Age;
-		float LastFitness;
+		float BestFitness;
 	};
 
 	class Population
@@ -73,38 +73,25 @@ namespace agio
 
 		// Computes a single evolutive step
 		// The callback is called right after evaluation
-		// The MuteNEAT parameter disables console output from neat
-		void Epoch(void * World, std::function<void(int)> EpochCallback = [](int){}, bool MuteNEAT = false);
+		// The MuteOutput parameter disables console output
+		void Epoch(void * World, std::function<void(int)> EpochCallback = [](int){}, bool MuteOutput = false);
 
 		const auto& GetIndividuals() const { return Individuals; }
 		auto& GetIndividuals() { return Individuals; }
 		const auto& GetSpecies() const { return SpeciesMap; }
 		const auto& GetSpeciesRegistry() const { return StagnantSpecies; }
-		// Returns several metrics that allow one to measure the progress of the evolution
-		// TODO : More comprehensive docs maybe?
-		struct ProgressMetrics
-		{
-			ProgressMetrics() { memset(this, 0, sizeof(ProgressMetrics)); }
-			float AverageNovelty;
-			float NoveltyStandardDeviation;
-			float ProgressMetric;
-			float AverageFitness;
-			float AverageRandomFitness;
-			float FitnessDifferenceStandardDeviation;
-			float MaxFitnessDifference;
-			float MinFitnessDifference;
-		};
-		//ProgressMetrics ComputeProgressMetrics(void * World);
-		void ComputeDevMetrics(void * World);
 
-		// Variables used in mutate_add_node and mutate_add_link (neat)
-		// TODO : Refactor this so that the naming is consistent
-		int cur_node_id;
-		double cur_innov_num;
+		// Runs the simulation with the provided decision functions, replacing one species at a time
+		// Useful to compare the evolved network against some known decision function
+		// It calls a callback function each time a species finishes simulating
+		void SimulateWithUserFunction(void * World,std::unordered_map<MorphologyTag, decltype(Individual::UserDecisionFunction)> FunctionsMap, std::function<void(const MorphologyTag&)> Callback);
 
 		// Evaluates the population
 		void EvaluatePopulation(void * WorldPtr);
 		void CurrentSpeciesToRegistry();
+
+		// Generates a report of the registry
+		void SaveRegistryReport(const std::string& Path);
 	private:
 		friend SPopulation;
 		int CurrentGeneration;

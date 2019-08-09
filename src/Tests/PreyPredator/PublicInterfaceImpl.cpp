@@ -24,6 +24,11 @@ void PublicInterfaceImpl::Init()
                     {
                         auto state_ptr = (OrgState*)State;
 
+
+						//if (!state_ptr->IsCarnivore) return;
+
+
+
                         if (state_ptr->Position.y >= WorldSizeY - 1)
                             state_ptr->Score -= BorderPenalty;
 
@@ -37,6 +42,11 @@ void PublicInterfaceImpl::Init()
                     [&](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
                     {
                         auto state_ptr = (OrgState*)State;
+
+
+						//if (!state_ptr->IsCarnivore) return;
+
+
 
                         if (state_ptr->Position.y <= 1)
                             state_ptr->Score -= BorderPenalty;
@@ -52,6 +62,11 @@ void PublicInterfaceImpl::Init()
                     {
                         auto state_ptr = (OrgState*)State;
 
+
+						//if (!state_ptr->IsCarnivore) return;
+
+
+
                         if (state_ptr->Position.x >= WorldSizeX)
                             state_ptr->Score -= BorderPenalty;
 
@@ -66,6 +81,11 @@ void PublicInterfaceImpl::Init()
                     {
                         auto state_ptr = (OrgState*)State;
 
+
+
+						//if (!state_ptr->IsCarnivore) return;
+
+
                         if (state_ptr->Position.x <= 1)
                             state_ptr->Score -= BorderPenalty;
 
@@ -79,6 +99,12 @@ void PublicInterfaceImpl::Init()
             (
                     [this](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
                     {
+
+
+		//return;
+
+
+
                         auto world_ptr = (WorldData*)World;
                         auto state_ptr = (OrgState*)State;
 
@@ -92,7 +118,8 @@ void PublicInterfaceImpl::Init()
                                 state_ptr->Score += FoodScoreGain;
 
                                 // Just move the food to a different position. Achieves the same effect as removing it
-                                world_ptr->FoodPositions[idx] = { uniform_real_distribution<float>(0, WorldSizeX)(RNG), uniform_real_distribution<float>(0, WorldSizeY)(RNG) };
+                                world_ptr->FoodPositions[idx].x = uniform_int_distribution<int>(0, WorldSizeX)(RNG);
+                                world_ptr->FoodPositions[idx].y = uniform_int_distribution<int>(0, WorldSizeY)(RNG);
                                 any_eaten = true;
                                 break;
                             }
@@ -133,7 +160,7 @@ void PublicInterfaceImpl::Init()
 
                             auto other_state_ptr = (OrgState*)individual->GetState();
                             auto diff = abs >> (other_state_ptr->Position - state_ptr->Position);
-                            if (diff.x <= 1 && diff.y <= 1)
+                            if (diff.x <= 2 && diff.y <= 2)
                             {
                                 // Check if they are from different species by comparing tags
                                 const auto& other_tag = individual->GetMorphologyTag();
@@ -275,7 +302,7 @@ void PublicInterfaceImpl::Init()
                             }
                         }
 
-                        return (nearest_pos - state_ptr->Position).x;
+                        return (nearest_pos - state_ptr->Position).y;
                     }
             );
 

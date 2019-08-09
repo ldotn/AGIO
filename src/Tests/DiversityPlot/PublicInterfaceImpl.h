@@ -10,16 +10,25 @@
 using namespace std;
 using namespace agio;
 
+enum class OrgType { Carnivore, Herbivore, Omnivore };
+
 struct OrgState
 {
-    float Life = 100;
+    float Life = -1;
     float2 Position;
+
+	// Score = fitness
+	float Score = 0;
+
+	// Metrics
+	int EatenCount = 0;
+
+	OrgType Type;
 };
 
 enum class ParametersIDs
 {
     JumpDistance,
-    MoveGrassWaterRatio,
     NumberOfParameters
 };
 
@@ -50,12 +59,20 @@ enum class ActionsIDs
 
 enum class SensorsIDs
 {
-    NearestCompetitorDeltaX,
-    NearestCompetitorDeltaY,
-    NearestCompetitorAlive,
+	NearestCompetidorDeltaX,
+	NearestCompetidorDeltaY,
+
+    NearestCorpseDeltaX,
+    NearestCorpseDeltaY,
 
     NearestFoodDeltaX,
     NearestFoodDeltaY,
+
+	CurrentCell,
+	TopCell,
+	DownCell,
+	RightCell,
+	LeftCell,
 
     NumberOfSensors
 };
@@ -64,7 +81,9 @@ enum class CellType
 {
     Ground,
     Water,
-    Wall
+    Wall,
+
+	NumberOfTypes
 };
 
 struct WorldData

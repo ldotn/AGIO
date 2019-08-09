@@ -23,6 +23,9 @@ set(project_sources
 	src/Serialization/SNetwork.cpp
 	src/Serialization/SRegistry.cpp
 	src/Evolution/MorphologyTag.cpp
+	src/Core/Config.cpp
+	src/Utils/ConsoleRenderer.cpp
+	src/Utils/SFMLRenderer.cpp
 	${neat_sources})
 
 add_library(agio_lib STATIC ${project_sources})
@@ -50,20 +53,10 @@ if (build_tests)
 			src/Tests/PreyPredator/PreyPredatorEvolution.cpp
 			src/Tests/PreyPredator/PreyPredator.cpp
 			src/Tests/PreyPredator/PublicInterfaceImpl.cpp)
-			#src/Tests/Greedy/Greedy.cpp)
-	target_link_libraries(prey_predator
-		agio_lib
-		${PYTHON_LIBRARIES}
-		Boost::serialization)
 	
 	add_executable(experiment_3d
 		src/Tests/3DExperiment/3DExperiment.cpp
 		src/Tests/3DExperiment/main.cpp)
-
-	target_link_libraries(experiment_3d
-		agio_lib
-		${PYTHON_LIBRARIES}
-		Boost::serialization)
 
 	set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 	if (WIN32)
@@ -84,11 +77,94 @@ if (build_tests)
 			src/Tests/DiversityPlot/Animation.cpp
 			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
 
+	add_executable(human_test
+			src/Tests/DiversityPlot/HumanTest.cpp
+			src/Tests/DiversityPlot/DiversityPlot.cpp
+			src/Tests/DiversityPlot/DiversityPlotEvolution.cpp
+			src/Tests/DiversityPlot/Character.cpp
+			src/Tests/DiversityPlot/AnimatedSprite.cpp
+			src/Tests/DiversityPlot/Animation.cpp
+			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
+	
+	add_executable(perf_test
+			src/Tests/DiversityPlot/PerfTest.cpp
+			src/Tests/DiversityPlot/DiversityPlot.cpp
+			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
+	
+	add_executable(memory_test
+			src/Tests/DiversityPlot/MemoryTest.cpp
+			src/Tests/DiversityPlot/DiversityPlot.cpp
+			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
+	
+	add_executable(nn_graph_dump
+			src/Tests/DiversityPlot/NNGraphsTests.cpp
+			src/Tests/DiversityPlot/DiversityPlot.cpp
+			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
+
+	add_executable(interrelations_test
+			src/Tests/DiversityPlot/InterrelationsTest.cpp
+			src/Tests/DiversityPlot/DiversityPlot.cpp
+			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
+
+	add_executable(sim_size_test
+			src/Tests/DiversityPlot/SimSizeTest.cpp
+			src/Tests/PreyPredator/PreyPredatorEvolution.cpp
+			src/Tests/PreyPredator/PreyPredator.cpp
+			src/Tests/PreyPredator/PublicInterfaceImpl.cpp)
+
+	target_link_libraries(sim_size_test
+		agio_lib
+		${PYTHON_LIBRARIES}
+		Boost::serialization
+		${SFML_LIBRARIES})
+
+	target_link_libraries(interrelations_test
+			agio_lib
+			${PYTHON_LIBRARIES}
+			Boost::serialization
+			${SFML_LIBRARIES})
+
+	target_link_libraries(nn_graph_dump
+			agio_lib
+			${PYTHON_LIBRARIES}
+			Boost::serialization
+			${SFML_LIBRARIES})
+
+	target_link_libraries(memory_test
+			agio_lib
+			${PYTHON_LIBRARIES}
+			Boost::serialization
+			${SFML_LIBRARIES})
+
+	target_link_libraries(perf_test
+			agio_lib
+			${PYTHON_LIBRARIES}
+			Boost::serialization
+			${SFML_LIBRARIES})
+
+	target_link_libraries(human_test
+			agio_lib
+			${PYTHON_LIBRARIES}
+			Boost::serialization
+			${SFML_LIBRARIES})
+
 	target_link_libraries(diversity_plot
 			agio_lib
 			${PYTHON_LIBRARIES}
 			Boost::serialization
 			${SFML_LIBRARIES})
+
+	target_link_libraries(prey_predator
+		agio_lib
+		${PYTHON_LIBRARIES}
+		Boost::serialization
+		${SFML_LIBRARIES})
+
+	target_link_libraries(experiment_3d
+		agio_lib
+		${PYTHON_LIBRARIES}
+		Boost::serialization
+		${SFML_LIBRARIES})
 
 	if (WIN32)
 		# Extract the python DLL path from the lib path

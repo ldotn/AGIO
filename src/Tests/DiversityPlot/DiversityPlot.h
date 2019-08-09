@@ -8,7 +8,7 @@ extern int WorldSizeY;
 extern float FoodScoreGain;
 extern float KillScoreGain;
 extern float DeathPenalty;
-extern int FoodCellCount;
+extern float FoodCellProportion;
 extern int MaxSimulationSteps;
 extern int SimulationSize;
 extern int PopSizeMultiplier;
@@ -21,7 +21,7 @@ extern float WaterPenalty;
 extern std::string SerializationFile;
 extern int InitialLife;
 
-void runEvolution();
-void runSimulation();
+agio::Population runEvolution(const std::string& WorldPath, bool NoOutput = false);
+void runSimulation(const std::string& WorldPath);
 
-WorldData createWorld();
+WorldData createWorld(const std::string& WorldPath);

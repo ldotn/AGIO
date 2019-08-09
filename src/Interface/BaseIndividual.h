@@ -3,6 +3,7 @@
 #include <vector>
 #include "../Evolution/MorphologyTag.h"
 #include "genome.h"
+#include <random>
 
 namespace agio
 {
@@ -14,8 +15,14 @@ namespace agio
 		// Contains the mapping from sensor id to index on the sensors values vector
 		std::unordered_map<int, int> SensorsMap;
 
+		// Contains the mapping from action id to index on the action values vector
+		std::unordered_map<int, int> ActionsMap;
+
 		// Stores the current value of the sensors
 		std::vector<float> SensorsValues;
+
+		// Random number engine
+		std::minstd_rand RNG;
 	public:
 		virtual ~BaseIndividual() = default;
 
@@ -58,6 +65,22 @@ namespace agio
 			return true;
 		}
 
+		// Really low level, use with care!
+		void UpdateSensorValueFromIndex(int SensorIndex, float Value)
+		{
+			SensorsValues[SensorIndex] = Value;
+		}
+
+		// Returns true if the individual has the provided sensor/action ID
+		bool HasAction(int ActionID) const
+		{
+			return ActionsMap.find(ActionID) != ActionsMap.end();
+		}
+		bool HasSensor(int SensorID) const
+		{
+			return SensorsMap.find(SensorID) != SensorsMap.end();
+		}
+
 		// Reset the state and set fitness to -1
 		// Also flush the neural network
 		// Should be called before evaluating fitness
@@ -73,5 +96,10 @@ namespace agio
 
 		virtual const std::unordered_map<int, Parameter>& GetParameters() const = 0;
 		virtual const MorphologyTag& GetMorphologyTag() const = 0;
+
+		// If true, the action selected is the one with the maximum value
+		// Otherwise, it selects randomly using the network outputs as probabilities
+		// By default it's false
+		bool UseMaxNetworkOutput = false;
 	};
 }

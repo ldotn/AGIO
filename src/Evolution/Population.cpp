@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <unordered_set>
 #include <queue>
+#include <algorithm>
 
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
@@ -23,8 +24,6 @@ using namespace fpp;
 
 Population::Population() : RNG(std::chrono::high_resolution_clock::now().time_since_epoch().count())
 {
-	cur_node_id = 0;
-	cur_innov_num = 0;
 	CurrentGeneration = 0;
 }
 
@@ -56,7 +55,7 @@ void Population::Spawn(int SizeMult,int SimSize)
 	Individuals.reserve(pop_size);
 
 	// The loop is finished when no new species can be found
-	//   or when the pop size / (species count + 1)  < Min Species Greedy
+	//   or when the number of individuals per species will be under the min if we add another species
 	bool finished = false;
 	while (!finished)
 	{
@@ -119,7 +118,7 @@ void Population::Spawn(int SizeMult,int SimSize)
 	// TODO :  Separate organisms by distance in the world too
 }
 
-void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, bool MuteNEAT)
+void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, bool MuteOutput)
 {
 	// Evaluate the entire population
 	EvaluatePopulation(WorldPtr);
@@ -131,7 +130,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 	CurrentGeneration++;
 	
 	// [https://stackoverflow.com/questions/30184998/how-to-disable-cout-output-in-the-runtime]
-	if(MuteNEAT)
+	if(MuteOutput)
 		cout.setstate(ios_base::failbit);
 
 	// Now do the epoch
@@ -150,12 +149,14 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 
 				if (org.Genome == neat_org->gnome)  // comparing pointers
 				{
-					// Remapping because NEAT appears to only work with positive fitness
-					// TODO : FIND A BETTER FUNCTION!!
-					neat_org->fitness = log2(exp2(min(0.0001*org.Fitness,50.0)) + 1) + 1.0;
+				    float org_fitness = org.Fitness;
+				    if (org_fitness < -1e6)
+				        org_fitness = -1e6;
+				    if (org_fitness > 1e6)
+				        org_fitness = 1e6;
 
-					if (!isnormal(neat_org->fitness))
-						_CrtDbgBreak();
+					// Remapping because NEAT appears to only work with positive fitness
+					neat_org->fitness = org_fitness + 1e6 + 1;
 
 					fitness_queue.push(org.Fitness);
 
@@ -173,16 +174,16 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 
 		float inv_age = 1.0f / (s.Age + 1);
 		float falloff = (1.0f - inv_age) * Settings::ProgressMetricsFalloff + inv_age;
-		float smoothed_fitness = (1.0f - falloff)*s.LastFitness + falloff * avg_fit;
-		if (s.LastFitness <= 0)
+		float smoothed_fitness = (1.0f - falloff)*s.BestFitness + falloff * avg_fit;
+		if (s.BestFitness <= 0)
 		{
 			smoothed_fitness = avg_fit;
 			s.ProgressMetric = 0;
 		}
 		else
-			s.ProgressMetric = (1.0f - falloff)*s.ProgressMetric + falloff*((smoothed_fitness - s.LastFitness) / s.LastFitness);
+			s.ProgressMetric = (1.0f - falloff)*s.ProgressMetric + falloff*((smoothed_fitness - s.BestFitness) / s.BestFitness);
 
-		s.LastFitness = smoothed_fitness;
+		s.BestFitness = smoothed_fitness;
 
 
 		// With the fitness updated call the neat epoch
@@ -206,9 +207,6 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 		}
 	}
 
-	if (MuteNEAT)
-		cout.clear();
-
 	// With the species updated, check if there are stagnant ones
 	for(auto iter = SpeciesMap.begin();iter != SpeciesMap.end();)
 	{
@@ -230,17 +228,29 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 				entry.Age = s.Age;
 				entry.Morphology = tag;
 				entry.IndividualsSize = s.IndividualsIDs.size();
-				entry.LastFitness = s.LastFitness;
+				entry.BestFitness = s.BestFitness;
 				entry.HistoricalBestGenome = s.NetworksPopulation->GetBestGenome()->duplicate(0);
-				entry.LastGenomes.resize(s.NetworksPopulation->organisms.size());
-				for (auto [idx, org] : enumerate(s.NetworksPopulation->organisms))
-					entry.LastGenomes[idx] = org->gnome->duplicate(org->gnome->genome_id);
+
+				priority_queue<pair<float, int>> sorted_orgs;
+				for (int org_id : s.IndividualsIDs)
+					sorted_orgs.push({ Individuals[org_id].Fitness, org_id });
+
+				entry.LastBestGenomes.resize(Settings::ProgressMetricsIndividuals);
+				for (int i = 0;i < Settings::ProgressMetricsIndividuals;i++)
+				{
+					auto& org = Individuals[sorted_orgs.top().second];
+					entry.LastBestGenomes[i] = { org.Fitness, org.Genome->duplicate(org.Genome->genome_id) };
+					sorted_orgs.pop();
+				}
+				//entry.LastGenomes.resize(s.NetworksPopulation->organisms.size());
+				//for (auto [idx, org] : enumerate(s.NetworksPopulation->organisms))
+					//entry.LastGenomes[idx] = org->gnome->duplicate(org->gnome->genome_id);
 
 				StagnantSpecies.push_back(move(entry));
 
 				// Reset the species
 				s.Age = 0;
-				s.LastFitness = 0;
+				s.BestFitness = 0;
 				s.ProgressMetric = 0;
 				s.EpochsUnderThreshold = 0;
 				auto old_pop_ptr = s.NetworksPopulation;
@@ -361,6 +371,35 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 
 		++iter;
 	}
+
+	if (MuteOutput)
+		cout.clear();
+}
+
+void Population::SimulateWithUserFunction(void * World,std::unordered_map<MorphologyTag, decltype(Individual::UserDecisionFunction)> FunctionsMap, std::function<void(const MorphologyTag&)> Callback)
+{
+	// Set the decision functions for the individuals
+	for (auto & org : Individuals)
+		org.UserDecisionFunction = FunctionsMap[org.GetMorphologyTag()];
+
+	// For each species, simulate it using the provided function
+	for (auto &[tag, species] : SpeciesMap)
+	{
+		// Set all the individuals to use the function
+		vector<pair<float, float>> orgs_f(species.IndividualsIDs.size());
+
+		for (int org_id : species.IndividualsIDs)
+			Individuals[org_id].DecisionMethod = Individual::UseUserFunction;
+
+		// Evaluate and call the callback
+		EvaluatePopulation(World);
+
+		Callback(tag);
+
+		// Put things as they were
+		for (int org_id : species.IndividualsIDs)
+			Individuals[org_id].DecisionMethod = Individual::UseBrain;
+	}
 }
 
 void Population::EvaluatePopulation(void * WorldPtr)
@@ -404,57 +443,6 @@ void Population::EvaluatePopulation(void * WorldPtr)
 		org.Fitness = org.AccumulatedFitness / (float)Settings::SimulationReplications;
 };
 
-void Population::ComputeDevMetrics(void * World)
-{
-}
-
-#if 0
-void Population::ComputeDevMetrics(void * World)
-{
-	ProgressMetrics metrics;
-
-	EvaluatePopulation(World);
-	for (auto& org : Individuals)
-		org.DevMetrics.PrevFitness = org.Fitness;
-
-    // Now for each species set that to be random, and do a couple of simulations
-    // Override the use of the network for decision-making
-	for (auto &[_, species] : SpeciesMap)
-	{
-		species.DevMetrics = {};
-		vector<pair<float,float>> orgs_f(species.IndividualsIDs.size());
-
-		for (auto [idx,org_id] : enumerate(species.IndividualsIDs))
-			Individuals[org_id].UseNetwork = false;
-
-		EvaluatePopulation(World);
-
-		for (auto [idx,org_id] : enumerate(species.IndividualsIDs))
-		{
-			Individuals[org_id].UseNetwork = true;
-
-			float base_f = Individuals[org_id].DevMetrics.PrevFitness;
-			float random_f = Individuals[org_id].Fitness;
-			orgs_f[idx] = { base_f,random_f };
-		}
-			
-		sort(orgs_f.begin(), orgs_f.end(), [](auto a, auto b)
-		{
-			return a.first > b.first;
-		});
-
-		for (int i = 0; i < 5 && i < orgs_f.size() - 6; i--)
-		{
-			auto[base_f, random_f] = orgs_f[i];
-			species.DevMetrics.RandomFitness += random_f;
-			species.DevMetrics.RealFitness += base_f;
-		}
-			
-		species.DevMetrics.RandomFitness /= min((float)orgs_f.size(), 5.0f);
-		species.DevMetrics.RealFitness /= min((float)orgs_f.size(), 5.0f);
-	}
-}
-#endif
 void Population::CurrentSpeciesToRegistry()
 {
 	// Before serialization, put best individuals into the registry.
@@ -473,9 +461,55 @@ void Population::CurrentSpeciesToRegistry()
 			SpeciesRecord entry;
 			entry.Age = species.Age;
 			entry.Morphology = bestIndividual->GetMorphologyTag();
-			entry.LastFitness = bestIndividual->Fitness;
-			entry.HistoricalBestGenome = bestIndividual->GetGenome();
-			StagnantSpecies.push_back(entry);
+			entry.BestFitness = bestIndividual->Fitness;
+			entry.HistoricalBestGenome = bestIndividual->GetGenome()->duplicate(0);
+
+			priority_queue<pair<float, int>> sorted_orgs;
+			for (int org_id : species.IndividualsIDs)
+				sorted_orgs.push({ Individuals[org_id].Fitness, org_id });
+
+			entry.LastBestGenomes.resize(Settings::ProgressMetricsIndividuals);
+			for (int i = 0; i < Settings::ProgressMetricsIndividuals; i++)
+			{
+				auto& org = Individuals[sorted_orgs.top().second];
+				entry.LastBestGenomes[i] = { org.Fitness, org.Genome->duplicate(org.Genome->genome_id) };
+				sorted_orgs.pop();
+			}
+
+			StagnantSpecies.push_back(move(entry));
 		}
 	}
+}
+
+void Population::SaveRegistryReport(const std::string& Path)
+{
+	ofstream out_file(Path);
+
+	unordered_map<MorphologyTag, vector<SpeciesRecord>> species;
+	for (const auto& entry : StagnantSpecies)
+		species[entry.Morphology].push_back(entry);
+
+	out_file << species.size() << endl;
+	for (const auto&[tag, entries] : species)
+	{
+		float acc = 0;
+		float avg_fitness = 0;
+		for (const auto& entry : entries)
+		{
+			// Average the fitness of the best individual and the LastBestGenomes
+			avg_fitness += entry.BestFitness;
+			for (auto[fitness, _] : entry.LastBestGenomes)
+				avg_fitness += fitness;
+			acc += 1 + entry.LastBestGenomes.size();
+		}
+
+		avg_fitness /= acc;
+
+		out_file << "";
+		for (auto component : tag)
+			out_file << "" << component.ComponentID << "," << component.GroupID << " ";
+		out_file << ":" << avg_fitness << endl;
+	}
+
+	out_file.close();
 }

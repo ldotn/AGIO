@@ -19,7 +19,7 @@ using namespace agio;
 using namespace fpp;
 using namespace std;
 
-void runEvolution()
+agio::Population runEvolution(const std::string& WorldPath, bool NoOutput)
 {
     minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
@@ -33,7 +33,7 @@ void runEvolution()
     Interface->Init();
 
     // Create and fill the world
-    WorldData world = createWorld();
+    WorldData world = createWorld(WorldPath);
 
     // Spawn population
     Population pop;
@@ -43,6 +43,8 @@ void runEvolution()
     {
         pop.Epoch(&world, [&](int gen)
         {
+			if (NoOutput) return;
+
             cout << "Generation " << gen 
 				<< ", " << pop.GetSpecies().size() << " Species" << endl;
 
@@ -55,17 +57,23 @@ void runEvolution()
 				cout << "    "
 					 << " Progress : " << species.ProgressMetric
 				     << endl;
+				cout << "    "
+					<< " Type (carnivore, herbivore, omnivore) : " << (int)pop.GetIndividuals()[species.IndividualsIDs[0]].GetState<OrgState>()->Type
+					<< endl;
 
 				float avg_fit = 0;
 				float max_fit = numeric_limits<float>::lowest();
+				float avg_eaten = 0;
 				for (int id : species.IndividualsIDs)
 				{
 					const auto& org = pop.GetIndividuals()[id];
 
 					avg_fit += org.Fitness;
 					max_fit = max(max_fit, org.Fitness);
+					avg_eaten += org.GetState<OrgState>()->EatenCount;
 				}
 				avg_fit /= species.IndividualsIDs.size();
+				avg_eaten /= species.IndividualsIDs.size();
 
 				// TODO : Add the avg fitness of the 5 best
 				cout << "    "
@@ -74,6 +82,10 @@ void runEvolution()
 				cout << "    "
 					<< " Fitness (max) : " << max_fit
 					<< endl;
+				cout << "    "
+					<< " Avg Eaten : " << avg_eaten
+					<< endl;
+
 				cout << "------------------------------" << endl;
 			}
          
@@ -86,4 +98,6 @@ void runEvolution()
 
     SRegistry registry(&pop);
     registry.save(SerializationFile);
+
+	return pop;
 }
