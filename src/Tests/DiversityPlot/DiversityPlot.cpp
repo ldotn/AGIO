@@ -39,7 +39,7 @@ void runSimulation(const string& WorldPath)
 
 	// Create and fill the world
 	WorldData world = createWorld("../assets/worlds/world4.txt");
-	/*
+	
 	SRegistry registry;
 	registry.load(SerializationFile);
 
@@ -72,7 +72,7 @@ void runSimulation(const string& WorldPath)
 
 	for (auto& org : individuals)
 		org->Reset();
-		*/
+		
 
 	//ConsoleRenderer renderer;
 	SFMLRenderer renderer;
@@ -137,14 +137,14 @@ void runSimulation(const string& WorldPath)
 			}
 		}
 
-		/*for (auto& org : individuals)
+		for (auto& org : individuals)
 			if (org->GetState<OrgState>()->Life > 0) // TODO : Create a new one of a different species
-				org->DecideAndExecute(&world, individuals);*/
+				org->DecideAndExecute(&world, individuals);
 
 		// Plot food
 		for (auto pos : world.FoodPositions)
 			items_to_render.push_back({ {(int)pos.x,(int)pos.y}, renderer.GetSpriteID("food") });
-		/*
+		
 		// Plot each species in a different color
 		for (auto [idx, id_vec] : enumerate(species_ids))
 		{
@@ -163,7 +163,7 @@ void runSimulation(const string& WorldPath)
 			
 				items_to_render.push_back({ {(int)state_ptr->Position.x,(int)state_ptr->Position.y}, sprite_id, species_colors[idx] });
 			}
-		}*/
+		}
 
 		renderer.Render(window, items_to_render);
 	}
