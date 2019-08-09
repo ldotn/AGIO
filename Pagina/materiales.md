@@ -1,5 +1,5 @@
 # Materiales
 
-* [Repositorio de GitHub]()
-* [Versión finald del informe]()
-* [Diapositivas de la presentación]()
+* [Repositorio de GitHub](https://github.com/RyanTorant/AGIO)
+* [Versión final del informe](informe.pdf)
+* [Diapositivas de la presentación](diapositivas.pptx)
