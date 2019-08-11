@@ -3,5 +3,4 @@
 * [Propuesta](propuesta.md)
 * [Evaluación experimental](evaluacion.md)
 * [Resultados](resultados.md)
-* [Readme](README.md)
 * [Materiales](materiales.md)
