@@ -1,6 +1,5 @@
 * [Introducción](main.md)
 * [Marco de Trabajo](marcoTeorico.md)
 * [Propuesta](propuesta.md)
-* [Evaluación experimental](evaluacion.md)
 * [Resultados](resultados.md)
 * [Materiales](materiales.md)
