@@ -2,7 +2,7 @@
 
 ## Conceptos
 
-Este trabajo se encuentra dentro del área de la _vida artificial_, que es un área multidisciplinaria que se encarga de simular los comportamientos naturales de la vida, comúnmente mediante simulaciónes de software. El algoritmo presentado utiliza _algoritmos evolutivos_, particularmente NEAT, para evolucionar las _redes neuronales_ utilizadas para definir el comportamiento de cada individuo.
+Este trabajo se encuentra dentro del área de la _vida artificial_, que es un área multidisciplinaria que se encarga de simular los comportamientos naturales de la vida, comúnmente mediante simulaciones de software. El algoritmo presentado utiliza _algoritmos evolutivos_, particularmente NEAT, para evolucionar las _redes neuronales_ utilizadas para definir el comportamiento de cada individuo.
 
 ## Trabajos previos
 
