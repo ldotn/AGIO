@@ -1,0 +1,13 @@
+{
+  "name": "pagina",
+  "version": "1.0.0",
+  "dependencies": {
+    "http-server": "^0.11.1"
+  },
+  "scripts": {
+    "start": "concurrently \"http-server -a localhost -p 3000\" \"open http://localhost:3000/\""
+  },
+  "devDependencies": {
+    "concurrently": "^4.1.1"
+  }
+}
