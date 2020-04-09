@@ -16,7 +16,7 @@
 // NEAT
 #include "innovation.h"
 #include "genome.h"
-#include "../NEAT/include/population.h"
+#include "../../NEAT/include/population.h"
 
 using namespace std;
 using namespace agio;

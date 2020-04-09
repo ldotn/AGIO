@@ -1,9 +1,10 @@
 #include <assert.h>
 #include <algorithm>
 #include <enumerate.h>
-#include <matplotlibcpp.h>
 #include <queue>
 #include <random>
+#include <iostream>
+#include <numeric>
 
 #include "../../Core/Config.h"
 #include "../../Evolution/Population.h"
@@ -19,7 +20,6 @@
 // World data;
 WorldData world;
 
-namespace plt = matplotlibcpp;
 using namespace agio;
 using namespace fpp;
 using namespace std;
@@ -27,6 +27,8 @@ using namespace std;
 Metrics::Metrics()
 {
 	//plt::ion();
+	// Assuming it's already initialized
+	WorldCellCount = WorldSizeX * WorldSizeY;
 };
 
 void Metrics::update(Population &pop)
@@ -50,25 +52,22 @@ void Metrics::update(Population &pop)
 		{
 			const auto& org = pop.GetIndividuals()[id];
 			auto state_ptr = ((OrgState*)org.GetState());
-
 			
 			// SHOULD NEVER BE 0!!
 			if (state_ptr->Repetitions == 0)
 				continue;
 
-
-
 			avg_eaten += (float)state_ptr->EatenCount / state_ptr->Repetitions;
 			avg_failed += (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions;
-			avg_coverage += (float)state_ptr->VisitedCellsCount / state_ptr->Repetitions;
+			avg_coverage += ((float)state_ptr->VisitedCellsCount / WorldCellCount) / state_ptr->Repetitions;
 
 			min_eaten = min(min_eaten, (float)state_ptr->EatenCount / state_ptr->Repetitions);
 			min_failed = min(min_failed, (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions);
-			min_coverage = min(min_coverage, (float)state_ptr->VisitedCellsCount / state_ptr->Repetitions);
+			min_coverage = min(min_coverage, ((float)state_ptr->VisitedCellsCount / WorldCellCount) / state_ptr->Repetitions);
 
 			max_eaten = max(max_eaten, (float)state_ptr->EatenCount / state_ptr->Repetitions);
 			max_failed = max(max_failed, (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions);
-			max_coverage = max(max_coverage, (float)state_ptr->VisitedCellsCount / state_ptr->Repetitions);
+			max_coverage = max(max_coverage, ((float)state_ptr->VisitedCellsCount / WorldCellCount) / state_ptr->Repetitions);
 		}
 
 		avg_eaten /= species.IndividualsIDs.size();
@@ -103,7 +102,7 @@ void Metrics::update(Population &pop)
 			max_failed_herbivore.push_back(max_failed);
 			max_coverage_herbivore.push_back(max_coverage);
 		}
-		cout << "    " << avg_eaten << " " << avg_failed << " " << avg_coverage << endl;
+		cout << "    Eaten: " << avg_eaten << " Failed: " << avg_failed << " Coverage: " << avg_coverage << endl;
 	}
 
 	// Force a reset. REFACTOR!
@@ -190,44 +189,7 @@ void Metrics::update(Population &pop)
 
 void Metrics::plot(Population &pop)
 {
-	calculate_metrics(pop);
-	//return;
-	//plt::clf();
-
-	/*plt::subplot(2, 3, 1);
-	plt::plot(avg_fitness_herbivore, "b");
-	plt::plot(avg_fitness_herbivore_random, "r");
-
-	plt::subplot(2, 3, 2);
-	plt::plot(avg_fitness_carnivore, "k");
-	plt::plot(avg_fitness_carnivore_random, "r");
-
-	plt::subplot(2, 3, 3);
-	plt::plot(avg_progress_herbivore, "b");
-	plt::plot(avg_progress_carnivore, "k");*/
-
-	//plt::subplot(2, 3, 4);
-	/*plt::subplot(1, 3, 1);
-	plt::plot(avg_eaten_herbivore, "b");
-	plt::plot(avg_eaten_carnivore, "k");
-	plt::plot(avg_eaten_herbivore_greedy, "b--");
-	plt::plot(avg_eaten_carnivore_greedy, "k--");
-
-	//plt::subplot(2, 3, 5);
-	plt::subplot(1, 3, 2);
-	plt::plot(avg_failed_herbivore, "b");
-	plt::plot(avg_failed_carnivore, "k");
-	plt::plot(avg_failed_herbivore_greedy, "b--");
-	plt::plot(avg_failed_carnivore_greedy, "k--");
-
-	//plt::subplot(2, 3, 6);
-	plt::subplot(1, 3, 3);
-	plt::plot(avg_coverage_herbivore, "b");
-	plt::plot(avg_coverage_carnivore, "k");
-	plt::plot(avg_coverage_herbivore_greedy, "b--");
-	plt::plot(avg_coverage_carnivore_greedy, "k--");
-
-	plt::pause(0.01);*/
+	//calculate_metrics(pop);
 }
 
 Metrics::~Metrics()
@@ -270,7 +232,6 @@ Metrics::~Metrics()
 	savef(max_eaten_carnivore, "max_eaten_carnivore.csv");
 	savef(max_failed_carnivore, "max_failed_carnivore.csv");
 	savef(max_coverage_carnivore, "max_coverage_carnivore.csv");
-
 }
 
 void Metrics::calculate_metrics(Population &pop)

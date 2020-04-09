@@ -1,9 +1,10 @@
 #include <assert.h>
 #include <algorithm>
 #include <enumerate.h>
-#include <matplotlibcpp.h>
 #include <queue>
 #include <random>
+#include <iostream>
+#include <numeric>
 
 #include "../../Core/Config.h"
 #include "../../Evolution/Population.h"
@@ -14,7 +15,6 @@
 #include "DiversityPlot.h"
 #include "PublicInterfaceImpl.h"
 
-namespace plt = matplotlibcpp;
 using namespace agio;
 using namespace fpp;
 using namespace std;

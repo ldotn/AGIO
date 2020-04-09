@@ -1,5 +1,4 @@
 #include "3DExperiment.h"
-#include <matplotlibcpp.h>
 #include "neat.h"
 #include "../../Evolution/Population.h"
 #include "../../Evolution/Globals.h"
@@ -9,7 +8,6 @@
 #include "enumerate.h"
 #include "../../Serialization/SRegistry.h"
 
-namespace plt = matplotlibcpp;
 using namespace agio;
 using namespace std;
 using namespace fpp;
@@ -98,24 +96,6 @@ int main()
 	pop.Spawn(ExperimentParams::PopSizeMultiplier, ExperimentParams::SimulationSize);
 
 	// Do evolution loop
-	vector<float> avg_fitness_carnivore;
-	vector<float> avg_fitness_herbivore;
-	vector<float> avg_fitness_carnivore_random;
-	vector<float> avg_fitness_herbivore_random;
-	vector<float> avg_progress_herbivore;
-	vector<float> avg_progress_carnivore;
-
-	plt::ion();
-	
-	bool show_simulation = false;
-	{
-		char c;
-		cout << "Show simulation (y/n) ? ";
-		cin >> c;
-		if (c == 'y')
-			show_simulation = true;
-	}
-
 	for (int g = 0; g < ExperimentParams::GenerationsCount; g++)
 	{
 		((ExperimentInterface*)Interface)->CurrentGenNumber = g;
@@ -124,7 +104,6 @@ int main()
 		{
 			cout << "Generation : " << gen << endl;
 			cout << "    " << pop.GetSpecies().size() << " Species " << endl;
-			//pop.ComputeDevMetrics(world_ptr);
 
 			for (const auto&[tag, species] : pop.GetSpecies())
 			{
@@ -132,37 +111,6 @@ int main()
 				cout << "        Size : " << species.IndividualsIDs.size() << endl;
 				cout << "        Progress Metric : " << species.ProgressMetric << endl;
 				cout << "        Fitness " << species.DevMetrics.RealFitness << " vs " << species.DevMetrics.RandomFitness << endl;
-		
-				// Check if the organism is carnivore or herbivore by checking the components
-				ComponentRef herbivore_mouth = { 0,0 };
-				if (find(tag.begin(), tag.end(), herbivore_mouth) != tag.end())
-				{
-					avg_fitness_herbivore.push_back(species.DevMetrics.RealFitness);
-					avg_fitness_herbivore_random.push_back(species.DevMetrics.RandomFitness);
-					avg_progress_herbivore.push_back(species.ProgressMetric);
-				}
-				else
-				{
-					avg_fitness_carnivore.push_back(species.DevMetrics.RealFitness);
-					avg_fitness_carnivore_random.push_back(species.DevMetrics.RandomFitness);
-					avg_progress_carnivore.push_back(species.ProgressMetric);
-				}
-
-				// Plot the graphs
-				plt::clf();
-				plt::subplot(2, 2, 1);
-				plt::plot(avg_fitness_herbivore, "b");
-				plt::plot(avg_fitness_herbivore_random, "r");
-
-				plt::subplot(2, 2, 2);
-				plt::plot(avg_fitness_carnivore, "k");
-				plt::plot(avg_fitness_carnivore_random, "r");
-
-				plt::subplot(2, 2, 3);
-				plt::plot(avg_progress_herbivore, "b");
-				plt::plot(avg_progress_carnivore, "k");
-
-				plt::pause(0.01);
 			}
 		});
 	}
@@ -172,93 +120,8 @@ int main()
 
 	SRegistry registry(&pop);
 	registry.save("evolved_3d_experiment.txt");
-	registry.load("evolved_3d_experiment.txt");
 
-	// If needed, show the simulation
-	if (show_simulation)
-	{
-		vector<BaseIndividual*> individuals;
-		for (auto &entry : registry.Species)
-			for (int idx = 0;idx < entry.Individuals.size();idx++)
-				individuals.push_back(&entry.Individuals[idx]);
-
-		minstd_rand0 rng(42);
-		shuffle(individuals.begin(), individuals.end(),rng);
-
-		if (individuals.size() > ExperimentParams::SimulationSize)
-		{
-			individuals.resize(ExperimentParams::SimulationSize);
-		}
-		else
-		{
-			// TODO : Duplicate to find new ones
-		}
-
-		for (auto org_ptr : individuals)
-		{
-			org_ptr->InSimulation = true; // Just in case
-			org_ptr->State = Interface->MakeState(org_ptr);
-		}
-
-		unordered_map<MorphologyTag, vector<BaseIndividual*>> species_map;
-		for (auto org_ptr : individuals)
-			species_map[org_ptr->GetMorphologyTag()].push_back(org_ptr);
-
-		plt::figure();
-		while (true)
-		{
-			plt::clf();
-
-			plt::xlim(GameplayParams::GameArea.Min.x, GameplayParams::GameArea.Max.x);
-			plt::ylim(GameplayParams::GameArea.Min.y, GameplayParams::GameArea.Max.y);
-
-			for (auto& org : individuals)
-				if(((OrgState*)org->GetState())->Life >= 0)
-					org->DecideAndExecute(world_ptr, individuals);
-			
-			for (auto [area,_] : world_ptr->PlantsAreas)
-			{
-				// Generate points to plot the circle
-				float count = 1000;
-				vector<float> x_vec(count);
-				vector<float> y_vec(count);
-
-				float th = 0;
-				for (auto [x, y] : zip(x_vec, y_vec))
-				{
-					x = cosf(th * 2 * 3.14159f)*area.Radius + area.Center.x;
-					y = sinf(th * 2 * 3.14159f)*area.Radius + area.Center.y;
-					th += 1.0f / count;
-				}
-				plt::plot(x_vec, y_vec, "g");
-			}
-
-			// Plot the individuals with different colors per species
-			vector<float> org_x, org_y;
-			for (auto [species_idx,entry] : enumerate(species_map))
-			{
-				auto [_, species] = entry;
-				org_x.resize(0);
-				org_y.resize(0);
-
-				for (auto org_ptr : entry.second)
-				{
-					auto state_ptr = (OrgState*)org_ptr->GetState();
-					if (state_ptr->Life >= 0)
-					{
-						org_x.push_back(state_ptr->Position.x);
-						org_y.push_back(state_ptr->Position.y);
-					}
-				}
-
-				plt::plot(org_x, org_y, string("x") + string("C") + to_string(species_idx));
-			}
-
-			plt::pause(0.1);
-		}
-	}
-
-	// NOTE! : Explictely leaking the interface here!
+	// NOTE! : Explicitly leaking the interface here!
 	// There's a good reason for it
 	// The objects in the system need the interface to delete themselves
 	//  so I can't delete it, as I don't know the order in which destructors are called

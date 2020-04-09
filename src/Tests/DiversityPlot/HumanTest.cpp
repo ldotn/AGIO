@@ -11,7 +11,6 @@
 #include <assert.h>
 #include <algorithm>
 #include <enumerate.h>
-#include <matplotlibcpp.h>
 #include <random>
 #include <queue>
 #include <thread>

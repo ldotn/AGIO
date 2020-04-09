@@ -2,7 +2,6 @@
 #include <assert.h>
 #include <algorithm>
 #include <enumerate.h>
-#include <matplotlibcpp.h>
 #include <random>
 #include <queue>
 #include <thread>
@@ -22,7 +21,6 @@
 //#include "../rlutil-master/rlutil.h"
 //#include "Greedy/GreedyPrey.h"
 
-namespace plt = matplotlibcpp;
 using namespace std;
 using namespace agio;
 using namespace fpp;
@@ -171,7 +169,7 @@ void runSimulation(const string& WorldPath)
 	/*for (auto org : individuals)
 		delete org;*/
 
-	// NOTE! : Explictely leaking the interface here!
+	// NOTE! : Explicitly leaking the interface here!
 	// There's a good reason for it
 	// The objects in the system need the interface to delete themselves
 	//  so I can't delete it, as I don't know the order in which destructors are called

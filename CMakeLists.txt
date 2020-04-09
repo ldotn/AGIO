@@ -7,7 +7,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 
 add_subdirectory(boost-cmake)
 
-include_directories(${CMAKE_SOURCE_DIR}/matplotlib-cpp)
 include_directories(${CMAKE_SOURCE_DIR}/FPlusPlus/FPlusPlus)
 include_directories(${CMAKE_SOURCE_DIR}/NEAT/include)
 
@@ -45,9 +44,6 @@ endif ()
 
 option(build_tests "Build the AGIO demo tests after building the library" ON)
 if (build_tests)
-	find_package(PythonLibs 3.5)
-	include_directories(${PYTHON_INCLUDE_DIRS})
-
 	add_executable(prey_predator
 			src/Tests/PreyPredator/main.cpp
 			src/Tests/PreyPredator/PreyPredatorEvolution.cpp
@@ -114,75 +110,46 @@ if (build_tests)
 
 	target_link_libraries(sim_size_test
 		agio_lib
-		${PYTHON_LIBRARIES}
 		Boost::serialization
 		${SFML_LIBRARIES})
 
 	target_link_libraries(interrelations_test
 			agio_lib
-			${PYTHON_LIBRARIES}
 			Boost::serialization
 			${SFML_LIBRARIES})
 
 	target_link_libraries(nn_graph_dump
 			agio_lib
-			${PYTHON_LIBRARIES}
 			Boost::serialization
 			${SFML_LIBRARIES})
 
 	target_link_libraries(memory_test
 			agio_lib
-			${PYTHON_LIBRARIES}
 			Boost::serialization
 			${SFML_LIBRARIES})
 
 	target_link_libraries(perf_test
 			agio_lib
-			${PYTHON_LIBRARIES}
 			Boost::serialization
 			${SFML_LIBRARIES})
 
 	target_link_libraries(human_test
 			agio_lib
-			${PYTHON_LIBRARIES}
 			Boost::serialization
 			${SFML_LIBRARIES})
 
 	target_link_libraries(diversity_plot
 			agio_lib
-			${PYTHON_LIBRARIES}
 			Boost::serialization
 			${SFML_LIBRARIES})
 
 	target_link_libraries(prey_predator
 		agio_lib
-		${PYTHON_LIBRARIES}
 		Boost::serialization
 		${SFML_LIBRARIES})
 
 	target_link_libraries(experiment_3d
 		agio_lib
-		${PYTHON_LIBRARIES}
 		Boost::serialization
 		${SFML_LIBRARIES})
-
-	if (WIN32)
-		# Extract the python DLL path from the lib path
-		set(PYTHON_DLL ${PYTHON_LIBRARIES})
-
-		string(REGEX REPLACE "optimized(.+)\\/libs\\/(.+).lib.*" "\\1" REGEX_OUTPUT ${PYTHON_DLL})
-		set(PYTHON_DLL ${REGEX_OUTPUT})
-
-		string(REGEX REPLACE "[.]lib.*" ".dll" REGEX_OUTPUT ${PYTHON_DLL})
-		set(PYTHON_DLL ${REGEX_OUTPUT})
-
-		string(REGEX REPLACE "libs\\/" "" REGEX_OUTPUT ${PYTHON_DLL})
-		set(PYTHON_DLL ${REGEX_OUTPUT})
-
-        add_custom_command(
-            TARGET agio_lib
-            POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_DLL} ${CMAKE_SOURCE_DIR}/bin
-            COMMENT "Copying the Python DLL to the binaries directory.")
-	endif()
 endif()

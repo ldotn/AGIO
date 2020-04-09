@@ -168,4 +168,5 @@ public:
 	~Metrics();
 private:
 	void calculate_metrics(Population &pop);
+	float WorldCellCount;
 };

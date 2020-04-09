@@ -1,7 +1,6 @@
 #include <assert.h>
 #include <algorithm>
 #include <enumerate.h>
-#include <matplotlibcpp.h>
 #include <random>
 #include <queue>
 
@@ -16,7 +15,6 @@
 #include "PreyPredator.h"
 #include "PublicInterfaceImpl.h"
 
-namespace plt = matplotlibcpp;
 using namespace std;
 using namespace agio;
 using namespace fpp;
@@ -37,13 +35,10 @@ void runSimulation() {
     SRegistry registry;
     registry.load(SerializationFile);
 
-//    // Create the individuals that are gonna be used in the simulation
-//    // TODO: Select individuals with a criteria
+	// Create the individuals that are gonna be used in the simulation
+	// TODO: Select individuals with a criteria
     vector<BaseIndividual*> individuals;
-    /*for(auto &entry : registry.Species)
-        for(auto &individual: entry.Individuals)
-            individuals.push_back(&individual);*/
-	// Select randomly until the simulation size is filled
+
 	for (int i = 0; i < SimulationSize; i++)
 	{
 		int species_idx = uniform_int_distribution<int>(0, registry.Species.size() - 1)(RNG);
@@ -101,14 +96,12 @@ void runSimulation() {
 				items_to_render.push_back({ {x,y}, renderer.GetSpriteID("ground") });
 
 		// Plot food
-		//plt::clf();
 		for (auto[idx, pos] : enumerate(world.FoodPositions))
 		{
 			food_x[idx] = pos.x;
 			food_y[idx] = pos.y;
 			items_to_render.push_back({ {(int)pos.x,(int)pos.y}, renderer.GetSpriteID("food") });
 		}
-		//plt::plot(food_x, food_y, "gx");
 
 		// Plot herbivores on blue and carnivores on black
 		vector<int> herbivores_x, herbivores_y;
@@ -139,18 +132,13 @@ void runSimulation() {
 			}
 		}
 		
-		//plt::plot(herbivores_x, herbivores_y, "ob");
-		//plt::plot(carnivores_x, carnivores_y, "ok");
-
-		//plt::xlim(-1, WorldSizeX);
-		//plt::ylim(-1, WorldSizeY);
-		//plt::pause(0.1);
 		renderer.Render(window, items_to_render);
 	}
 
 	for (auto org : individuals)
 		delete org;
-	// NOTE! : Explictely leaking the interface here!
+
+	// NOTE! : Explicitly leaking the interface here!
 	// There's a good reason for it
 	// The objects in the system need the interface to delete themselves
 	//  so I can't delete it, as I don't know the order in which destructors are called
