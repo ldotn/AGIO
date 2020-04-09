@@ -54,6 +54,7 @@ int main(int argc, char *argv[])
 	loader.LoadValue(PopSizeMultiplier, "PopSizeMultiplier");
 	PopulationSize = PopSizeMultiplier * SimulationSize;
 	loader.LoadValue(GenerationsCount, "GenerationsCount");
+	GenerationsCount = 10;
 	loader.LoadValue(LifeLostPerTurn, "LifeLostPerTurn");
 	loader.LoadValue(BorderPenalty, "BorderPenalty");
 	loader.LoadValue(WastedActionPenalty, "WastedActionPenalty");
