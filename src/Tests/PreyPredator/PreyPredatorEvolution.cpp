@@ -124,7 +124,7 @@ void Metrics::update(Population &pop)
 		[&](const MorphologyTag& tag)
 	{
 		float max_eaten = 0;
-		float min_eaten = 0;
+		float min_eaten = numeric_limits<float>::max();
 		float avg_eaten = 0;
 		float avg_failed = 0;
 		float avg_coverage = 0;
