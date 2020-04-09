@@ -123,6 +123,8 @@ void Metrics::update(Population &pop)
 	pop.SimulateWithUserFunction(&world, createGreedyActionsMap(),
 		[&](const MorphologyTag& tag)
 	{
+		float max_eaten = 0;
+		float min_eaten = 0;
 		float avg_eaten = 0;
 		float avg_failed = 0;
 		float avg_coverage = 0;
@@ -137,6 +139,8 @@ void Metrics::update(Population &pop)
 			avg_eaten += (float)state_ptr->EatenCount / state_ptr->Repetitions;
 			avg_failed += (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions;
 			avg_coverage += (float)state_ptr->VisitedCellsCount / state_ptr->Repetitions;
+			max_eaten = max(max_eaten, (float)state_ptr->EatenCount / state_ptr->Repetitions);
+			min_eaten = min(min_eaten, (float)state_ptr->EatenCount / state_ptr->Repetitions);
 		}
 
 		avg_eaten /= species.IndividualsIDs.size();
@@ -162,12 +166,16 @@ void Metrics::update(Population &pop)
 			avg_eaten_carnivore_greedy.push_back(avg_eaten);
 			avg_failed_carnivore_greedy.push_back(avg_failed);
 			avg_coverage_carnivore_greedy.push_back(avg_coverage);
+			min_eaten_carnivore_greedy.push_back(min_eaten);
+			max_eaten_carnivore_greedy.push_back(max_eaten);
 		}
 		else
 		{
 			avg_eaten_herbivore_greedy.push_back(avg_eaten);
 			avg_failed_herbivore_greedy.push_back(avg_failed);
 			avg_coverage_herbivore_greedy.push_back(avg_coverage);
+			min_eaten_herbivore_greedy.push_back(min_eaten);
+			max_eaten_herbivore_greedy.push_back(max_eaten);
 		}
 
 		// Force a reset. REFACTOR!
@@ -232,6 +240,11 @@ Metrics::~Metrics()
 	savef(max_eaten_carnivore, "max_eaten_carnivore.csv");
 	savef(max_failed_carnivore, "max_failed_carnivore.csv");
 	savef(max_coverage_carnivore, "max_coverage_carnivore.csv");
+
+	savef(max_eaten_herbivore_greedy, "max_eaten_herbivore_greedy.csv");
+	savef(min_eaten_herbivore_greedy, "min_eaten_herbivore_greedy.csv");
+	savef(max_eaten_carnivore_greedy, "max_eaten_carnivore_greedy.csv");
+	savef(min_eaten_carnivore_greedy, "min_eaten_carnivore_greedy.csv");
 }
 
 void Metrics::calculate_metrics(Population &pop)

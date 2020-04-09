@@ -141,6 +141,11 @@ public:
 	vector<float> max_coverage_herbivore;
 	vector<float> max_coverage_carnivore;
 
+	vector<float> min_eaten_herbivore_greedy;
+	vector<float> min_eaten_carnivore_greedy;
+	vector<float> max_eaten_herbivore_greedy;
+	vector<float> max_eaten_carnivore_greedy;
+
 	vector<float> avg_eaten_herbivore_greedy;
 	vector<float> avg_eaten_carnivore_greedy;
 	vector<float> avg_failed_herbivore_greedy;
