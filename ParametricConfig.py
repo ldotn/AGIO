@@ -80,7 +80,7 @@ print('Running parametric config')
 
 #   Open base config file
 cfg = configparser.ConfigParser(inline_comment_prefixes='#')
-cfg.read('src/Tests/DiversityPlot/Config.cfg')
+cfg.read('src/Tests/ComplexSystem/Config.cfg')
 
 eval_repeats = 3
 

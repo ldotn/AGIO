@@ -139,6 +139,7 @@ namespace agio
 		static float TurnRadians;
 		static float EatDistance;
 		
+		static int EatScore;
 		static int WastedActionPenalty;
 
 		static int CorpseBitesDuration;

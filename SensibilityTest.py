@@ -41,7 +41,7 @@ print('Running sensibility analysis')
 
 #   Open base config file
 cfg = configparser.ConfigParser(inline_comment_prefixes='#')
-cfg.read('src/Tests/DiversityPlot/Config.cfg')
+cfg.read('src/Tests/ComplexSystem/Config.cfg')
 
 #   Parameters ranges
 ranges = [

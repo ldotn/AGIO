@@ -29,7 +29,8 @@ namespace agio
 		NEAT::Population * NetworksPopulation;
 
 		// Used to track progress
-		float BestFitness = 0; // moving average
+		float CurrentEpochMeanFitness = 0;
+		float SmoothedFitness = 0; // moving average
 		float ProgressMetric = 0; // Moving average difference of fitness with last
 		
 		int Age = 0;
@@ -56,7 +57,7 @@ namespace agio
 		std::vector<std::pair<float,NEAT::Genome*>> LastBestGenomes; // ProgressMetricsIndividuals size
 		int IndividualsSize;
 		int Age;
-		float BestFitness;
+		float SmoothedFitness;
 	};
 
 	class Population
