@@ -5,6 +5,7 @@
 #include <random>
 #include <iostream>
 #include <numeric>
+#include <chrono>
 
 #include "../../Core/Config.h"
 #include "../../Evolution/Population.h"
@@ -57,6 +58,10 @@ void Metrics::update(Population &pop)
 			if (state_ptr->Repetitions == 0)
 				continue;
 
+			state_ptr->VisitedCellsCount += state_ptr->VisitedCells.size();
+			if(state_ptr->FailableActionCount > 0)
+				state_ptr->FailedActionFractionAcc += state_ptr->FailedActionCountCurrent / state_ptr->FailableActionCount;
+
 			avg_eaten += (float)state_ptr->EatenCount / state_ptr->Repetitions;
 			avg_failed += (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions;
 			avg_coverage += ((float)state_ptr->VisitedCellsCount / WorldCellCount) / state_ptr->Repetitions;
@@ -74,6 +79,7 @@ void Metrics::update(Population &pop)
 		avg_failed /= species.IndividualsIDs.size();
 		avg_coverage /= species.IndividualsIDs.size();
 
+		bool is_carnivore = false;
 		if (((OrgState*)pop.GetIndividuals()[species.IndividualsIDs[0]].GetState())->IsCarnivore)
 		{
 			avg_eaten_carnivore.push_back(avg_eaten);
@@ -87,6 +93,7 @@ void Metrics::update(Population &pop)
 			max_eaten_carnivore.push_back(max_eaten);
 			max_failed_carnivore.push_back(max_failed);
 			max_coverage_carnivore.push_back(max_coverage);
+			is_carnivore = true;
 		}
 		else
 		{
@@ -102,9 +109,9 @@ void Metrics::update(Population &pop)
 			max_failed_herbivore.push_back(max_failed);
 			max_coverage_herbivore.push_back(max_coverage);
 		}
-		cout << "    Eaten: " << avg_eaten << " Failed: " << avg_failed << " Coverage: " << avg_coverage << endl;
+		cout << "    "<< (is_carnivore ? "[Carnivore]" : "[Herbivore]") << " Eaten: " << avg_eaten << "[max " << max_eaten << "] Failed: " << avg_failed << " Coverage: " << avg_coverage << endl;
 	}
-
+#ifdef RUN_GREEDY
 	// Force a reset. REFACTOR!
 	for (auto& org : pop.GetIndividuals())
 	{
@@ -193,6 +200,7 @@ void Metrics::update(Population &pop)
 			state_ptr->FailedActionFractionAcc = 0;
 		}
 	});
+#endif
 }
 
 void Metrics::plot(Population &pop)
@@ -202,9 +210,10 @@ void Metrics::plot(Population &pop)
 
 Metrics::~Metrics()
 {
-	auto savef = [](const vector<float>& vec, const string& fname)
+	auto timestamp = to_string(chrono::system_clock::now().time_since_epoch().count()) + "_";
+	auto savef = [&timestamp](const vector<float>& vec, const string& fname)
 	{
-		ofstream file(fname);
+		ofstream file(timestamp + fname);
 
 		for (auto[gen, x] : enumerate(vec))
 			file << gen << "," << x << endl;

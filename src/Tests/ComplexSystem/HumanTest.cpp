@@ -85,7 +85,9 @@ int main(int argc, char *argv[])
 
 	Settings::LoadFromFile(loader);
 
-	minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
+	// Fix the RNG to get deterministic results during species evolution and selection
+	//minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
+	minstd_rand RNG(2);
 
 	Interface = new PublicInterfaceImpl();
 	Interface->Init();
@@ -97,9 +99,7 @@ int main(int argc, char *argv[])
 	SimulationSize = 30;
 
 	// Make evolution if the registry files weren't found
-	if( !PathFileExists("human_test_evolved_g25.txt") ||
-		!PathFileExists("human_test_evolved_g200.txt") || 
-		!PathFileExists("human_test_evolved_g400.txt"))
+	if(!PathFileExists("human_test_evolved_g400.txt"))
 	{
 		cout << "Evolution files not found, running evolution again. Will take some time" << endl;
 
@@ -113,46 +113,18 @@ int main(int argc, char *argv[])
 		for (int g = 0; g < GenerationsCount; g++)
 		{
 			pop.Epoch(&world);
-
-			// Store at 3 different points, making 3 "difficulties"
-			if (g == 24)
-			{
-				pop.CurrentSpeciesToRegistry();
-
-				SRegistry registry(&pop);
-				registry.save("human_test_evolved_g25.txt");
-			}
-			else if (g == 199)
-			{
-				pop.CurrentSpeciesToRegistry();
-
-				SRegistry registry(&pop);
-				registry.save("human_test_evolved_g200.txt");
-			}
-			else if (g == 399)
-			{
-				pop.CurrentSpeciesToRegistry();
-
-				SRegistry registry(&pop);
-				registry.save("human_test_evolved_g400.txt");
-			}
 		}
+
+		pop.CurrentSpeciesToRegistry();
+		SRegistry registry(&pop);
+		registry.save("human_test_evolved_g400.txt");
 	}
 
 	// Load the evolved population
 	SRegistry registry;
-
 	system("cls");
-	cout << "Enter difficulty (0 = easy, 1 = medium, 2 = hard) : ";
-	int difficulty;
-	cin >> difficulty;
-	if (difficulty == 0)
-		registry.load("human_test_evolved_g25.txt");
-	else if (difficulty == 1)
-		registry.load("human_test_evolved_g200.txt");
-	else
-		registry.load("human_test_evolved_g400.txt");
-	
+	registry.load("human_test_evolved_g400.txt");
+
 	cout << "Show action and sensors descriptions (y or n)? ";
 	bool show_descs;
 	{
@@ -231,14 +203,15 @@ int main(int argc, char *argv[])
 	} while (true);
 
 	vector<float> score_vec(individuals.size());
+	vector<float> tmp_vec(individuals.size());
 	fill(score_vec.begin(), score_vec.end(), 0);
+	fill(tmp_vec.begin(), tmp_vec.end(), 0);
 
 	for (auto& org : individuals)
 		org->Reset();
 
-	ofstream history("history_difficulty_"
-		+ to_string(difficulty)
-		+ (show_descs ? "_showing_descs" : "")
+	ofstream history("history_"
+		+ string(show_descs ? "_showing_descs" : "")
 		+ "_stamp_"
 		+ to_string(chrono::steady_clock::now().time_since_epoch().count())
 		+ ".csv");
@@ -257,11 +230,11 @@ int main(int argc, char *argv[])
 	action_names[(int)ActionsIDs::JumpLeft] = "Jump Left";
 	action_names[(int)ActionsIDs::JumpRight] = "Jump Right";
 	action_names[(int)ActionsIDs::Kill] = "Kill";
-	action_names[(int)ActionsIDs::EatFoodEnemy] = "Eat";
+	action_names[(int)ActionsIDs::EatFoodEnemy] = "Eat (Food or Corpse)";
 
 	string sensor_names[(int)SensorsIDs::NumberOfSensors];
-	sensor_names[(int)SensorsIDs::NearestCompetidorDeltaX] = "Delta X Nearest Competidor";
-	sensor_names[(int)SensorsIDs::NearestCompetidorDeltaY] = "Delta Y Nearest Competidor";
+	sensor_names[(int)SensorsIDs::NearestCompetidorDeltaX] = "Delta X Nearest Competitor";
+	sensor_names[(int)SensorsIDs::NearestCompetidorDeltaY] = "Delta Y Nearest Competitor";
 	sensor_names[(int)SensorsIDs::NearestCorpseDeltaX] = "Delta X Nearest Corpse";
 	sensor_names[(int)SensorsIDs::NearestCorpseDeltaY] = "Delta Y Nearest Corpse";
 	sensor_names[(int)SensorsIDs::NearestFoodDeltaX] = "Delta X Food";
@@ -282,9 +255,17 @@ int main(int argc, char *argv[])
 		if (individuals[idx]->GetMorphologyTag() == individuals[user_idx]->GetMorphologyTag())
 			num_in_user_species++;
 
+	// Go back to non determinism
+	RNG = minstd_rand(chrono::high_resolution_clock::now().time_since_epoch().count());
+
 	bool exit_sim = false;
-	while (!exit_sim && individuals[user_idx]->GetState<OrgState>()->Life > 0)
+	int step = 0;
+	constexpr int MaxSteps = 75;
+	for(; step < MaxSteps; step++)
 	{
+		if (individuals[user_idx]->GetState<OrgState>()->Life <= 0)
+			break;
+
 		system("cls");
 		for (int idx = 0; idx < individuals.size(); idx++)
 		{
@@ -295,8 +276,12 @@ int main(int argc, char *argv[])
 				// Print score info
 				cout << "Score : " << score_vec[idx];
 				history << score_vec[idx] << ",";
+				history << state_ptr->FailedCount << ","; 
+				history << state_ptr->FailableCount << ",";
 
-				auto tmp_vec = score_vec;
+				// TODO : Refactor this code, is awful
+				for (auto [fa, fb] : zip(tmp_vec, score_vec))
+					fa = fb;
 				sort(tmp_vec.rbegin(), tmp_vec.rend());
 				int current_user_position = 0;
 				for (int fidx = 0; fidx < tmp_vec.size(); fidx++)
@@ -311,11 +296,28 @@ int main(int argc, char *argv[])
 						current_user_position++;
 				}
 
+				// Store the scores of the individuals on the species
+				history << ",#";
 				for (int fidx = 0; fidx < tmp_vec.size(); fidx++)
 				{
-					// Store the scores of the individuals on the species
 					if (individuals[fidx]->GetMorphologyTag() == individuals[user_idx]->GetMorphologyTag())
 						history << "," << score_vec[fidx];
+				}
+
+				// Store the failed count of the individuals on the species
+				history << ",#";
+				for (int fidx = 0; fidx < tmp_vec.size(); fidx++)
+				{
+					if (individuals[fidx]->GetMorphologyTag() == individuals[user_idx]->GetMorphologyTag())
+						history << "," << individuals[fidx]->GetState<OrgState>()->FailedCount;
+				}
+
+				// Store the failable count of the individuals on the species
+				history << ",#";
+				for (int fidx = 0; fidx < tmp_vec.size(); fidx++)
+				{
+					if (individuals[fidx]->GetMorphologyTag() == individuals[user_idx]->GetMorphologyTag())
+						history << "," << individuals[fidx]->GetState<OrgState>()->FailableCount;
 				}
 
 				history << endl;
@@ -385,7 +387,9 @@ int main(int argc, char *argv[])
 	history.close();
 
 	if (exit_sim)
-		cout << "Exited simulation early" << endl;
-	else
+		cout << "Exited test early" << endl;
+	else if (step < MaxSteps)
 		cout << "Your individual has died!" << endl;
+	else
+		cout << "Test finished" << endl;
 }

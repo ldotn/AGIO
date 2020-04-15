@@ -21,7 +21,10 @@ struct OrgState
 	float Score = 0;
 
 	// Metrics
+    // This metrics are only used during simulation, so we don't care about resetting the value across replications
 	int EatenCount = 0;
+    int FailedCount = 0;
+    int FailableCount = 0;
 
 	OrgType Type;
 };

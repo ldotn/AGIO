@@ -262,13 +262,17 @@ void PublicInterfaceImpl::Init()
                         bool any_eaten = eat_food(State, World);
 
                         auto state_ptr = (OrgState *) State;
+                        state_ptr->FailableCount++;
                         if (any_eaten)
+                        {
                             state_ptr->Life += FoodScoreGain;
+                            state_ptr->EatenCount++;
+                        }
                         else
-							state_ptr->Score -= WastedActionPenalty;
-
-						if(any_eaten)
-							state_ptr->EatenCount++;
+                        {
+                            state_ptr->Score -= WastedActionPenalty;
+                            state_ptr->FailedCount++;
+                        }
                     }
             );
 
@@ -281,6 +285,7 @@ void PublicInterfaceImpl::Init()
                         //bool any_eaten = eat_enemy(State, Individuals, Org, World);
 
                         auto state_ptr = (OrgState *) State;
+                        state_ptr->FailableCount++;
 						if (dead_enemy)
 						{
 							state_ptr->Life += FoodScoreGain;
@@ -292,7 +297,10 @@ void PublicInterfaceImpl::Init()
 							state_ptr->EatenCount++;
 						}
                         else
-							state_ptr->Score -= WastedActionPenalty;
+                        {
+                            state_ptr->Score -= WastedActionPenalty;
+                            state_ptr->FailedCount++;
+                        }	
                     }
             );
 
@@ -303,6 +311,7 @@ void PublicInterfaceImpl::Init()
                     {
                         auto state_ptr = (OrgState *) State;
 						auto enemy = find_nearest_enemy(State, Org, Individuals, true);
+                        state_ptr->FailableCount++;
 
                         if (eat_food(State, World))
                             state_ptr->Life += FoodScoreGain;
@@ -319,7 +328,10 @@ void PublicInterfaceImpl::Init()
 							state_ptr->EatenCount++;
 						}
                         else
-							state_ptr->Score -= WastedActionPenalty;
+                        {
+                            state_ptr->Score -= WastedActionPenalty;
+                            state_ptr->FailedCount++;
+                        }
                     }
             );
 
@@ -330,7 +342,7 @@ void PublicInterfaceImpl::Init()
                     [this](void *State, const vector<BaseIndividual *> &Individuals, BaseIndividual *Org, void *World)
                     {
                         auto state_ptr = (OrgState *) State;
-
+                        state_ptr->FailableCount++;
                         BaseIndividual *enemy = find_nearest_enemy(State, Org, Individuals);
                         if (enemy)
                         {
@@ -346,8 +358,12 @@ void PublicInterfaceImpl::Init()
 							}
                             else
 								state_ptr->Score -= WastedActionPenalty;
-                        } else
-							state_ptr->Score -= WastedActionPenalty;
+                        } 
+                        else
+                        {
+                            state_ptr->Score -= WastedActionPenalty;
+                            state_ptr->FailedCount++;
+                        }
                     }
             );
 
@@ -634,6 +650,8 @@ void *PublicInterfaceImpl::MakeState(const BaseIndividual *org)
     state->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
     state->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
 	state->EatenCount = 0;
+    state->FailedCount = 0;
+    state->FailableCount = 0;
 	state->Score = 0;
 
 	if (org->HasAction((int)ActionsIDs::EatFoodEnemy))
@@ -654,6 +672,9 @@ void PublicInterfaceImpl::ResetState(void *State)
     state_ptr->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
     state_ptr->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
 	state_ptr->EatenCount = 0;
+    // This metrics are only used during simulation, so we don't care about resetting the value across replications
+    state_ptr->FailedCount = 0;
+    state_ptr->FailableCount = 0;
 	state_ptr->Score = 0;
 
 	// The type doesnt change
