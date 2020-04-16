@@ -10,77 +10,7 @@ using namespace agio;
 void PublicInterfaceImpl::Init()
 {
     ActionRegistry.resize((int)ActionsIDs::NumberOfActions);
-    auto kill_and_eat = [this](void* State, const vector<BaseIndividual*>& Individuals, BaseIndividual* Org, void* World)
-    {return;
-        auto state_ptr = (OrgState*)State;
-        const auto& tag = Org->GetMorphologyTag();
 
-        // Find an individual herbivore at the same position
-        bool any_eaten = false;
-        for (const auto& individual : Individuals)
-        {
-            // Ignore individuals that aren't being simulated right now
-            // Also, don't do all the other stuff against yourself.
-            // You already know you don't want to kill yourself
-            if (!individual->InSimulation || individual == Org)
-                continue;
-
-            auto other_state_ptr = (OrgState*)individual->GetState();
-            if(!other_state_ptr->IsCarnivore && other_state_ptr->Position == state_ptr->Position)
-            {
-                state_ptr->Score += KillScoreGain;
-
-                other_state_ptr->Score -= DeathPenalty;
-                other_state_ptr->Position.x = uniform_int_distribution<int>(0, WorldSizeX - 1)(RNG);
-                other_state_ptr->Position.y = uniform_int_distribution<int>(0, WorldSizeY - 1)(RNG);
-                any_eaten = true;
-                break;
-            }
-        }
-
-        state_ptr->FailableActionCount++;
-        if (!any_eaten)
-        {
-            state_ptr->Score -= WastedActionPenalty;
-            state_ptr->FailedActionCountCurrent++;
-        }
-        else
-            state_ptr->EatenCount++;
-
-    };
-    auto eat_food = [this](void* State, const vector<BaseIndividual*>& Individuals, BaseIndividual* Org, void* World)
-    {return;
-        auto world_ptr = (WorldData*)World;
-        auto state_ptr = (OrgState*)State;
-
-        bool any_eaten = false;
-        for (auto [idx, pos] : enumerate(world_ptr->FoodPositions))
-        {
-            auto diff = abs >> (pos - state_ptr->Position);
-
-            //if (diff.x <= 1 && diff.y <= 1)
-            if (pos == state_ptr->Position)
-            {
-                state_ptr->Score += FoodScoreGain;
-
-                // Just move the food to a different position. Achieves the same effect as removing it
-                world_ptr->FoodPositions[idx].x = uniform_int_distribution<int>(0, WorldSizeX-1)(RNG);
-                world_ptr->FoodPositions[idx].y = uniform_int_distribution<int>(0, WorldSizeY-1)(RNG);
-                any_eaten = true;
-                break;
-            }
-        }
-
-        state_ptr->FailableActionCount++;
-        if (!any_eaten)
-        {
-            state_ptr->Score -= WastedActionPenalty;
-            state_ptr->FailedActionCountCurrent++;
-        }
-        else
-            state_ptr->EatenCount++;
-    };
-    
     // Basic movement
     // The world is circular, doing this so that % works with negative numbers
     auto cycle_x = [](int x) { return ((x % WorldSizeX) + WorldSizeX) % WorldSizeX; };
@@ -89,7 +19,7 @@ void PublicInterfaceImpl::Init()
 
     ActionRegistry[(int)ActionsIDs::MoveForward] = Action
             (
-                    [&, kill_and_eat, eat_food](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
+                    [&](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
                     {
                         auto state_ptr = (OrgState*)State;
 
@@ -98,16 +28,12 @@ void PublicInterfaceImpl::Init()
 
                         state_ptr->Position.y = cycle_y(state_ptr->Position.y + 1);
 						state_ptr->VisitedCells.insert({state_ptr->Position.x,state_ptr->Position.y});
-                        if (state_ptr->IsCarnivore)
-                            kill_and_eat(State, Individuals, Org, World);
-                        else
-                            eat_food(State, Individuals, Org, World);
                     }
             );
 
     ActionRegistry[(int)ActionsIDs::MoveBackwards] = Action
             (
-                    [&, kill_and_eat, eat_food](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
+                    [&](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
                     {
                         auto state_ptr = (OrgState*)State;
 
@@ -116,16 +42,12 @@ void PublicInterfaceImpl::Init()
 
                         state_ptr->Position.y = cycle_y(state_ptr->Position.y - 1);
 						state_ptr->VisitedCells.insert({ state_ptr->Position.x,state_ptr->Position.y });
-                        if (state_ptr->IsCarnivore)
-                            kill_and_eat(State, Individuals, Org, World);
-                        else
-                            eat_food(State, Individuals, Org, World);
                     }
             );
 
     ActionRegistry[(int)ActionsIDs::MoveRight] = Action
             (
-                    [&, kill_and_eat, eat_food](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
+                    [&](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
                     {
                         auto state_ptr = (OrgState*)State;
 
@@ -134,16 +56,12 @@ void PublicInterfaceImpl::Init()
 
                         state_ptr->Position.x = cycle_x(state_ptr->Position.x + 1);
 						state_ptr->VisitedCells.insert({ state_ptr->Position.x,state_ptr->Position.y });
-                        if (state_ptr->IsCarnivore)
-                            kill_and_eat(State, Individuals, Org, World);
-                        else
-                            eat_food(State, Individuals, Org, World);
                     }
             );
 
     ActionRegistry[(int)ActionsIDs::MoveLeft] = Action
             (
-                    [&, kill_and_eat, eat_food](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
+                    [&](void * State, const vector<BaseIndividual*> &Individuals, BaseIndividual * Org, void * World)
                     {
                         auto state_ptr = (OrgState*)State;
 
@@ -152,10 +70,6 @@ void PublicInterfaceImpl::Init()
 
                         state_ptr->Position.x = cycle_x(state_ptr->Position.x - 1);
 						state_ptr->VisitedCells.insert({ state_ptr->Position.x,state_ptr->Position.y });
-                        if (state_ptr->IsCarnivore)
-                            kill_and_eat(State, Individuals, Org, World);
-                        else
-                            eat_food(State, Individuals, Org, World);
                     }
             );
 

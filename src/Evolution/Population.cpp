@@ -139,7 +139,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 		// First update the fitness values for neat
 		priority_queue<float> fitness_queue;
 
-		auto& pop = s.NetworksPopulation;
+		NEAT::Population* pop = s.NetworksPopulation;
 		for (auto& neat_org : pop->organisms)
 		{
 			// Find the organism in the individuals that has this genome
@@ -190,6 +190,14 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 		// With the fitness updated call the neat epoch
 		s.Age++;
 		pop->epoch(s.Age);
+
+		if (pop->organisms.size() == 0)
+		{
+			// I REALLY don't know why, but it can happen that after an epoch the organism array is empty. In that case, recreate the pop
+			s.NetworksPopulation = new NEAT::Population(pop->GetBestGenome(), s.IndividualsIDs.size());
+			delete pop;
+			pop = s.NetworksPopulation;
+		}
 
 		// Now replace the individuals with the new brains genomes
 		// At this point the old pointers are probably invalid, but is NEAT the one that manages that
