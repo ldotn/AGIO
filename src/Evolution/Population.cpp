@@ -194,7 +194,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 		if (pop->organisms.size() == 0)
 		{
 			// I REALLY don't know why, but it can happen that after an epoch the organism array is empty. In that case, recreate the pop
-			s.NetworksPopulation = new NEAT::Population(pop->GetBestGenome(), s.IndividualsIDs.size());
+			s.NetworksPopulation = new NEAT::Population(pop->GetBestGenome()->duplicate(0), s.IndividualsIDs.size());
 			delete pop;
 			pop = s.NetworksPopulation;
 		}
