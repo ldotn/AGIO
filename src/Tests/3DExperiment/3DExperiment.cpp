@@ -112,7 +112,7 @@ void ExperimentInterface::ComputeFitness(const std::vector<BaseIndividual*>& Ind
 				float old_score = state_ptr->Score;
 				ResetState(state_ptr);
 
-				// Remember that the org died and it's score
+				// Remember that the org died and its score
 				state_ptr->Score = old_score;
 				state_ptr->HasDied = true;
 			}
@@ -121,7 +121,7 @@ void ExperimentInterface::ComputeFitness(const std::vector<BaseIndividual*>& Ind
 
 			if (!state_ptr->HasDied)
 			{
-				state_ptr->Score += state_ptr->Life;
+				state_ptr->Score += 0.1*state_ptr->Life;
 				((Individual*)org)->Fitness = state_ptr->Score;
 			}
 		}
@@ -140,7 +140,11 @@ void ExperimentInterface::Init()
 			auto state_ptr = (OrgState*)State;
 
 			state_ptr->Position += GameplayParams::WalkSpeed*state_ptr->Orientation;
-			state_ptr->Position = GameplayParams::GameArea.ClampPos(state_ptr->Position);
+			float2 clamped_pos = GameplayParams::GameArea.ClampPos(state_ptr->Position);
+			// Penalize organisms that go against the borders
+			if (clamped_pos != state_ptr->Position)
+				state_ptr->Score -= GameplayParams::WastedActionPenalty;
+			state_ptr->Position = clamped_pos;
 		}
 	);
 	ActionRegistry[(int)ActionID::Run] = Action
@@ -150,7 +154,11 @@ void ExperimentInterface::Init()
 			auto state_ptr = (OrgState*)State;
 
 			state_ptr->Position += GameplayParams::RunSpeed*state_ptr->Orientation;
-			state_ptr->Position = GameplayParams::GameArea.ClampPos(state_ptr->Position);
+			float2 clamped_pos = GameplayParams::GameArea.ClampPos(state_ptr->Position);
+			// Penalize organisms that go against the borders
+			if (clamped_pos != state_ptr->Position)
+				state_ptr->Score -= GameplayParams::WastedActionPenalty;
+			state_ptr->Position = clamped_pos;
 		}
 	);
 	ActionRegistry[(int)ActionID::TurnLeft] = Action
@@ -209,6 +217,7 @@ void ExperimentInterface::Init()
 						any_eaten = true;
 						other_state_ptr->CorpseRemainingDuration++;
 						state_ptr->Life += GameplayParams::EatCorpseLifeGained;
+						state_ptr->Score += GameplayParams::EatScore;
 
 						// Make this organism face the target
 						state_ptr->Orientation = (other_state_ptr->Position - state_ptr->Position).normalize();
@@ -255,6 +264,8 @@ void ExperimentInterface::Init()
 			// There's a configurable (could be 0) penalty for doing an action without a valid target
 			if (!any_eaten)
 				state_ptr->Score -= GameplayParams::WastedActionPenalty;
+			else
+				state_ptr->Score += GameplayParams::EatScore;
 		}
 	);
 	ActionRegistry[(int)ActionID::Attack] = Action
@@ -616,7 +627,6 @@ void ExperimentInterface::Init()
 	
 
 	// Fill components
-	// Similar to the PreyPredator demo, but on 3D
 	ComponentRegistry.push_back
 	({
 		1,1, // "Mouth"
@@ -683,3 +693,4 @@ float GameplayParams::EatPlantLifeGained;
 float GameplayParams::AttackDamage;
 float GameplayParams::LifeLostPerTurn;
 float GameplayParams::StartingLife;
+int GameplayParams::EatScore;

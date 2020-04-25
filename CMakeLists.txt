@@ -23,7 +23,6 @@ set(project_sources
 	src/Serialization/SRegistry.cpp
 	src/Evolution/MorphologyTag.cpp
 	src/Core/Config.cpp
-	src/Utils/ConsoleRenderer.cpp
 	src/Utils/SFMLRenderer.cpp
 	${neat_sources})
 
@@ -64,46 +63,29 @@ if (build_tests)
 
 	include_directories(${SFML_INCLUDE_DIR})
 
-	add_executable(diversity_plot
-			src/Tests/DiversityPlot/main.cpp
-			src/Tests/DiversityPlot/DiversityPlot.cpp
-			src/Tests/DiversityPlot/DiversityPlotEvolution.cpp
-			src/Tests/DiversityPlot/Character.cpp
-			src/Tests/DiversityPlot/AnimatedSprite.cpp
-			src/Tests/DiversityPlot/Animation.cpp
-			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
-
-	add_executable(human_test
-			src/Tests/DiversityPlot/HumanTest.cpp
-			src/Tests/DiversityPlot/DiversityPlot.cpp
-			src/Tests/DiversityPlot/DiversityPlotEvolution.cpp
-			src/Tests/DiversityPlot/Character.cpp
-			src/Tests/DiversityPlot/AnimatedSprite.cpp
-			src/Tests/DiversityPlot/Animation.cpp
-			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
+	add_executable(complex_system
+			src/Tests/ComplexSystem/main.cpp
+			src/Tests/ComplexSystem/ComplexSystem.cpp
+			src/Tests/ComplexSystem/ComplexSystemEvolution.cpp
+			src/Tests/ComplexSystem/PublicInterfaceImpl.cpp)
 	
 	add_executable(perf_test
-			src/Tests/DiversityPlot/PerfTest.cpp
-			src/Tests/DiversityPlot/DiversityPlot.cpp
-			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
-	
-	add_executable(memory_test
-			src/Tests/DiversityPlot/MemoryTest.cpp
-			src/Tests/DiversityPlot/DiversityPlot.cpp
-			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
+			src/Tests/ComplexSystem/PerfTest.cpp
+			src/Tests/ComplexSystem/ComplexSystem.cpp
+			src/Tests/ComplexSystem/PublicInterfaceImpl.cpp)
 	
 	add_executable(nn_graph_dump
-			src/Tests/DiversityPlot/NNGraphsTests.cpp
-			src/Tests/DiversityPlot/DiversityPlot.cpp
-			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
+			src/Tests/ComplexSystem/NNGraphsTests.cpp
+			src/Tests/ComplexSystem/ComplexSystem.cpp
+			src/Tests/ComplexSystem/PublicInterfaceImpl.cpp)
 
 	add_executable(interrelations_test
-			src/Tests/DiversityPlot/InterrelationsTest.cpp
-			src/Tests/DiversityPlot/DiversityPlot.cpp
-			src/Tests/DiversityPlot/PublicInterfaceImpl.cpp)
+			src/Tests/ComplexSystem/InterrelationsTest.cpp
+			src/Tests/ComplexSystem/ComplexSystem.cpp
+			src/Tests/ComplexSystem/PublicInterfaceImpl.cpp)
 
 	add_executable(sim_size_test
-			src/Tests/DiversityPlot/SimSizeTest.cpp
+			src/Tests/PreyPredator/SimSizeTest.cpp
 			src/Tests/PreyPredator/PreyPredatorEvolution.cpp
 			src/Tests/PreyPredator/PreyPredator.cpp
 			src/Tests/PreyPredator/PublicInterfaceImpl.cpp)
@@ -123,22 +105,12 @@ if (build_tests)
 			Boost::serialization
 			${SFML_LIBRARIES})
 
-	target_link_libraries(memory_test
-			agio_lib
-			Boost::serialization
-			${SFML_LIBRARIES})
-
 	target_link_libraries(perf_test
 			agio_lib
 			Boost::serialization
 			${SFML_LIBRARIES})
 
-	target_link_libraries(human_test
-			agio_lib
-			Boost::serialization
-			${SFML_LIBRARIES})
-
-	target_link_libraries(diversity_plot
+	target_link_libraries(complex_system
 			agio_lib
 			Boost::serialization
 			${SFML_LIBRARIES})
@@ -152,4 +124,28 @@ if (build_tests)
 		agio_lib
 		Boost::serialization
 		${SFML_LIBRARIES})
+
+	# Some tests are Windows specific
+	if (WIN32)
+		add_executable(human_test
+			src/Tests/ComplexSystem/HumanTest.cpp
+			src/Tests/ComplexSystem/ComplexSystem.cpp
+			src/Tests/ComplexSystem/ComplexSystemEvolution.cpp
+			src/Tests/ComplexSystem/PublicInterfaceImpl.cpp)
+
+		add_executable(memory_test
+			src/Tests/ComplexSystem/MemoryTest.cpp
+			src/Tests/ComplexSystem/ComplexSystem.cpp
+			src/Tests/ComplexSystem/PublicInterfaceImpl.cpp)
+
+		target_link_libraries(human_test
+			agio_lib
+			Boost::serialization
+			${SFML_LIBRARIES})
+
+		target_link_libraries(memory_test
+			agio_lib
+			Boost::serialization
+			${SFML_LIBRARIES})
+	endif()
 endif()

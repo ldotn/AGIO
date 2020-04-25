@@ -139,7 +139,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 		// First update the fitness values for neat
 		priority_queue<float> fitness_queue;
 
-		auto& pop = s.NetworksPopulation;
+		NEAT::Population* pop = s.NetworksPopulation;
 		for (auto& neat_org : pop->organisms)
 		{
 			// Find the organism in the individuals that has this genome
@@ -164,31 +164,40 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 				}
 			}
 		}
-		float avg_fit = 0;
+
+		s.CurrentEpochMeanFitness = 0;
 		for (int i = 0; i < Settings::ProgressMetricsIndividuals; i++)
 		{
-			avg_fit += fitness_queue.top();
+			s.CurrentEpochMeanFitness += fitness_queue.top();
 			fitness_queue.pop();
 		}
-		avg_fit /= (float)Settings::ProgressMetricsIndividuals;
-
+		s.CurrentEpochMeanFitness /= (float)Settings::ProgressMetricsIndividuals;
+		
 		float inv_age = 1.0f / (s.Age + 1);
 		float falloff = (1.0f - inv_age) * Settings::ProgressMetricsFalloff + inv_age;
-		float smoothed_fitness = (1.0f - falloff)*s.BestFitness + falloff * avg_fit;
-		if (s.BestFitness <= 0)
+		float smoothed_fitness = (1.0f - falloff)*s.SmoothedFitness + falloff * s.CurrentEpochMeanFitness;
+		if (s.SmoothedFitness <= 0)
 		{
-			smoothed_fitness = avg_fit;
+			smoothed_fitness = s.CurrentEpochMeanFitness;
 			s.ProgressMetric = 0;
 		}
 		else
-			s.ProgressMetric = (1.0f - falloff)*s.ProgressMetric + falloff*((smoothed_fitness - s.BestFitness) / s.BestFitness);
+			s.ProgressMetric = (1.0f - falloff)*s.ProgressMetric + falloff*((smoothed_fitness - s.SmoothedFitness) / s.SmoothedFitness);
 
-		s.BestFitness = smoothed_fitness;
+		s.SmoothedFitness = smoothed_fitness;
 
 
 		// With the fitness updated call the neat epoch
 		s.Age++;
 		pop->epoch(s.Age);
+
+		if (pop->organisms.size() == 0)
+		{
+			// I REALLY don't know why, but it can happen that after an epoch the organism array is empty. In that case, recreate the pop
+			s.NetworksPopulation = new NEAT::Population(pop->GetBestGenome()->duplicate(0), s.IndividualsIDs.size());
+			delete pop;
+			pop = s.NetworksPopulation;
+		}
 
 		// Now replace the individuals with the new brains genomes
 		// At this point the old pointers are probably invalid, but is NEAT the one that manages that
@@ -228,7 +237,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 				entry.Age = s.Age;
 				entry.Morphology = tag;
 				entry.IndividualsSize = s.IndividualsIDs.size();
-				entry.BestFitness = s.BestFitness;
+				entry.SmoothedFitness = s.SmoothedFitness;
 				entry.HistoricalBestGenome = s.NetworksPopulation->GetBestGenome()->duplicate(0);
 
 				priority_queue<pair<float, int>> sorted_orgs;
@@ -250,7 +259,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 
 				// Reset the species
 				s.Age = 0;
-				s.BestFitness = 0;
+				s.SmoothedFitness = 0;
 				s.ProgressMetric = 0;
 				s.EpochsUnderThreshold = 0;
 				auto old_pop_ptr = s.NetworksPopulation;
@@ -461,7 +470,7 @@ void Population::CurrentSpeciesToRegistry()
 			SpeciesRecord entry;
 			entry.Age = species.Age;
 			entry.Morphology = bestIndividual->GetMorphologyTag();
-			entry.BestFitness = bestIndividual->Fitness;
+			entry.SmoothedFitness = bestIndividual->Fitness;
 			entry.HistoricalBestGenome = bestIndividual->GetGenome()->duplicate(0);
 
 			priority_queue<pair<float, int>> sorted_orgs;
@@ -497,7 +506,7 @@ void Population::SaveRegistryReport(const std::string& Path)
 		for (const auto& entry : entries)
 		{
 			// Average the fitness of the best individual and the LastBestGenomes
-			avg_fitness += entry.BestFitness;
+			avg_fitness += entry.SmoothedFitness;
 			for (auto[fitness, _] : entry.LastBestGenomes)
 				avg_fitness += fitness;
 			acc += 1 + entry.LastBestGenomes.size();

@@ -30,6 +30,7 @@ int main()
 
 		cfg.LoadValue(GameplayParams::EatDistance,"EatDistance");
 		cfg.LoadValue(GameplayParams::WastedActionPenalty,"WastedActionPenalty");
+		cfg.LoadValue(GameplayParams::EatScore,"EatScore");
 		cfg.LoadValue(GameplayParams::CorpseBitesDuration,"CorpseBitesDuration");
 		cfg.LoadValue(GameplayParams::EatCorpseLifeGained,"EatCorpseLifeGained");
 		cfg.LoadValue(GameplayParams::EatPlantLifeGained,"EatPlantLifeGained");
@@ -55,6 +56,8 @@ int main()
 			cin >> dummy_;
 			return 1;
 		}
+
+		Settings::LoadFromFile(cfg);
 	}
 
 	NEAT::load_neat_params("../cfg/neat_test_config.txt");
@@ -110,9 +113,10 @@ int main()
 				cout << "--------------------" << endl;
 				cout << "        Size : " << species.IndividualsIDs.size() << endl;
 				cout << "        Progress Metric : " << species.ProgressMetric << endl;
-				cout << "        Fitness " << species.DevMetrics.RealFitness << " vs " << species.DevMetrics.RandomFitness << endl;
+				cout << "        Epoch Fitness : " << species.CurrentEpochMeanFitness << endl;
+				cout << "        Smoothed Fitness : " << species.SmoothedFitness << endl;
 			}
-		});
+		}, true);
 	}
 	
 	pop.EvaluatePopulation(world_ptr);
