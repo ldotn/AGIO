@@ -98,8 +98,8 @@ namespace agio
 		// Fills the registries
 		virtual void Init() = 0;
 
-		// Computes fitness for all the individuals in a population
-		virtual void ComputeFitness(const std::vector<class BaseIndividual*>& Individuals, void * World) = 0;
+		// Computes fitness for all the individuals in a batch
+		virtual void ComputeFitness(const std::vector<class BaseIndividual*>& BatchIndividuals, void * World) = 0;
 
 		// Decides if an individual is alive or not
 		// "Alive" can refer to an abstract notion of active, depending on the user intention
@@ -117,6 +117,17 @@ namespace agio
 
 		// Creates a new state that has the same values as the provided state
 		virtual void * DuplicateState(void * State) = 0;
+
+		// Creates a new world, possibly using the provided pointer
+		// This new world needs to be independent from the any other, as it will be used for parallel batch evaluation
+		virtual void* MakeWorld(void* BaseWorld = nullptr) = 0;
+
+		// Resets a world before starting a new epoch
+		// Might not be overriden if not applicable
+		virtual void ResetWorld(void* World) {};
+
+		// Releases the resources used by a world
+		virtual void DestroyWorld(void* World) = 0;
 
 		// Getters
 		const auto & GetComponentRegistry() const { return ComponentRegistry; }

@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include "../Utils/WorkerPool.h"
 
 namespace NEAT
 {
@@ -64,7 +65,8 @@ namespace agio
 	{
 	public:
 		// TODO : Docs
-		Population();
+		Population(void* BaseWorld = nullptr, int EvaluationThreads = 1);
+		~Population();
 
 		// Creates a new population of random individuals
 		// It also separates them into species
@@ -75,7 +77,7 @@ namespace agio
 		// Computes a single evolutive step
 		// The callback is called right after evaluation
 		// The MuteOutput parameter disables console output
-		void Epoch(void * World, std::function<void(int)> EpochCallback = [](int){}, bool MuteOutput = false);
+		void Epoch(std::function<void(int)> EpochCallback = [](int){}, bool MuteOutput = false);
 
 		const auto& GetIndividuals() const { return Individuals; }
 		auto& GetIndividuals() { return Individuals; }
@@ -85,10 +87,10 @@ namespace agio
 		// Runs the simulation with the provided decision functions, replacing one species at a time
 		// Useful to compare the evolved network against some known decision function
 		// It calls a callback function each time a species finishes simulating
-		void SimulateWithUserFunction(void * World,std::unordered_map<MorphologyTag, decltype(Individual::UserDecisionFunction)> FunctionsMap, std::function<void(const MorphologyTag&)> Callback);
+		void SimulateWithUserFunction(std::unordered_map<MorphologyTag, decltype(Individual::UserDecisionFunction)> FunctionsMap, std::function<void(const MorphologyTag&)> Callback);
 
 		// Evaluates the population
-		void EvaluatePopulation(void * WorldPtr);
+		void EvaluatePopulation();
 		void CurrentSpeciesToRegistry();
 
 		// Generates a report of the registry
@@ -114,5 +116,9 @@ namespace agio
 
 		// Creates a random morphology
 		MorphologyTag MakeRandomMorphology();
+
+		// Used for parallel evaluation
+		WorkerPool Workers;
+		std::vector<void*> WorldArray;
 	};
 }

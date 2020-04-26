@@ -89,8 +89,16 @@ int SIndividual::DecideAction()
 	{
 		if (act_sum > 1e-6)
 		{
-			discrete_distribution<int> action_dist(begin(ActivationsBuffer), end(ActivationsBuffer));
-			action = action_dist(RNG);
+			// Generate the PCF
+			ActivationsBuffer[0] /= act_sum;
+			for (int idx = 1; idx < ActivationsBuffer.size(); ++idx)
+				ActivationsBuffer[idx] = ActivationsBuffer[idx] / act_sum + ActivationsBuffer[idx - 1];
+
+			// Sample the action distribution
+			float px = generate_canonical<float, sizeof(float) * 8>(RNG);
+			const auto firstIter = ActivationsBuffer.begin();
+			const auto positionIter = lower_bound(firstIter, ActivationsBuffer.end(), px);
+			action = static_cast<int>(positionIter - firstIter);
 		}
 		else
 		{

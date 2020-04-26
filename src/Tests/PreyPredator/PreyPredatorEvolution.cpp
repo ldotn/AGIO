@@ -94,6 +94,7 @@ void Metrics::update(Population &pop)
 			max_failed_carnivore.push_back(max_failed);
 			max_coverage_carnivore.push_back(max_coverage);
 			is_carnivore = true;
+			age_carnivore.push_back(species.Age);
 		}
 		else
 		{
@@ -108,6 +109,7 @@ void Metrics::update(Population &pop)
 			max_eaten_herbivore.push_back(max_eaten);
 			max_failed_herbivore.push_back(max_failed);
 			max_coverage_herbivore.push_back(max_coverage);
+			age_herbivore.push_back(species.Age);
 		}
 		cout << "    "<< (is_carnivore ? "[Carnivore]" : "[Herbivore]") << " Eaten: " << avg_eaten << "[max " << max_eaten << "] Failed: " << avg_failed << " Coverage: " << avg_coverage << endl;
 	}
@@ -219,6 +221,9 @@ Metrics::~Metrics()
 			file << gen << "," << x << endl;
 	};
 
+	savef(age_herbivore, "age_herbivore.csv");
+	savef(age_carnivore, "age_carnivore.csv");
+
 	savef(avg_eaten_herbivore, "avg_eaten_herbivore.csv");
 	savef(avg_eaten_carnivore, "avg_eaten_carnivore.csv");
 	savef(avg_eaten_herbivore_greedy, "avg_eaten_herbivore_greedy.csv");
@@ -307,7 +312,7 @@ void Metrics::calculate_metrics(Population &pop)
 		avg_progress_carnivore.push_back(progress_carnivore);
 	}
 
-agio::Population runEvolution()
+unique_ptr<agio::Population> runEvolution()
 {
     minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
@@ -316,16 +321,16 @@ agio::Population runEvolution()
     NEAT::destructive_mutate_morph_param_prob = Settings::ParameterDestructiveMutationProb;
     NEAT::mutate_morph_param_spread = Settings::ParameterMutationSpread;
 
+	// Create and fill the world
+	world.fill(FoodCellCount, WorldSizeX, WorldSizeY);
+
     // Create base interface
     Interface = new PublicInterfaceImpl();
     Interface->Init();
 
-    // Create and fill the world
-    world.fill(FoodCellCount, WorldSizeX, WorldSizeY);
-
     // Spawn population
-    Population pop;
-    pop.Spawn(PopSizeMultiplier, SimulationSize);
+    auto pop = make_unique<Population>(&world, 24);
+    pop->Spawn(PopSizeMultiplier, SimulationSize);
 
     // Do evolution loop
     Metrics metrics;
@@ -333,20 +338,20 @@ agio::Population runEvolution()
     {
 		((PublicInterfaceImpl*)Interface)->CurrentGenNumber = g;
 
-        pop.Epoch(&world, [&](int gen)
+        pop->Epoch([&](int gen)
         {
 			cout << "Generation : " << gen << endl;
-            metrics.update(pop);
+            metrics.update(*pop);
             cout << endl;
 
-            metrics.plot(pop);
+            metrics.plot(*pop);
         }, true);
 
     }
-    pop.EvaluatePopulation(&world);
-    pop.CurrentSpeciesToRegistry();
+    pop->EvaluatePopulation();
+    pop->CurrentSpeciesToRegistry();
 
-    SRegistry registry(&pop);
+    SRegistry registry(pop.get());
     registry.save(SerializationFile);
 
 	{

@@ -18,8 +18,9 @@ extern float BorderPenalty;
 extern float WastedActionPenalty;
 extern std::string SerializationFile;
 
-#include "../../Evolution/Population.h"
-
+#include <memory>
 void LoadConfig();
-agio::Population runEvolution();
+
+namespace agio { class Population; }
+std::unique_ptr<agio::Population> runEvolution();
 void runSimulation();

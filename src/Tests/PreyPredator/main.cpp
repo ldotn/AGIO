@@ -7,6 +7,7 @@
 #include "enumerate.h"
 #include "../../Serialization/SIndividual.h"
 #include "PublicInterfaceImpl.h"
+#include "../../Evolution/Population.h"
 
 using namespace agio;
 using namespace std;
@@ -68,10 +69,10 @@ int main(int argc, char *argv[])
 
 		// Assume that if some parameter was passed, the second one it's the name of the output file for the parametric config
 		if (argc > 3)
-			final_pop.SaveRegistryReport(argv[2]);
+			final_pop->SaveRegistryReport(argv[2]);
 
 		// Dump networks of the historical best organism of each species
-		for (auto [idx, entry] : fpp::enumerate(final_pop.GetSpeciesRegistry()))
+		for (auto [idx, entry] : fpp::enumerate(final_pop->GetSpeciesRegistry()))
 		{
 			string fname = "network_species" + to_string(idx);
 			SIndividual tmp_org(entry.HistoricalBestGenome, entry.Morphology);

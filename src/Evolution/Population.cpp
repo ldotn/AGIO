@@ -22,9 +22,19 @@ using namespace std;
 using namespace agio;
 using namespace fpp;
 
-Population::Population() : RNG(std::chrono::high_resolution_clock::now().time_since_epoch().count())
+Population::Population(void* BaseWorld, int EvaluationThreads) :
+	Workers(EvaluationThreads),
+	RNG(std::chrono::high_resolution_clock::now().time_since_epoch().count()),
+	WorldArray(EvaluationThreads)
 {
 	CurrentGeneration = 0;
+	for (void*& world : WorldArray)
+		world = Interface->MakeWorld(BaseWorld);
+}
+
+Population::~Population()
+{
+	for (void*& world : WorldArray) Interface->DestroyWorld(world);
 }
 
 MorphologyTag Population::MakeRandomMorphology()
@@ -114,14 +124,12 @@ void Population::Spawn(int SizeMult,int SimSize)
 	}
 
 	CurrentGeneration = 0;
-
-	// TODO :  Separate organisms by distance in the world too
 }
 
-void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, bool MuteOutput)
+void Population::Epoch(std::function<void(int)> EpochCallback, bool MuteOutput)
 {
 	// Evaluate the entire population
-	EvaluatePopulation(WorldPtr);
+	EvaluatePopulation();
 
 	// Call the callback
 	EpochCallback(CurrentGeneration);
@@ -385,7 +393,7 @@ void Population::Epoch(void * WorldPtr, std::function<void(int)> EpochCallback, 
 		cout.clear();
 }
 
-void Population::SimulateWithUserFunction(void * World,std::unordered_map<MorphologyTag, decltype(Individual::UserDecisionFunction)> FunctionsMap, std::function<void(const MorphologyTag&)> Callback)
+void Population::SimulateWithUserFunction(std::unordered_map<MorphologyTag, decltype(Individual::UserDecisionFunction)> FunctionsMap, std::function<void(const MorphologyTag&)> Callback)
 {
 	// Set the decision functions for the individuals
 	for (auto & org : Individuals)
@@ -401,7 +409,7 @@ void Population::SimulateWithUserFunction(void * World,std::unordered_map<Morpho
 			Individuals[org_id].DecisionMethod = Individual::UseUserFunction;
 
 		// Evaluate and call the callback
-		EvaluatePopulation(World);
+		EvaluatePopulation();
 
 		Callback(tag);
 
@@ -411,42 +419,44 @@ void Population::SimulateWithUserFunction(void * World,std::unordered_map<Morpho
 	}
 }
 
-void Population::EvaluatePopulation(void * WorldPtr)
+void Population::EvaluatePopulation()
 {
 	for (auto& org : Individuals)
 		org.AccumulatedFitness = 0;
 
-	// Create pointer vector
-	std::vector<class BaseIndividual*> individuals_ptrs;
-	individuals_ptrs.reserve(SimulationSize);
+	// Reset the world state
+	for (void* world : WorldArray) Interface->ResetWorld(world);
 
 	// Simulate in batches of SimulationSize
 	// This assumes that the individuals are randomly distributed in the population vector
-	for (int j = 0; j < Individuals.size() / SimulationSize; j++)
+	Workers.Dispatch(Individuals.size() / SimulationSize, [&](int batchId, int workerId)
 	{
+		// Create pointer vector
+		std::vector<class BaseIndividual*> individuals_ptrs;
+		individuals_ptrs.reserve(SimulationSize);
+
 		// TODO : Optimize this, you could pass the current batch id and make the individuals aware of their index in the vector
-		individuals_ptrs.resize(0);
-		for (auto[idx, org] : enumerate(Individuals))
+		for (auto [idx, org] : enumerate(Individuals))
 		{
-			if (idx >= j * SimulationSize && idx < (j + 1)*SimulationSize)
+			/*if (idx >= batchId * SimulationSize && idx < (batchId + 1) * SimulationSize)
 				org.InSimulation = true;
 			else
 				org.InSimulation = false;
-
-			if (org.InSimulation)
+			*/
+			if (idx >= batchId * SimulationSize && idx < (batchId + 1) * SimulationSize)
 				individuals_ptrs.push_back(&Individuals[idx]);
 		}
 
 		for (int i = 0; i < Settings::SimulationReplications; i++)
 		{
 			// Compute fitness of each individual
-			Interface->ComputeFitness(individuals_ptrs, WorldPtr);
+			Interface->ComputeFitness(individuals_ptrs, WorldArray[workerId]);
 
 			// Update the fitness and novelty accumulators
 			for (auto org_ptr : individuals_ptrs)
 				((Individual*)org_ptr)->AccumulatedFitness += ((Individual*)org_ptr)->Fitness;
 		}
-	}
+	});
 
 	for (auto& org : Individuals)
 		org.Fitness = org.AccumulatedFitness / (float)Settings::SimulationReplications;

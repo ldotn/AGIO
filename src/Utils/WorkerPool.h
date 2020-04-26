@@ -109,7 +109,7 @@ namespace agio
 		bool Alive_;
 
 		uint32_t CurrentJobSize;
-		std::function<void(int, int)> WorkFunction;
+		std::function<void(int JobIDX, int WorkerID)> WorkFunction;
 	};
 }
 
