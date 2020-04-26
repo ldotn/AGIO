@@ -103,7 +103,7 @@ void Population::Spawn(int SizeMult,int SimSize)
 
 		// Create NEAT population
 		auto start_genome = new NEAT::Genome(desc.SensorsCount, desc.ActionsCount, 0, 0);
-		s.NetworksPopulation = new NEAT::Population(start_genome, size);
+		s.NetworksPopulation = make_unique<NEAT::Population>(start_genome, size);
 
 		// Initialize individuals
 		for (int i = 0; i < size; i++)
@@ -147,26 +147,32 @@ void Population::Epoch(std::function<void(int)> EpochCallback, bool MuteOutput)
 		// First update the fitness values for neat
 		priority_queue<float> fitness_queue;
 
-		NEAT::Population* pop = s.NetworksPopulation;
+		NEAT::Population* pop = s.NetworksPopulation.get();
 		for (auto& neat_org : pop->organisms)
 		{
 			// Find the organism in the individuals that has this genome
 			for (int org_idx : s.IndividualsIDs)
 			{
-				const auto& org = Individuals[org_idx];
+				auto& org = Individuals[org_idx];
 
 				if (org.Genome == neat_org->gnome)  // comparing pointers
 				{
-				    float org_fitness = org.Fitness;
-				    if (org_fitness < -1e6)
-				        org_fitness = -1e6;
-				    if (org_fitness > 1e6)
-				        org_fitness = 1e6;
+					// Bring any broken number to the min fitness (-1e5)
+					// Broken numbers cause NEAT to crash later on
+					if (!isnormal(org.Fitness))
+						org.Fitness = -1e5;
 
+				    float org_fitness = org.Fitness;
+
+				    if (org_fitness < -1e5)
+				        org_fitness = -1e5;
+				    if (org_fitness > 1e5)
+				        org_fitness = 1e5;
+					
 					// Remapping because NEAT appears to only work with positive fitness
 					neat_org->fitness = org_fitness + 1e6 + 1;
 
-					fitness_queue.push(org.Fitness);
+					fitness_queue.push(org.Fitness); // Should be the remapped fitness here...
 
 					break;
 				}
@@ -198,14 +204,6 @@ void Population::Epoch(std::function<void(int)> EpochCallback, bool MuteOutput)
 		// With the fitness updated call the neat epoch
 		s.Age++;
 		pop->epoch(s.Age);
-
-		if (pop->organisms.size() == 0)
-		{
-			// I REALLY don't know why, but it can happen that after an epoch the organism array is empty. In that case, recreate the pop
-			s.NetworksPopulation = new NEAT::Population(pop->GetBestGenome()->duplicate(0), s.IndividualsIDs.size());
-			delete pop;
-			pop = s.NetworksPopulation;
-		}
 
 		// Now replace the individuals with the new brains genomes
 		// At this point the old pointers are probably invalid, but is NEAT the one that manages that
@@ -270,7 +268,7 @@ void Population::Epoch(std::function<void(int)> EpochCallback, bool MuteOutput)
 				s.SmoothedFitness = 0;
 				s.ProgressMetric = 0;
 				s.EpochsUnderThreshold = 0;
-				auto old_pop_ptr = s.NetworksPopulation;
+				auto oldBestGenome = s.NetworksPopulation->GetBestGenome()->duplicate(0);
 
 				// Check if a new species can be generated
 				// There might not be any species left that aren't already on the map
@@ -311,7 +309,7 @@ void Population::Epoch(std::function<void(int)> EpochCallback, bool MuteOutput)
 
 					//		No need to add the current best genome, it's already on the registry at this point
 					//		Then create population from the genome list
-					s.NetworksPopulation = new NEAT::Population(s.IndividualsIDs.size(), start_genomes);
+					s.NetworksPopulation = make_unique<NEAT::Population>(s.IndividualsIDs.size(), start_genomes);
 
 					//		After the population has been created, delete the new base genome
 					//			Don't delete the other as they are in the registry
@@ -320,14 +318,12 @@ void Population::Epoch(std::function<void(int)> EpochCallback, bool MuteOutput)
 					// Important : You need to set the starting parameters by hand
 					// NEAT can evolve them, but has no knowledge of the registry, so it can't create them
 					for (int i = 0; i < s.IndividualsIDs.size(); i++)
-						s.NetworksPopulation->organisms[i]->gnome->MorphParams = old_pop_ptr->GetBestGenome()->MorphParams;
+						s.NetworksPopulation->organisms[i]->gnome->MorphParams = oldBestGenome->MorphParams;
+					delete oldBestGenome;
 
 					// Replace the genome pointers of the individuals
 					for (auto [num,idx] : enumerate(s.IndividualsIDs))
 						Individuals[idx].Genome = s.NetworksPopulation->organisms[num]->gnome;
-
-					// Finally delete the old neat pop
-					delete old_pop_ptr;
 
 					cout << "!! RESETED SPECIES !!" << endl;
 				}
@@ -356,7 +352,7 @@ void Population::Epoch(std::function<void(int)> EpochCallback, bool MuteOutput)
 					start_genomes.push_back(base_genome);
 
 					//		Then create population from the genome list
-					s.NetworksPopulation = new NEAT::Population(size, start_genomes);
+					s.NetworksPopulation = make_unique<NEAT::Population>(size, start_genomes);
 
 					//		After the population has been created, delete the new base genome
 					//			Don't delete the other as they are in the registry
@@ -375,9 +371,6 @@ void Population::Epoch(std::function<void(int)> EpochCallback, bool MuteOutput)
 					++iter; // Advance before changing the key, because that invalidates the iterator
 					SpeciesMap[new_tag] = move(s);
 					SpeciesMap.erase(tag);
-
-					// Finally delete the old neat pop
-					delete old_pop_ptr;
 
 					// Already advanced the iterator, don't advance twice
 					continue;

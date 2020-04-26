@@ -27,7 +27,7 @@ namespace agio
 		std::vector<int> IndividualsIDs;
 
 		// Each species has a NEAT population that represents the brains
-		NEAT::Population * NetworksPopulation;
+		std::unique_ptr<NEAT::Population> NetworksPopulation;
 
 		// Used to track progress
 		float CurrentEpochMeanFitness = 0;
