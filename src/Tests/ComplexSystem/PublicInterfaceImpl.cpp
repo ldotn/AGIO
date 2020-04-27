@@ -95,8 +95,8 @@ BaseIndividual *find_nearest_enemy(const void *State, const BaseIndividual *Org,
     {
         auto other_state_ptr = (OrgState *) individual->GetState();
 
-        // Ignore individuals that aren't being simulated right now or those of your species
-        if (!individual->InSimulation || tag == individual->GetMorphologyTag())
+        // Ignore individuals of your species or disabled ones
+        if (tag == individual->GetMorphologyTag() || !other_state_ptr->Enabled)
             continue;
 		
 		// Ignore individuals that are out of the world bounds
@@ -104,7 +104,7 @@ BaseIndividual *find_nearest_enemy(const void *State, const BaseIndividual *Org,
 			other_state_ptr->Position.x > WorldSizeX || other_state_ptr->Position.y > WorldSizeY)
 			continue;
 
-		// Ignore dead individuals
+		// Ignore dead individuals or live individuals depending on the SearchDead param
 		if ((SearchDead && other_state_ptr->Life > 0) ||
 			(!SearchDead && other_state_ptr->Life <= 0))
 			continue;
@@ -677,7 +677,7 @@ void PublicInterfaceImpl::ResetState(void *State)
     state_ptr->FailableCount = 0;
 	state_ptr->Score = 0;
 
-	// The type doesnt change
+	// The type doesn't change
 }
 
 void PublicInterfaceImpl::DestroyState(void *State)
@@ -708,9 +708,6 @@ void PublicInterfaceImpl::ComputeFitness(const std::vector<class BaseIndividual 
 
         for (auto &org : Individuals)
         {
-            if (!org->InSimulation)
-                continue;
-
             auto state_ptr = (OrgState *) org->GetState();
 			if (state_ptr->Life > 0)
 			{
@@ -725,4 +722,13 @@ void PublicInterfaceImpl::ComputeFitness(const std::vector<class BaseIndividual 
 		if (!any_alive)
 			return;
     }
+}
+
+void* PublicInterfaceImpl::MakeWorld(void* BaseWorld)
+{
+    // Just making a copy works for this example
+    auto world = static_cast<WorldData*>(BaseWorld);
+    auto newWorld = new WorldData();
+    *newWorld = *world;
+    return newWorld;
 }

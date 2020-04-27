@@ -26,6 +26,8 @@ struct OrgState
     int FailedCount = 0;
     int FailableCount = 0;
 
+    bool Enabled = true; // Used for selectively ignoring organisms on the interrelations test
+
 	OrgType Type;
 };
 
@@ -111,6 +113,10 @@ public:
     void DestroyState(void * State) override;
 
     void * DuplicateState(void * State) override;
+
+    void* MakeWorld(void* BaseWorld) override;
+
+    void DestroyWorld(void* World) override { delete (WorldData*)World; }
 
     // How many steps did the last simulation took before everyone died
     int LastSimulationStepCount = 0;

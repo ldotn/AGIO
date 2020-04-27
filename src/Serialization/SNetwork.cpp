@@ -18,15 +18,14 @@ void SNode::flushback(SNetwork& Network)
 {
     if (type != NodeType::SENSOR && activation_count > 0)
     {
+        activation_count = 0;
+        activation = 0;
+
         for (auto& link : incoming)
         {
-            if (Network.all_nodes[link.in_node_idx].activation_count > 0)
-				Network.all_nodes[link.in_node_idx].flushback(Network);
+            Network.all_nodes[link.in_node_idx].flushback(Network);
         }
     }
-
-    activation_count = 0;
-    activation = 0;
 }
 
 bool SNetwork::outputsOff()

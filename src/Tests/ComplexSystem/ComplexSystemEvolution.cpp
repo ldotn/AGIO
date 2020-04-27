@@ -19,7 +19,7 @@ using namespace agio;
 using namespace fpp;
 using namespace std;
 
-agio::Population runEvolution(const std::string& WorldPath, bool NoOutput)
+unique_ptr<agio::Population> runEvolution(const std::string& WorldPath, bool NoOutput)
 {
     minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
@@ -28,28 +28,28 @@ agio::Population runEvolution(const std::string& WorldPath, bool NoOutput)
     NEAT::destructive_mutate_morph_param_prob = Settings::ParameterDestructiveMutationProb;
     NEAT::mutate_morph_param_spread = Settings::ParameterMutationSpread;
 
+	// Create and fill the world
+	WorldData world = createWorld(WorldPath);
+
     // Create base interface
     Interface = new PublicInterfaceImpl();
     Interface->Init();
 
-    // Create and fill the world
-    WorldData world = createWorld(WorldPath);
-
     // Spawn population
-    Population pop;
-    pop.Spawn(PopSizeMultiplier, SimulationSize);
+    auto pop = make_unique<Population>(&world, 24);
+    pop->Spawn(PopSizeMultiplier, SimulationSize);
 
     for (int g = 0; g < GenerationsCount; g++)
     {
-        pop.Epoch(&world, [&](int gen)
+		pop->Epoch([&](int gen)
         {
 			if (NoOutput) return;
 
             cout << "Generation " << gen 
-				<< ", " << pop.GetSpecies().size() << " Species" << endl;
+				<< ", " << pop->GetSpecies().size() << " Species" << endl;
 
 			cout << "------------------------------" << endl;
-			for (const auto& [_, species] : pop.GetSpecies())
+			for (const auto& [_, species] : pop->GetSpecies())
 			{
 				cout << "    "
 					 << " Size : " << species.IndividualsIDs.size()
@@ -58,7 +58,7 @@ agio::Population runEvolution(const std::string& WorldPath, bool NoOutput)
 					 << " Progress : " << species.ProgressMetric
 				     << endl;
 				cout << "    "
-					<< " Type (carnivore, herbivore, omnivore) : " << (int)pop.GetIndividuals()[species.IndividualsIDs[0]].GetState<OrgState>()->Type
+					<< " Type (carnivore, herbivore, omnivore) : " << (int)pop->GetIndividuals()[species.IndividualsIDs[0]].GetState<OrgState>()->Type
 					<< endl;
 
 				float avg_fit = 0;
@@ -66,7 +66,7 @@ agio::Population runEvolution(const std::string& WorldPath, bool NoOutput)
 				float avg_eaten = 0;
 				for (int id : species.IndividualsIDs)
 				{
-					const auto& org = pop.GetIndividuals()[id];
+					const auto& org = pop->GetIndividuals()[id];
 
 					avg_fit += org.Fitness;
 					max_fit = max(max_fit, org.Fitness);
@@ -93,10 +93,10 @@ agio::Population runEvolution(const std::string& WorldPath, bool NoOutput)
         },true);
 
     }
-    pop.EvaluatePopulation(&world);
-    pop.CurrentSpeciesToRegistry();
+    pop->EvaluatePopulation();
+    pop->CurrentSpeciesToRegistry();
 
-    SRegistry registry(&pop);
+    SRegistry registry(pop.get());
     registry.save(SerializationFile);
 
 	return pop;

@@ -95,7 +95,7 @@ int main()
 	};
 
 	// Spawn population
-	Population pop;
+	Population pop(world_ptr, 24);
 	pop.Spawn(ExperimentParams::PopSizeMultiplier, ExperimentParams::SimulationSize);
 
 	// Do evolution loop
@@ -103,7 +103,7 @@ int main()
 	{
 		((ExperimentInterface*)Interface)->CurrentGenNumber = g;
 
-		pop.Epoch(world_ptr, [&](int gen)
+		pop.Epoch([&](int gen)
 		{
 			cout << "Generation : " << gen << endl;
 			cout << "    " << pop.GetSpecies().size() << " Species " << endl;
@@ -119,7 +119,7 @@ int main()
 		}, true);
 	}
 	
-	pop.EvaluatePopulation(world_ptr);
+	pop.EvaluatePopulation();
 	pop.CurrentSpeciesToRegistry();
 
 	SRegistry registry(&pop);

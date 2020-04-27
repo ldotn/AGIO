@@ -97,7 +97,7 @@ public:
 
 	void* MakeWorld(void* BaseWorld = nullptr) override;
 
-	virtual void DestroyWorld(void* World) override { delete (WorldData*)World; }
+	void DestroyWorld(void* World) override { delete (WorldData*)World; }
 
 	// Needs to be set BEFORE calling epoch
 	// Used by the evaluation metrics

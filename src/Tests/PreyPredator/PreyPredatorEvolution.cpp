@@ -62,17 +62,21 @@ void Metrics::update(Population &pop)
 			if(state_ptr->FailableActionCount > 0)
 				state_ptr->FailedActionFractionAcc += state_ptr->FailedActionCountCurrent / state_ptr->FailableActionCount;
 
-			avg_eaten += (float)state_ptr->EatenCount / state_ptr->Repetitions;
-			avg_failed += (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions;
-			avg_coverage += ((float)state_ptr->VisitedCellsCount / WorldCellCount) / state_ptr->Repetitions;
+			float eaten = float(state_ptr->EatenCount) / state_ptr->Repetitions;
+			float failed = state_ptr->FailedActionFractionAcc / state_ptr->Repetitions;
+			float coverage = (float(state_ptr->VisitedCellsCount) / WorldCellCount) / state_ptr->Repetitions;
 
-			min_eaten = min(min_eaten, (float)state_ptr->EatenCount / state_ptr->Repetitions);
-			min_failed = min(min_failed, (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions);
-			min_coverage = min(min_coverage, ((float)state_ptr->VisitedCellsCount / WorldCellCount) / state_ptr->Repetitions);
+			avg_eaten += eaten;
+			avg_failed += failed;
+			avg_coverage += coverage;
 
-			max_eaten = max(max_eaten, (float)state_ptr->EatenCount / state_ptr->Repetitions);
-			max_failed = max(max_failed, (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions);
-			max_coverage = max(max_coverage, ((float)state_ptr->VisitedCellsCount / WorldCellCount) / state_ptr->Repetitions);
+			min_eaten = min(min_eaten, eaten);
+			min_failed = min(min_failed, failed);
+			min_coverage = min(min_coverage, coverage);
+
+			max_eaten = max(max_eaten, eaten);
+			max_failed = max(max_failed, failed);
+			max_coverage = max(max_coverage, coverage);
 		}
 
 		avg_eaten /= species.IndividualsIDs.size();
@@ -113,6 +117,7 @@ void Metrics::update(Population &pop)
 		}
 		cout << "    "<< (is_carnivore ? "[Carnivore]" : "[Herbivore]") << " Eaten: " << avg_eaten << "[max " << max_eaten << "] Failed: " << avg_failed << " Coverage: " << avg_coverage << endl;
 	}
+
 #ifdef RUN_GREEDY
 	// Force a reset. REFACTOR!
 	for (auto& org : pop.GetIndividuals())
@@ -129,7 +134,7 @@ void Metrics::update(Population &pop)
 		state_ptr->FailedActionFractionAcc = 0;
 	}
 
-	pop.SimulateWithUserFunction(&world, createGreedyActionsMap(),
+	pop.SimulateWithUserFunction(createGreedyActionsMap(),
 		[&](const MorphologyTag& tag)
 	{
 		float max_eaten = 0;

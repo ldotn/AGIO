@@ -99,6 +99,7 @@ namespace agio
 		virtual void Init() = 0;
 
 		// Computes fitness for all the individuals in a batch
+		// Note : Fitness will be clamped later to [-1e5,1e5]
 		virtual void ComputeFitness(const std::vector<class BaseIndividual*>& BatchIndividuals, void * World) = 0;
 
 		// Decides if an individual is alive or not

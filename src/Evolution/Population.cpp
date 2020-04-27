@@ -170,7 +170,7 @@ void Population::Epoch(std::function<void(int)> EpochCallback, bool MuteOutput)
 				        org_fitness = 1e5;
 					
 					// Remapping because NEAT appears to only work with positive fitness
-					neat_org->fitness = org_fitness + 1e6 + 1;
+					neat_org->fitness = org_fitness + 1e5 + 1;
 
 					fitness_queue.push(org.Fitness); // Should be the remapped fitness here...
 
