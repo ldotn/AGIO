@@ -54,7 +54,7 @@ void runSimulation(const string& WorldPath)
 
 		SIndividual * org = new SIndividual;
 		*org = registry.Species[species_idx].Individuals[individual_idx];
-		org->InSimulation = true;
+
 		individuals.push_back(org);
 		species_ids[species_idx].push_back(individuals.size() - 1);
 

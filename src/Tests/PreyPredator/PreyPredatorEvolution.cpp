@@ -62,17 +62,21 @@ void Metrics::update(Population &pop)
 			if(state_ptr->FailableActionCount > 0)
 				state_ptr->FailedActionFractionAcc += state_ptr->FailedActionCountCurrent / state_ptr->FailableActionCount;
 
-			avg_eaten += (float)state_ptr->EatenCount / state_ptr->Repetitions;
-			avg_failed += (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions;
-			avg_coverage += ((float)state_ptr->VisitedCellsCount / WorldCellCount) / state_ptr->Repetitions;
+			float eaten = float(state_ptr->EatenCount) / state_ptr->Repetitions;
+			float failed = state_ptr->FailedActionFractionAcc / state_ptr->Repetitions;
+			float coverage = (float(state_ptr->VisitedCellsCount) / WorldCellCount) / state_ptr->Repetitions;
 
-			min_eaten = min(min_eaten, (float)state_ptr->EatenCount / state_ptr->Repetitions);
-			min_failed = min(min_failed, (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions);
-			min_coverage = min(min_coverage, ((float)state_ptr->VisitedCellsCount / WorldCellCount) / state_ptr->Repetitions);
+			avg_eaten += eaten;
+			avg_failed += failed;
+			avg_coverage += coverage;
 
-			max_eaten = max(max_eaten, (float)state_ptr->EatenCount / state_ptr->Repetitions);
-			max_failed = max(max_failed, (float)state_ptr->FailedActionFractionAcc / state_ptr->Repetitions);
-			max_coverage = max(max_coverage, ((float)state_ptr->VisitedCellsCount / WorldCellCount) / state_ptr->Repetitions);
+			min_eaten = min(min_eaten, eaten);
+			min_failed = min(min_failed, failed);
+			min_coverage = min(min_coverage, coverage);
+
+			max_eaten = max(max_eaten, eaten);
+			max_failed = max(max_failed, failed);
+			max_coverage = max(max_coverage, coverage);
 		}
 
 		avg_eaten /= species.IndividualsIDs.size();
@@ -94,6 +98,7 @@ void Metrics::update(Population &pop)
 			max_failed_carnivore.push_back(max_failed);
 			max_coverage_carnivore.push_back(max_coverage);
 			is_carnivore = true;
+			age_carnivore.push_back(species.Age);
 		}
 		else
 		{
@@ -108,9 +113,11 @@ void Metrics::update(Population &pop)
 			max_eaten_herbivore.push_back(max_eaten);
 			max_failed_herbivore.push_back(max_failed);
 			max_coverage_herbivore.push_back(max_coverage);
+			age_herbivore.push_back(species.Age);
 		}
 		cout << "    "<< (is_carnivore ? "[Carnivore]" : "[Herbivore]") << " Eaten: " << avg_eaten << "[max " << max_eaten << "] Failed: " << avg_failed << " Coverage: " << avg_coverage << endl;
 	}
+
 #ifdef RUN_GREEDY
 	// Force a reset. REFACTOR!
 	for (auto& org : pop.GetIndividuals())
@@ -127,7 +134,7 @@ void Metrics::update(Population &pop)
 		state_ptr->FailedActionFractionAcc = 0;
 	}
 
-	pop.SimulateWithUserFunction(&world, createGreedyActionsMap(),
+	pop.SimulateWithUserFunction(createGreedyActionsMap(),
 		[&](const MorphologyTag& tag)
 	{
 		float max_eaten = 0;
@@ -219,6 +226,9 @@ Metrics::~Metrics()
 			file << gen << "," << x << endl;
 	};
 
+	savef(age_herbivore, "age_herbivore.csv");
+	savef(age_carnivore, "age_carnivore.csv");
+
 	savef(avg_eaten_herbivore, "avg_eaten_herbivore.csv");
 	savef(avg_eaten_carnivore, "avg_eaten_carnivore.csv");
 	savef(avg_eaten_herbivore_greedy, "avg_eaten_herbivore_greedy.csv");
@@ -307,7 +317,7 @@ void Metrics::calculate_metrics(Population &pop)
 		avg_progress_carnivore.push_back(progress_carnivore);
 	}
 
-agio::Population runEvolution()
+unique_ptr<agio::Population> runEvolution()
 {
     minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
@@ -316,16 +326,16 @@ agio::Population runEvolution()
     NEAT::destructive_mutate_morph_param_prob = Settings::ParameterDestructiveMutationProb;
     NEAT::mutate_morph_param_spread = Settings::ParameterMutationSpread;
 
+	// Create and fill the world
+	world.fill(FoodCellCount, WorldSizeX, WorldSizeY);
+
     // Create base interface
     Interface = new PublicInterfaceImpl();
     Interface->Init();
 
-    // Create and fill the world
-    world.fill(FoodCellCount, WorldSizeX, WorldSizeY);
-
     // Spawn population
-    Population pop;
-    pop.Spawn(PopSizeMultiplier, SimulationSize);
+    auto pop = make_unique<Population>(&world, 24);
+    pop->Spawn(PopSizeMultiplier, SimulationSize);
 
     // Do evolution loop
     Metrics metrics;
@@ -333,20 +343,20 @@ agio::Population runEvolution()
     {
 		((PublicInterfaceImpl*)Interface)->CurrentGenNumber = g;
 
-        pop.Epoch(&world, [&](int gen)
+        pop->Epoch([&](int gen)
         {
 			cout << "Generation : " << gen << endl;
-            metrics.update(pop);
+            metrics.update(*pop);
             cout << endl;
 
-            metrics.plot(pop);
+            metrics.plot(*pop);
         }, true);
 
     }
-    pop.EvaluatePopulation(&world);
-    pop.CurrentSpeciesToRegistry();
+    pop->EvaluatePopulation();
+    pop->CurrentSpeciesToRegistry();
 
-    SRegistry registry(&pop);
+    SRegistry registry(pop.get());
     registry.save(SerializationFile);
 
 	{

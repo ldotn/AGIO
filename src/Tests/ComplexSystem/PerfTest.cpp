@@ -88,11 +88,11 @@ int main(int argc, char *argv[])
 
 			cout << "    World " << world_id << endl;
 			PROFILE(evolution_time,
-				Population pop;
-			pop.Spawn(PopSizeMultiplier, SimulationSize);
+				Population pop(&world, 24);
+				pop.Spawn(PopSizeMultiplier, SimulationSize);
 
-			for (int g = 0; g < GenerationsCount; g++)
-				pop.Epoch(&world, [](int) {}, true);
+				for (int g = 0; g < GenerationsCount; g++)
+					pop.Epoch([](int) {}, true);
 			);
 
 			avg_t += evolution_time;
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 		avg_t /= 5;
 		cout << "    Time : " << avg_t << endl;
 	}
-	system("pause");
+	//system("pause");
 
 	// Measure evolution
 	for (GenerationsCount = 50; GenerationsCount <= 300; GenerationsCount += 50)
@@ -115,11 +115,11 @@ int main(int argc, char *argv[])
 
 			cout << "    World " << world_id << endl;
 			PROFILE(evolution_time,
-				Population pop;
+				Population pop(&world, 24);
 				pop.Spawn(PopSizeMultiplier, SimulationSize);
 
 				for (int g = 0; g < GenerationsCount; g++)
-					pop.Epoch(&world, [](int) {}, true);
+					pop.Epoch([](int) {}, true);
 			);
 
 			avg_t += evolution_time;
@@ -128,12 +128,10 @@ int main(int argc, char *argv[])
 		avg_t /= 5;
 		cout << "    Time : " << avg_t << endl;
 	}
-	system("pause");
+	//system("pause");
 
-	//for (int world_id = 0; world_id < 5; world_id++)
-	if(false)
+	for (int world_id = 0; world_id < 5; world_id++)
 	{
-		int world_id = -1;
 		cout << "Evaluating world " << world_id << endl;
 
 		total_times_vec.push_back({});
@@ -146,13 +144,13 @@ int main(int argc, char *argv[])
 		cout << "    Profiling evolution" << endl;
 		cout << "        Generations : " << GenerationsCount << endl;
 		PROFILE(evolution_time,
-			Population pop;
+			Population pop(&world, 24);
 			pop.Spawn(PopSizeMultiplier, SimulationSize);
 
 			for (int g = 0; g < GenerationsCount; g++)
-				pop.Epoch(&world, [](int) {}, true);
+				pop.Epoch([](int) {}, true);
 
-			pop.EvaluatePopulation(&world);
+			pop.EvaluatePopulation();
 			pop.CurrentSpeciesToRegistry();
 
 			SRegistry registry_save(&pop);
@@ -177,7 +175,6 @@ int main(int argc, char *argv[])
 
 			SIndividual * org = new SIndividual;
 			*org = registry.Species[species_idx].Individuals[individual_idx];
-			org->InSimulation = true;
 			individuals.push_back(org);
 			species_ids[species_idx].push_back(individuals.size() - 1);
 		}

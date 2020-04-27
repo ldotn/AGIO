@@ -46,7 +46,6 @@ void runSimulation() {
 		
 		SIndividual * org = new SIndividual;
 		*org = registry.Species[species_idx].Individuals[individual_idx];
-		org->InSimulation = true;
 		individuals.push_back(org);
 	}
 

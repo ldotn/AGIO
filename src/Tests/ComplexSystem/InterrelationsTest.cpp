@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 
 	// Evolve
 	WorldData world = createWorld("../assets/worlds/world0.txt");
-	Population pop;
+	Population pop(&world, 24);
 	pop.Spawn(PopSizeMultiplier, SimulationSize);
 
 	// Increase simulation size to get more species at the same time
@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
 	for (int g = 0; g < GenerationsCount; g++)
 	{
 		cout << ".";
-		pop.Epoch(&world, [](int) {}, true);
+		pop.Epoch([](int) {}, true);
 	}
 	cout << endl;
 	// Create pop from registry
@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
 
 		SIndividual * org = new SIndividual;
 		*org = registry.Species[species_idx].Individuals[individual_idx];
-		org->InSimulation = true;
+
 		individuals.push_back(org);
 
 		int sid = species_ids.size();
@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
 			{
 				for (auto[org_idx, org] : enumerate(individuals))
 				{
-					if (!org->InSimulation) continue;
+					if (!org->GetState<OrgState>()->Enabled) continue;
 
 					auto state_ptr = org->GetState<OrgState>();
 					if (state_ptr->Life > 0)
@@ -216,9 +216,9 @@ int main(int argc, char *argv[])
 		for (auto& org : individuals)
 		{
 			if (species_ids[org->GetMorphologyTag()] == sid)
-				org->InSimulation = false;
+				org->GetState<OrgState>()->Enabled = false;
 			else
-				org->InSimulation = true;
+				org->GetState<OrgState>()->Enabled = true;
 		}
 
 		results.push_back(simulate());

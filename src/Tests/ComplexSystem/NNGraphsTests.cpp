@@ -74,13 +74,13 @@ int main(int argc, char *argv[])
 
 	// Evolve
 	WorldData world = createWorld("../assets/worlds/world0.txt");
-	Population pop;
+	Population pop(&world,24);
 	pop.Spawn(PopSizeMultiplier, SimulationSize);
 
 	for (int g = 0; g < GenerationsCount; g++)
 	{
 		cout << g << endl;
-		pop.Epoch(&world, [](int) {}, true);
+		pop.Epoch([](int) {}, true);
 	}
 	
 	pop.CurrentSpeciesToRegistry();

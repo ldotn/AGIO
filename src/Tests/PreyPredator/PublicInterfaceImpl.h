@@ -95,6 +95,10 @@ public:
 
     void * DuplicateState(void * State) override;
 
+	void* MakeWorld(void* BaseWorld = nullptr) override;
+
+	void DestroyWorld(void* World) override { delete (WorldData*)World; }
+
 	// Needs to be set BEFORE calling epoch
 	// Used by the evaluation metrics
 	int CurrentGenNumber = 0;
@@ -112,6 +116,9 @@ public:
 	vector<float> novelty_vec_hervibore;
 	vector<float> fitness_vec_carnivore;
 	vector<float> novelty_vec_carnivore;
+
+	vector<float> age_herbivore;
+	vector<float> age_carnivore;
 
 	vector<float> fitness_vec_registry;
 	vector<float> novelty_vec_registry;

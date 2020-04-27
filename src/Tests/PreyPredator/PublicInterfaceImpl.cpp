@@ -124,10 +124,8 @@ void PublicInterfaceImpl::Init()
                         bool any_eaten = false;
                         for (const auto& individual : Individuals)
                         {
-                            // Ignore individuals that aren't being simulated right now
-                            // Also, don't do all the other stuff against yourself.
-                            // You already know you don't want to kill yourself
-                            if (!individual->InSimulation || individual == Org)
+                            // Don't do all the other stuff against yourself.
+                            if (individual == Org)
                                 continue;
 
                             auto other_state_ptr = (OrgState*)individual->GetState();
@@ -220,9 +218,8 @@ void PublicInterfaceImpl::Init()
 
                         for (const auto& other_org : Individuals)
                         {
-                            // Ignore individuals that aren't being simulated right now
-                            // Also, don't do all the other stuff against yourself.
-                            if (!other_org->InSimulation || other_org == Org)
+                            // Don't do all the other stuff against yourself.
+                            if (other_org == Org)
                                 continue;
 
                             float dist = (((OrgState*)other_org->GetState())->Position - state_ptr->Position).length_sqr();
@@ -254,9 +251,8 @@ void PublicInterfaceImpl::Init()
 
                         for (const auto& other_org : Individuals)
                         {
-                            // Ignore individuals that aren't being simulated right now
-                            // Also, don't do all the other stuff against yourself.
-                            if (!other_org->InSimulation || other_org == Org)
+                            // Don't do all the other stuff against yourself.
+                            if (other_org == Org)
                                 continue;
 
                             float dist = (((OrgState*)other_org->GetState())->Position - state_ptr->Position).length_sqr();
@@ -421,25 +417,32 @@ void* PublicInterfaceImpl::DuplicateState(void *State)
 
 }
 
-void PublicInterfaceImpl::ComputeFitness(const std::vector<class BaseIndividual*>& Individuals, void *World)
+void PublicInterfaceImpl::ComputeFitness(const std::vector<class BaseIndividual*>& BatchIndividuals, void *World)
 {
-    for (auto& org : Individuals)
+    for (auto& org : BatchIndividuals)
         ((Individual*)org)->Reset();
 
     LastSimulationStepCount = 0;
     for (int i = 0; i < MaxSimulationSteps; i++)
     {
-        for (auto& org : Individuals)
+        for (auto& org : BatchIndividuals)
         {
-            if (!org->InSimulation)
-                continue;
-
+            // There's no need to check if the individuals are on the simulation, the individuals pointer array only have the ones from the batch
             auto state_ptr = (OrgState*)org->GetState();
 
-            org->DecideAndExecute(World, Individuals);
+            org->DecideAndExecute(World, BatchIndividuals);
 
             ((Individual*)org)->Fitness = state_ptr->Score - (state_ptr->FailedActionCountCurrent / state_ptr->FailableActionCount);
         }
         LastSimulationStepCount++;
     }
+}
+
+void* PublicInterfaceImpl::MakeWorld(void* BaseWorld)
+{
+    // Just making a copy works for this example
+    auto world = static_cast<WorldData*>(BaseWorld);
+    auto newWorld = new WorldData();
+    *newWorld = *world;
+    return newWorld;
 }

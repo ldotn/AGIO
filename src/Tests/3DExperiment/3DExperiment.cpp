@@ -283,7 +283,7 @@ void ExperimentInterface::Init()
 				// Ignore individuals that aren't being simulated right now
 				// Also, don't do all the other stuff against yourself. 
 				// You already know you don't want to eat yourself
-				if (!individual->InSimulation || individual == Org)
+				if (individual == Org)
 					continue;
 
 				// Check first if the individual is alive
@@ -399,7 +399,7 @@ void ExperimentInterface::Init()
 				// Ignore individuals that aren't being simulated right now
 				// Also, don't do all the other stuff against yourself. 
 				// You already know you don't want to eat yourself
-				if (!individual->InSimulation || individual == Org)
+				if (individual == Org)
 					continue;
 
 				auto other_state_ptr = ((OrgState*)individual->GetState());
@@ -429,7 +429,7 @@ void ExperimentInterface::Init()
 				// Ignore individuals that aren't being simulated right now
 				// Also, don't do all the other stuff against yourself. 
 				// You already know you don't want to eat yourself
-				if (!individual->InSimulation || individual == Org)
+				if (individual == Org)
 					continue;
 
 				// Check first if it hasn't been eaten too many times or if it's life is > 0
@@ -479,7 +479,7 @@ void ExperimentInterface::Init()
 				// Ignore individuals that aren't being simulated right now
 				// Also, don't do all the other stuff against yourself. 
 				// You already know you don't want to eat yourself
-				if (!individual->InSimulation || individual == Org)
+				if (individual == Org)
 					continue;
 
 				auto other_state_ptr = ((OrgState*)individual->GetState());
@@ -548,7 +548,7 @@ void ExperimentInterface::Init()
 				// Ignore individuals that aren't being simulated right now
 				// Also, don't do all the other stuff against yourself. 
 				// You already know you don't want to eat yourself
-				if (!individual->InSimulation || individual == Org)
+				if ( individual == Org)
 					continue;
 
 				auto other_state_ptr = ((OrgState*)individual->GetState());
@@ -583,7 +583,7 @@ void ExperimentInterface::Init()
 				// Ignore individuals that aren't being simulated right now
 				// Also, don't do all the other stuff against yourself. 
 				// You already know you don't want to eat yourself
-				if (!individual->InSimulation || individual == Org)
+				if (individual == Org)
 					continue;
 
 				// Check first if it hasn't been eaten too many times or if it's life is > 0

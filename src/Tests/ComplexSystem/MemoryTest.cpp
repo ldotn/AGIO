@@ -88,13 +88,13 @@ int main(int argc, char *argv[])
 
 		cout << "    World " << world_id << endl;
 		
-		Population pop;
+		Population pop(&world,24);
 		pop.Spawn(PopSizeMultiplier, SimulationSize);
 
 		for (int g = 0; g < GenerationsCount; g++)
 		{
 			if (g % 10 == 0) cout << "    Generation " << g << endl;
-			pop.Epoch(&world, [](int) {}, true);
+			pop.Epoch([](int) {}, true);
 
 			PROCESS_MEMORY_COUNTERS pmc;
 			GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc));

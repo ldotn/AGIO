@@ -15,7 +15,11 @@ namespace agio
 
 		ExperimentInterface();
 
+		// The world is not modified on this experiment, so it can be shared across workers
 		WorldData World;
+
+		void* MakeWorld(void* BaseWorld) override { return BaseWorld; }
+		void DestroyWorld(void* World) override {}
 
 		virtual ~ExperimentInterface() override {};
 
