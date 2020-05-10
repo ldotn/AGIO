@@ -79,6 +79,12 @@ int main(int argc, char *argv[])
 	// Increase simulation size to get more species at the same time
 	SimulationSize = 50;
 
+
+
+	//TEST!
+	GenerationsCount = 100;
+
+
 	cout << "Doing evolution" << endl;
 	for (int g = 0; g < GenerationsCount; g++)
 	{
@@ -131,7 +137,7 @@ int main(int argc, char *argv[])
 		fill(avg_fit.begin(), avg_fit.end(), 0);
 		fill(avg_fit_acc.begin(), avg_fit_acc.end(), 0);
 
-		for (int rep = 0; rep < Settings::SimulationReplications; rep++)
+		//for (int rep = 0; rep < Settings::SimulationReplications; rep++)
 		{
 			vector<float> fitness(individuals.size());
 			fill(fitness.begin(), fitness.end(), 0);
@@ -182,11 +188,11 @@ int main(int argc, char *argv[])
 	{
 		outf_sref << sid << L",";
 		if (type == OrgType::Omnivore)
-			outf_sref << L"Omnívoro" << endl;
+			outf_sref << L"Omnivore" << endl;
 		else if (type == OrgType::Carnivore)
-			outf_sref << L"Carnívoro" << endl;
+			outf_sref << L"Carnivore" << endl;
 		else if (type == OrgType::Herbivore)
-			outf_sref << L"Herbívoro" << endl;
+			outf_sref << L"Herbivore" << endl;
 	}
 	outf_sref.close();
 
@@ -223,15 +229,27 @@ int main(int argc, char *argv[])
 				org->GetState<OrgState>()->Enabled = true;
 		}
 
-		results.push_back(simulate());
+		vector<vector<float>> species_results(species_ids.size());
+		for (int i = 0; i < 100; i++)
+		{
+			// Do a simulation storing the fitness of each species
+			auto fit_vals = simulate();
+			
+			// Now accumulate per species values
+			// Kinda transposing vectors here
+			for (auto [id, val] : enumerate(fit_vals)) species_results[id].push_back(val);
+		}
+		
+		// Now write the the fitness vectors
+		for (auto& vec : species_results) results.push_back(vec);
 	}
 
 	// Write results to file
 	ofstream outf("interrelations.csv");
-	for (int sid = 0;sid < species_ids.size();sid++)
+	for (const auto& row : results)
 	{
-		for (const auto& rvec : results)
-			outf << rvec[sid] << ",";
+		for (const auto& column : row)
+			outf << column << ",";
 		outf << endl;
 	}
 	outf.close();
