@@ -79,12 +79,6 @@ int main(int argc, char *argv[])
 	// Increase simulation size to get more species at the same time
 	SimulationSize = 50;
 
-
-
-	//TEST!
-	GenerationsCount = 100;
-
-
 	cout << "Doing evolution" << endl;
 	for (int g = 0; g < GenerationsCount; g++)
 	{
