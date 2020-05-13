@@ -7,14 +7,14 @@ species_types = {}
 
 baseline = {}
 species_count = 0
-with open('bin/baseline_new1.csv','r') as csvfile:
+with open('bin/baseline.csv','r') as csvfile:
     freader = csv.reader(csvfile)
     for sid,data in enumerate(freader):
         baseline[sid] = [float(x) for x in data[:-1]]
 species_count = len(baseline)
 
 node_descs = []
-with open('bin/species_ref_new1.csv','r') as csvfile:
+with open('bin/species_ref.csv','r') as csvfile:
     freader = csv.reader(csvfile)
     for sid,data in enumerate(freader):
         species_types[sid] = data[1]
@@ -29,7 +29,7 @@ with open('bin/species_ref_new1.csv','r') as csvfile:
 relations = []
 relevant_species = set()
 
-with open('bin/interrelations_new1.csv','r') as csvfile:
+with open('bin/interrelations.csv','r') as csvfile:
     freader = csv.reader(csvfile)
     dataIter = iter(freader)
     for sidB in range(species_count):
