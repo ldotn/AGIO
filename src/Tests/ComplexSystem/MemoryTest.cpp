@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 
 		cout << "    World " << world_id << endl;
 		
-		Population pop(&world,24);
+		Population pop(&world);
 		pop.Spawn(PopSizeMultiplier, SimulationSize);
 
 		for (int g = 0; g < GenerationsCount; g++)

@@ -14,6 +14,7 @@
 #include <random>
 #include <queue>
 #include <thread>
+#include <chrono>
 
 #include "../../Core/Config.h"
 #include "../../Evolution/Population.h"
@@ -51,6 +52,8 @@ string SerializationFile;
 
 int main(int argc, char *argv[])
 {
+	auto start_t = chrono::high_resolution_clock::now();
+
 	string cfg_path = "../src/Tests/ComplexSystem/Config.cfg";
 	string world_path = "../assets/worlds/world0.txt";
 	if (argc == 4)
@@ -257,6 +260,9 @@ int main(int argc, char *argv[])
 
 	// Go back to non determinism
 	RNG = minstd_rand(chrono::high_resolution_clock::now().time_since_epoch().count());
+
+	auto end_t = chrono::high_resolution_clock::now();
+	cout << "Time (s) : " << chrono::duration_cast<chrono::seconds>(end_t - start_t).count() << endl;
 
 	bool exit_sim = false;
 	int step = 0;

@@ -36,7 +36,7 @@ unique_ptr<agio::Population> runEvolution(const std::string& WorldPath, bool NoO
     Interface->Init();
 
     // Spawn population
-    auto pop = make_unique<Population>(&world, 24);
+    auto pop = make_unique<Population>(&world);
     pop->Spawn(PopSizeMultiplier, SimulationSize);
 
     for (int g = 0; g < GenerationsCount; g++)

@@ -95,7 +95,7 @@ int main()
 	};
 
 	// Spawn population
-	Population pop(world_ptr, 24);
+	Population pop(world_ptr);
 	pop.Spawn(ExperimentParams::PopSizeMultiplier, ExperimentParams::SimulationSize);
 
 	// Do evolution loop

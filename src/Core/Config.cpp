@@ -15,4 +15,5 @@ void Settings::LoadFromFile(const ConfigLoader& CFG)
 	CFG.LoadValue(Settings::ParameterMutationProb,"ParameterMutationProb");
 	CFG.LoadValue(Settings::ParameterDestructiveMutationProb,"ParameterDestructiveMutationProb");
 	CFG.LoadValue(Settings::ParameterMutationSpread,"ParameterMutationSpread");
+	CFG.LoadValue(Settings::PopulationEvalThreads, "PopulationEvalThreads");
 }

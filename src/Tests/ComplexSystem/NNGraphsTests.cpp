@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
 
 	// Evolve
 	WorldData world = createWorld("../assets/worlds/world0.txt");
-	Population pop(&world,24);
+	Population pop(&world);
 	pop.Spawn(PopSizeMultiplier, SimulationSize);
 
 	for (int g = 0; g < GenerationsCount; g++)

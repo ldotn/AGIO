@@ -319,6 +319,8 @@ void Metrics::calculate_metrics(Population &pop)
 
 unique_ptr<agio::Population> runEvolution()
 {
+	auto start_t = chrono::high_resolution_clock::now();
+
     minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
     NEAT::load_neat_params("../src/Tests/PreyPredator/NEATConfig.txt");
@@ -334,7 +336,7 @@ unique_ptr<agio::Population> runEvolution()
     Interface->Init();
 
     // Spawn population
-    auto pop = make_unique<Population>(&world, 24);
+    auto pop = make_unique<Population>(&world);
     pop->Spawn(PopSizeMultiplier, SimulationSize);
 
     // Do evolution loop
@@ -358,6 +360,9 @@ unique_ptr<agio::Population> runEvolution()
 
     SRegistry registry(pop.get());
     registry.save(SerializationFile);
+
+	auto end_t = chrono::high_resolution_clock::now();
+	cout << "Time (s) : " << chrono::duration_cast<chrono::seconds>(end_t - start_t).count() << endl;
 
 	{
 		cout << "Press any letter + enter to exit" << endl;

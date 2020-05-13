@@ -38,6 +38,7 @@ string SerializationFile;
 
 int main(int argc, char *argv[])
 {
+	auto start_t = chrono::high_resolution_clock::now();
 	minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
 	string cfg_path = "../src/Tests/ComplexSystem/Config.cfg";
@@ -73,7 +74,7 @@ int main(int argc, char *argv[])
 
 	// Evolve
 	WorldData world = createWorld("../assets/worlds/world0.txt");
-	Population pop(&world, 24);
+	Population pop(&world);
 	pop.Spawn(PopSizeMultiplier, SimulationSize);
 
 	// Increase simulation size to get more species at the same time
@@ -247,4 +248,7 @@ int main(int argc, char *argv[])
 		outf << endl;
 	}
 	outf.close();
+
+	auto end_t = chrono::high_resolution_clock::now();
+	cout << "Time (s) : " << chrono::duration_cast<chrono::seconds>(end_t - start_t).count() << endl;
 }

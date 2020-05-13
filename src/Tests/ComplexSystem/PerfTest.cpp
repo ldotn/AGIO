@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 
 			cout << "    World " << world_id << endl;
 			PROFILE(evolution_time,
-				Population pop(&world, 24);
+				Population pop(&world);
 				pop.Spawn(PopSizeMultiplier, SimulationSize);
 
 				for (int g = 0; g < GenerationsCount; g++)
@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
 
 			cout << "    World " << world_id << endl;
 			PROFILE(evolution_time,
-				Population pop(&world, 24);
+				Population pop(&world);
 				pop.Spawn(PopSizeMultiplier, SimulationSize);
 
 				for (int g = 0; g < GenerationsCount; g++)
@@ -144,7 +144,7 @@ int main(int argc, char *argv[])
 		cout << "    Profiling evolution" << endl;
 		cout << "        Generations : " << GenerationsCount << endl;
 		PROFILE(evolution_time,
-			Population pop(&world, 24);
+			Population pop(&world);
 			pop.Spawn(PopSizeMultiplier, SimulationSize);
 
 			for (int g = 0; g < GenerationsCount; g++)

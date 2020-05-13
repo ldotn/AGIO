@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include "../Utils/WorkerPool.h"
+#include "../Core/Config.h"
 
 namespace NEAT
 {
@@ -65,7 +66,7 @@ namespace agio
 	{
 	public:
 		// TODO : Docs
-		Population(void* BaseWorld = nullptr, int EvaluationThreads = 1);
+		Population(void* BaseWorld = nullptr, int EvaluationThreads = Settings::PopulationEvalThreads);
 		~Population();
 
 		// Creates a new population of random individuals
