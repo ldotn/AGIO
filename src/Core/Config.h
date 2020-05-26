@@ -26,7 +26,7 @@ namespace agio
 		inline static float ProgressThreshold = 0.005f;
 
 		// Number of consecutive epochs that an species must have a progress lower than the threshold to be removed
-		inline static int SpeciesStagnancyChances = 1e10;//10;
+		inline static int SpeciesStagnancyChances = 10;
 
 		// Minimum number of individuals allowed on a species
 		inline static int MinIndividualsPerSpecies = 50;

@@ -3,6 +3,7 @@
 #include <thread>
 #include <functional>
 #include <mutex>
+#include <condition_variable>
 
 namespace agio
 {
