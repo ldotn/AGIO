@@ -93,18 +93,18 @@ int main(int argc, char *argv[])
 		cout << "Simulation Size : " << SimulationSize << endl;
 		cout << "Pop Size : " << PopulationSize << endl;
 
-		Population pop;
-		pop.Spawn(PopSizeMultiplier, SimulationSize);
-
 		WorldData world;
 		world.fill(FoodCellCount, WorldSizeX, WorldSizeY);
+
+		Population pop(&world);
+		pop.Spawn(PopSizeMultiplier, SimulationSize);
 
 		Metrics metrics;
 		for (int g = 0; g < GenerationsCount; g++)
 		{
 			((PublicInterfaceImpl*)Interface)->CurrentGenNumber = g;
 
-			pop.Epoch(&world, [&](int gen)
+			pop.Epoch([&](int gen)
 			{
 				cout << ".";
 				if(gen == GenerationsCount-1)

@@ -22,7 +22,8 @@ using namespace fpp;
 #include "../../Utils/SFMLRenderer.h"
 
 #include "neat.h"
-void runSimulation() {
+void runSimulation() 
+{
     minstd_rand RNG(chrono::high_resolution_clock::now().time_since_epoch().count());
 
     Interface = new PublicInterfaceImpl();
@@ -69,7 +70,7 @@ void runSimulation() {
 	renderer.LoadSprite("predator", "../assets/body0.png");
 	renderer.LoadSprite("prey", "../assets/body1.png");
 
-	sf::RenderWindow window(sf::VideoMode(WorldSizeX*32, WorldSizeY*32), "AGIO");
+	sf::RenderWindow window(sf::VideoMode(WorldSizeX*16, WorldSizeY*16), "AGIO");
 
 	vector<SFMLRenderer::Item> items_to_render;
 
@@ -131,7 +132,7 @@ void runSimulation() {
 			}
 		}
 		
-		renderer.Render(window, items_to_render);
+		renderer.Render(window, items_to_render, 2.0f);
 	}
 
 	for (auto org : individuals)

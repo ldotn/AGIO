@@ -34,6 +34,6 @@ namespace agio
 			sf::Color Tint = sf::Color::White;
 		};
 
-		void Render(sf::RenderWindow& Window, const std::vector<Item>& ItemsToRender);
+		void Render(sf::RenderWindow& Window, const std::vector<Item>& ItemsToRender, float Scale = 1.0f);
 	};
 }

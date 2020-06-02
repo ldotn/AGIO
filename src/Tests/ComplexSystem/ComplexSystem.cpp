@@ -86,7 +86,7 @@ void runSimulation(const string& WorldPath)
 	renderer.LoadSprite("omnivore", "../assets/omnivore.png");
 
 
-	sf::RenderWindow window(sf::VideoMode(1600, 1024), "AGIO");
+	sf::RenderWindow window(sf::VideoMode(800, 512), "AGIO");
 
 	vector<SFMLRenderer::Item> items_to_render;
 
@@ -160,7 +160,7 @@ void runSimulation(const string& WorldPath)
 			}
 		}
 
-		renderer.Render(window, items_to_render);
+		renderer.Render(window, items_to_render, 2.0f);
 	}
 
 	/*for (auto org : individuals)

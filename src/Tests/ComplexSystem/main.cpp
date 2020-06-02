@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
 	if (argc == 4)
 	{
 		auto final_pop = runEvolution(world_path, true);
-		final_pop.SaveRegistryReport(argv[2]);
+		final_pop->SaveRegistryReport(argv[2]);
 	}
 	else
 	{

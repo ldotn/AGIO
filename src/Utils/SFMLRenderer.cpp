@@ -24,7 +24,7 @@ int SFMLRenderer::LoadSprite(const string& Name, const string& Path)
 	return id;
 }
 
-void SFMLRenderer::Render(sf::RenderWindow& Window, const std::vector<SFMLRenderer::Item>& ItemsToRender)
+void SFMLRenderer::Render(sf::RenderWindow& Window, const std::vector<SFMLRenderer::Item>& ItemsToRender,float Scale)
 {
 	Window.clear();
 
@@ -37,6 +37,7 @@ void SFMLRenderer::Render(sf::RenderWindow& Window, const std::vector<SFMLRender
 
 		Window.draw(sprite);
 	}
+	Window.setView(sf::View(sf::FloatRect(0, 0, Window.getSize().x*Scale, Window.getSize().y*Scale)));
 
 	Window.display();
 }

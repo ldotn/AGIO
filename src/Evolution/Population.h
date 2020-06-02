@@ -41,12 +41,6 @@ namespace agio
 		// Each species has N "chances"
 		// If after N consecutive epochs the progress is below the threshold, it's considered stagnant
 		int EpochsUnderThreshold;
-
-		struct 
-		{
-			float RandomFitness;
-			float RealFitness;
-		} DevMetrics;
 	};
 
 	// Used to register the species that got stuck and where removed from the simulation

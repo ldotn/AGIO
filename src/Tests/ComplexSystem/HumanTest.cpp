@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
 		cout << "Evolution files not found, running evolution again. Will take some time" << endl;
 
 		// Spawn population
-		Population pop;
+		Population pop(&world);
 		pop.Spawn(PopSizeMultiplier, SimulationSize);
 
 		// Evolve
@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
 
 		for (int g = 0; g < GenerationsCount; g++)
 		{
-			pop.Epoch(&world);
+			pop.Epoch();
 		}
 
 		pop.CurrentSpeciesToRegistry();
@@ -182,7 +182,6 @@ int main(int argc, char *argv[])
 
 			SIndividual * org = new SIndividual;
 			*org = registry.Species[species_idx].Individuals[individual_idx];
-			org->InSimulation = true;
 			individuals.push_back(org);
 			species_ids[species_idx].push_back(individuals.size() - 1);
 		}
@@ -329,7 +328,7 @@ int main(int argc, char *argv[])
 				history << endl;
 				cout << endl;
 
-				// No description, just show raw sensors
+				// Show sensor values
 				auto org_ptr = (SIndividual*)individuals[idx];
 				cout << "Sensors" << endl;
 				for (int sensor_id : org_ptr->Sensors)

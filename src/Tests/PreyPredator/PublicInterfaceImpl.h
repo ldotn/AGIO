@@ -113,9 +113,7 @@ public:
 class Metrics {
 public:
 	vector<float> fitness_vec_hervibore;
-	vector<float> novelty_vec_hervibore;
 	vector<float> fitness_vec_carnivore;
-	vector<float> novelty_vec_carnivore;
 
 	vector<float> age_herbivore;
 	vector<float> age_carnivore;
@@ -148,24 +146,8 @@ public:
 	vector<float> max_coverage_herbivore;
 	vector<float> max_coverage_carnivore;
 
-	vector<float> min_eaten_herbivore_greedy;
-	vector<float> min_eaten_carnivore_greedy;
-	vector<float> max_eaten_herbivore_greedy;
-	vector<float> max_eaten_carnivore_greedy;
-
-	vector<float> avg_eaten_herbivore_greedy;
-	vector<float> avg_eaten_carnivore_greedy;
-	vector<float> avg_failed_herbivore_greedy;
-	vector<float> avg_failed_carnivore_greedy;
-	vector<float> avg_coverage_herbivore_greedy;
-	vector<float> avg_coverage_carnivore_greedy;
-
-	vector<float> avg_fitness_carnivore_random;
-	vector<float> avg_fitness_herbivore_random;
-
 	vector<float> avg_fitness_difference;
 	vector<float> avg_fitness_network;
-	vector<float> avg_fitness_random;
 	vector<float> avg_novelty_registry;
 	vector<float> species_count;
 	vector<float> min_fitness_difference;
@@ -175,10 +157,7 @@ public:
 
 	void update(Population &pop);
 
-	void plot(Population &pop);
-
 	~Metrics();
 private:
-	void calculate_metrics(Population &pop);
 	float WorldCellCount;
 };
