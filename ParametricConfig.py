@@ -22,7 +22,7 @@ ranges = [
     ('MinIndividualsPerSpecies', [25, 50, 75]),
     ('ProgressThreshold', [0.001, 0.005, 0.02])
 ]
-    ('ProgressMetricsFalloff', [0.001, 0.025, 0.1]),
+    #('ProgressMetricsFalloff', [0.001, 0.025, 0.1]),
     #('ProgressMetricsIndividuals', [5, 10, 20]),
 '''
 ranges = [

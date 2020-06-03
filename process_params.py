@@ -104,7 +104,7 @@ for entry in fitness_results:
     plot_x.append(avgf)
     plot_y.append(sc)
 
-plt.ylabel('Cantidad de especies')
-plt.xlabel('Fitness Normalizada Promedio')
+plt.ylabel('Number of species')
+plt.xlabel('Average Normalized Fitness')
 plt.scatter(plot_x,plot_y, s=5)
 plt.show()
